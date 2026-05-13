@@ -1,2 +1,0 @@
-# prado-analytics
-Aplicativo 
