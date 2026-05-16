@@ -2247,6 +2247,7 @@
                         <div class="form-group" style="margin-bottom:12px;"><label>Titularidade</label>
                             <select id="finCaixaTitular" onchange="toggleCaixaSocio()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
                                 <option value="solo">👤 100% meu</option>
+                                <option value="socio_lucro">📊 Sócio só no lucro</option>
                                 <option value="compartilhado">🤝 Compartilhado com sócio</option>
                             </select>
                         </div>
@@ -6156,9 +6157,18 @@
             // ── Patrimônio líquido = saldo em caixa + valor em estoque ──
             let totalCaixa = 0;
             caixas.forEach(c => {
-                const saldo  = calcularSaldoCaixa(c.id).saldo;
-                const meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
-                totalCaixa  += saldo * meuPct;
+                const s      = calcularSaldoCaixa(c.id);
+                const titular = c.titular || 'solo';
+                let meuValCaixa = 0;
+                if (titular === 'socio_lucro') {
+                    meuValCaixa = s.lucroTotal; // só minha parte do lucro
+                } else if (titular === 'compartilhado') {
+                    const meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
+                    meuValCaixa = s.saldo * meuPct;
+                } else {
+                    meuValCaixa = s.saldo; // 100% meu
+                }
+                totalCaixa += meuValCaixa;
             });
 
             let totalEstoque = 0;
@@ -10732,10 +10742,12 @@
             });
 
             const CATS_EMPRESTIMO = new Set(['emprestimo_entrada','emprestimo_saida','emprestimo']);
+            // Caixas especiais (pessoal e reserva) contam os empréstimos no saldo
+            const ehCaixaEspecial = (caixa.tipo === '_pessoal' || caixa.tipo === '_reserva');
             movs.filter(m => m.caixaId == caixaId).forEach(m => {
                 const v = parseFloat(m.valor) || 0;
-                // Empréstimos entre caixas NÃO entram no faturamento/saídas — ficam separados
-                if (CATS_EMPRESTIMO.has(m.categoria)) return;
+                // Empréstimos: excluir só em caixas de negócio (não especiais)
+                if (!ehCaixaEspecial && CATS_EMPRESTIMO.has(m.categoria)) return;
                 if (m.tipo === 'entrada') {
                     faturamento += v;
                     if (m.categoria === 'venda' && !vendasCaixa.length) {
@@ -17789,11 +17801,23 @@
             var itens = [];
             var totalGeral = 0;
             caixas.forEach(function(c) {
-                var s      = calcularSaldoCaixa(c.id);
-                var meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
-                var meuSaldo = s.saldo * meuPct;
+                var s       = calcularSaldoCaixa(c.id);
+                var titular = c.titular || 'solo';
+                var meuSaldo = 0;
+                var descPct  = '';
+                if (titular === 'socio_lucro') {
+                    meuSaldo = s.lucroTotal;
+                    descPct  = 'sócio no lucro — R$ ' + s.lucroTotal.toFixed(0);
+                } else if (titular === 'compartilhado') {
+                    var meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
+                    meuSaldo = s.saldo * meuPct;
+                    descPct  = meuPct*100 + '% de R$ ' + s.saldo.toFixed(0);
+                } else {
+                    meuSaldo = s.saldo;
+                    descPct  = 'saldo total';
+                }
                 if (Math.abs(meuSaldo) < 0.01) return;
-                itens.push({ nome: c.nome, saldo: s.saldo, meuPct, meuSaldo, tipo: c.tipo });
+                itens.push({ nome: c.nome, saldo: s.saldo, meuSaldo, tipo: c.tipo, descPct });
                 totalGeral += meuSaldo;
             });
             itens.sort(function(a,b){ return b.meuSaldo - a.meuSaldo; });
@@ -17805,7 +17829,7 @@
                 var pct  = totalGeral > 0 ? (item.meuSaldo / totalGeral * 100) : 0;
                 var ico  = item.tipo === '_pessoal' ? '💜' : item.tipo === '_reserva' ? '🛡️' : '💼';
                 var corB = item.meuSaldo >= 0 ? 'var(--blue)' : 'var(--red)';
-                var desc = item.meuPct < 1 ? item.meuPct*100+'% de R$ '+item.saldo.toFixed(0) : 'saldo total';
+                var desc = item.descPct || 'saldo total';
                 return '<div style="padding:8px 0;border-bottom:1px solid var(--border);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
                         '<div style="font-size:12px;font-weight:700;color:var(--text-main);">'+ico+' '+item.nome+'</div>' +
@@ -17993,7 +18017,8 @@
                     <div class="form-group"><label>Titularidade</label>
                         <select id="ec-titular" onchange="document.getElementById('ec-socio-pct-group').style.display=this.value==='compartilhado'?'block':'none'" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">
                             <option value="solo" ${(cx.titular||'solo')==='solo'?'selected':''}>👤 100% meu</option>
-                            <option value="compartilhado" ${cx.titular==='compartilhado'?'selected':''}>🤝 Compartilhado</option>
+                            <option value="socio_lucro" ${cx.titular==='socio_lucro'?'selected':''}>📊 Sócio só no lucro</option>
+                            <option value="compartilhado" ${cx.titular==='compartilhado'?'selected':''}>🤝 Compartilhado (% do saldo)</option>
                         </select>
                     </div>
                 </div>
