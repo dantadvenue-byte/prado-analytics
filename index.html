@@ -2,8 +2,21 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Prado Analytics</title>
+
+    <!-- ═══ PWA ═══ -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#7c3aed">
+    <meta name="application-name" content="Prado Analytics">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <!-- Apple/iOS específico -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Prado">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <style>
@@ -1036,6 +1049,21 @@
             location.reload();
         };
     })();
+
+    // ═══════════════════════════════════════════════════
+    // PWA — registrar Service Worker
+    // ═══════════════════════════════════════════════════
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(function(reg) {
+                    console.log('[PWA] Service Worker registrado:', reg.scope);
+                })
+                .catch(function(err) {
+                    console.warn('[PWA] Falha ao registrar Service Worker:', err);
+                });
+        });
+    }
     </script>
 
         <!-- Overlay sidebar mobile -->
@@ -1125,6 +1153,12 @@
 
     <!-- MAIN -->
     <main class="main-content">
+        <!-- Banner de status de conexão (oculto por default) -->
+        <div id="banner-conexao" style="display:none;padding:10px 20px;font-size:13px;font-weight:600;text-align:center;color:#fff;transition:all 0.3s ease;">
+            <span id="banner-conexao-icone">⚠️</span>
+            <span id="banner-conexao-msg">Sem conexão — suas alterações ficam salvas localmente e sincronizam quando voltar.</span>
+        </div>
+
         <!-- TOPBAR -->
         <div class="topbar">
             <!-- Hambúrguer mobile -->
@@ -1144,9 +1178,10 @@
                 <input type="text" placeholder="Buscar qualquer coisa...">
             </div>
             <div class="topbar-actions">
-                <div class="status-badge">
-                    <span class="status-dot"></span>
-                    sistema ativo
+                <!-- Indicador online/offline (dinâmico) -->
+                <div id="status-conexao" class="status-badge" title="Status da conexão">
+                    <span class="status-dot" id="status-conexao-dot"></span>
+                    <span id="status-conexao-txt">sistema ativo</span>
                 </div>
                 <!-- Notificações -->
                 <div style="position:relative;">
@@ -4072,6 +4107,77 @@
                 if (primeiroSub) primeiroSub.style.display = 'block';
             }
         }
+
+        // ═══════════════════════════════════════════════════
+        // MONITOR DE CONEXÃO
+        // Atualiza o indicador da topbar e mostra banner quando perde/recupera internet
+        // ═══════════════════════════════════════════════════
+        var _conexaoEstado = 'desconhecido';   // 'online' | 'offline'
+        var _conexaoBannerTimer = null;
+
+        function atualizarStatusConexao(forcaEstado) {
+            var online = (forcaEstado !== undefined)
+                ? forcaEstado
+                : (typeof navigator !== 'undefined' && navigator.onLine);
+            var novoEstado = online ? 'online' : 'offline';
+            var mudou = (novoEstado !== _conexaoEstado);
+            _conexaoEstado = novoEstado;
+
+            // Indicador na topbar
+            var dot   = document.getElementById('status-conexao-dot');
+            var txt   = document.getElementById('status-conexao-txt');
+            var badge = document.getElementById('status-conexao');
+            if (dot && txt && badge) {
+                if (online) {
+                    dot.style.background  = 'var(--green)';
+                    dot.style.boxShadow   = '0 0 8px var(--green)';
+                    txt.textContent       = 'online';
+                    badge.style.borderColor = 'rgba(16,185,129,0.25)';
+                    badge.title           = 'Conectado ao Supabase';
+                } else {
+                    dot.style.background  = 'var(--red)';
+                    dot.style.boxShadow   = '0 0 8px var(--red)';
+                    txt.textContent       = 'offline';
+                    badge.style.borderColor = 'rgba(239,68,68,0.35)';
+                    badge.title           = 'Sem conexão — alterações em cache local';
+                }
+            }
+
+            // Banner (mostra só nas mudanças de estado)
+            if (mudou) {
+                var banner = document.getElementById('banner-conexao');
+                var icone  = document.getElementById('banner-conexao-icone');
+                var msg    = document.getElementById('banner-conexao-msg');
+                if (!banner) return;
+                if (_conexaoBannerTimer) { clearTimeout(_conexaoBannerTimer); _conexaoBannerTimer = null; }
+                if (online) {
+                    banner.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    if (icone) icone.textContent = '✓';
+                    if (msg)   msg.textContent   = ' Conexão restaurada. Sincronizando...';
+                    banner.style.display = 'block';
+                    // Some sozinho após 3s
+                    _conexaoBannerTimer = setTimeout(function(){
+                        banner.style.display = 'none';
+                    }, 3000);
+                } else {
+                    banner.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    if (icone) icone.textContent = '⚠️';
+                    if (msg)   msg.textContent   = ' Sem conexão — suas alterações ficam salvas localmente e sincronizam quando voltar.';
+                    banner.style.display = 'block';
+                    // Banner de offline FICA até voltar a conexão
+                }
+            }
+        }
+
+        // Listeners do navegador (mudam quando ganha/perde Wi-Fi/4G)
+        window.addEventListener('online',  function(){ atualizarStatusConexao(true);  });
+        window.addEventListener('offline', function(){ atualizarStatusConexao(false); });
+
+        // Verifica logo no boot
+        setTimeout(function(){ atualizarStatusConexao(); }, 100);
+
+        // Re-verifica a cada 30s (caso o sistema operacional não dispare os eventos)
+        setInterval(function(){ atualizarStatusConexao(); }, 30000);
         
         // ===== TABS =====
         function mudarSub(btn) {
