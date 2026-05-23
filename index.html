@@ -3868,30 +3868,303 @@
             <!-- SUB: DASHBOARD PESSOAL -->
             <div id="vp-sub-dashboard">
 
-            <!-- Score de Evolução -->
-            <div id="vp-score-wrap" style="margin-bottom:16px;"></div>
+            <!-- ═══════════════════════════════════════
+                 CSS DASHBOARD VIDA PESSOAL (Glow)
+                 ═══════════════════════════════════════ -->
+            <style>
+                /* Background glow específico vida pessoal */
+                #vida-pessoal #vp-sub-dashboard{position:relative;}
+                #vida-pessoal #vp-sub-dashboard::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 800px 400px at 30% 10%, rgba(236,72,153,0.08), transparent 60%),radial-gradient(ellipse 600px 300px at 80% 60%, rgba(168,85,247,0.06), transparent 60%);}
+                #vida-pessoal #vp-sub-dashboard > * {position:relative;z-index:1;}
 
-            <!-- Grid principal -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-                <!-- Desafios ativos -->
-                <div id="vp-dash-desafios" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;"></div>
-                <!-- Leituras em andamento -->
-                <div id="vp-dash-leituras" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;"></div>
+                /* Cards */
+                .vp-card{background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:22px;position:relative;overflow:hidden;backdrop-filter:blur(20px);}
+                .vp-card.glow-purple{border-color:rgba(168,85,247,0.18);box-shadow:0 0 40px rgba(168,85,247,0.06);}
+                .vp-card.glow-pink{border-color:rgba(236,72,153,0.18);box-shadow:0 0 40px rgba(236,72,153,0.06);}
+                .vp-card.glow-amber{border-color:rgba(245,158,11,0.18);box-shadow:0 0 40px rgba(245,158,11,0.06);}
+                .vp-card.glow-green{border-color:rgba(16,185,129,0.18);box-shadow:0 0 40px rgba(16,185,129,0.06);}
+                .vp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+                .vp-head h3{font-size:14px;font-weight:600;color:#b4b4cc;display:flex;align-items:center;gap:8px;margin:0;}
+                .vp-chip{font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);color:#7a7a96;}
+                .vp-chip.up{color:#10b981;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.2);}
+                .vp-chip.fire{color:#f97316;background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.25);}
+                .vp-btn{background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.25);color:#a855f7;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;}
+                .vp-btn:hover{background:rgba(168,85,247,0.18);}
+
+                /* Grids */
+                .vp-grid-hero{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:18px;}
+                .vp-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+
+                /* Score com breakdown */
+                .vp-score-card{background:linear-gradient(135deg, rgba(168,85,247,0.10), rgba(236,72,153,0.04));border-color:rgba(168,85,247,0.25);}
+                .vp-score-card::before{content:"";position:absolute;top:-20%;right:-10%;width:55%;height:140%;background:radial-gradient(circle, rgba(236,72,153,0.18), transparent 60%);pointer-events:none;}
+                .vp-score-row{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;}
+                .vp-score-ring{position:relative;width:140px;height:140px;flex-shrink:0;}
+                .vp-score-ring svg{transform:rotate(-90deg);}
+                .vp-score-ring .bg{stroke:rgba(255,255,255,0.05);}
+                .vp-score-ring .fill{stroke:url(#vpScoreGrad);stroke-linecap:round;filter:drop-shadow(0 0 12px rgba(236,72,153,0.5));}
+                .vp-score-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+                .vp-score-center .n{font-size:48px;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em;}
+                .vp-score-center .pct{font-size:18px;color:#ec4899;}
+                .vp-score-center .l{font-size:9.5px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;font-weight:600;}
+                .vp-score-breakdown{display:flex;flex-direction:column;gap:10px;}
+                .vp-score-bar-item{display:flex;flex-direction:column;gap:4px;}
+                .vp-score-bar-item .row{display:flex;justify-content:space-between;font-size:12px;}
+                .vp-score-bar-item .row .l{color:#b4b4cc;display:flex;align-items:center;gap:6px;font-weight:500;}
+                .vp-score-bar-item .row .v{font-family:'JetBrains Mono',monospace;font-weight:700;color:#fff;}
+                .vp-score-bar-item .bar{height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;}
+                .vp-score-bar-item .bar .fill{height:100%;border-radius:99px;}
+                .vp-score-bar-item.desafios .bar .fill{background:linear-gradient(90deg,#a855f7,#ec4899);}
+                .vp-score-bar-item.leituras .bar .fill{background:linear-gradient(90deg,#3b82f6,#06b6d4);}
+                .vp-score-bar-item.rotina   .bar .fill{background:linear-gradient(90deg,#f59e0b,#f97316);}
+                .vp-score-bar-item.metas    .bar .fill{background:linear-gradient(90deg,#10b981,#14b8a6);}
+
+                /* Energia da semana */
+                .vp-energia .v-grande{font-size:32px;font-weight:800;line-height:1.05;color:#fff;letter-spacing:-0.02em;margin:6px 0 4px;}
+                .vp-energia .v-grande em{font-style:italic;background:linear-gradient(90deg,#f59e0b,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;}
+                .vp-energia .resumo{font-size:13px;color:#7a7a96;line-height:1.5;margin-bottom:18px;}
+                .vp-energia-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px;align-items:end;height:56px;}
+                .vp-energia-bar{position:relative;background:linear-gradient(180deg,#a855f7,#ec4899);border-radius:6px 6px 2px 2px;min-height:6px;box-shadow:0 0 8px rgba(236,72,153,0.3);transition:all 0.2s;}
+                .vp-energia-bar.low{background:linear-gradient(180deg,#475569,#334155);box-shadow:none;}
+                .vp-energia-axis{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:10px;color:#4d4d6a;text-transform:uppercase;letter-spacing:0.08em;text-align:center;font-family:'JetBrains Mono',monospace;font-weight:600;}
+                .vp-energia-detail{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:#7a7a96;display:flex;gap:14px;flex-wrap:wrap;}
+                .vp-energia-detail span{display:flex;align-items:center;gap:5px;}
+                .vp-energia-detail b{color:#fff;font-weight:600;}
+
+                /* Humor diário */
+                .vp-humor-card{background:linear-gradient(135deg, rgba(245,158,11,0.08), rgba(236,72,153,0.04));border-color:rgba(245,158,11,0.25);}
+                .vp-humor-row{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;}
+                .vp-humor-pergunta{font-size:18px;font-weight:600;color:#fff;letter-spacing:-0.01em;margin-bottom:6px;}
+                .vp-humor-sub{font-size:12px;color:#7a7a96;}
+                .vp-humor-opcoes{display:flex;gap:8px;}
+                .vp-humor-emoji{width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;transition:all 0.2s;user-select:none;}
+                .vp-humor-emoji:hover{background:rgba(255,255,255,0.08);transform:scale(1.05);}
+                .vp-humor-emoji.selected{background:linear-gradient(135deg,#f59e0b,#ec4899);border-color:transparent;box-shadow:0 0 16px rgba(245,158,11,0.4);transform:scale(1.1);}
+                .vp-humor-trilha{display:grid;grid-template-columns:repeat(30,1fr);gap:3px;margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.06);}
+                .vp-humor-dia{height:14px;border-radius:3px;background:rgba(255,255,255,0.04);}
+                .vp-humor-dia.h1{background:#7f1d1d;}
+                .vp-humor-dia.h2{background:#9a3412;}
+                .vp-humor-dia.h3{background:#854d0e;}
+                .vp-humor-dia.h4{background:#15803d;}
+                .vp-humor-dia.h5{background:#0d9488;}
+                .vp-humor-trilha-label{display:flex;justify-content:space-between;font-size:10px;color:#4d4d6a;text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;font-family:'JetBrains Mono',monospace;}
+
+                /* Desafios com streak */
+                .vp-desafios-list{display:flex;flex-direction:column;gap:10px;}
+                .vp-desafio-row{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;transition:all 0.2s;}
+                .vp-desafio-row.hot{border-color:rgba(249,115,22,0.18);background:linear-gradient(135deg, rgba(249,115,22,0.04), transparent);}
+                .vp-desafio-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;}
+                .vp-desafio-head .nome{font-size:14px;font-weight:600;color:#fff;display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+                .vp-desafio-head .nome .emoji{font-size:18px;flex-shrink:0;}
+                .vp-desafio-head .streak{display:flex;align-items:center;gap:6px;background:linear-gradient(135deg, rgba(249,115,22,0.15), rgba(245,158,11,0.10));border:1px solid rgba(249,115,22,0.25);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;color:#f97316;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+                .vp-desafio-head .streak.zero{opacity:0.4;background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.06);color:#7a7a96;}
+                .vp-desafio-head .streak .fire{filter:drop-shadow(0 0 4px rgba(249,115,22,0.6));}
+                .vp-desafio-progress{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+                .vp-desafio-progress .bar{flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;}
+                .vp-desafio-progress .bar .fill{height:100%;background:linear-gradient(90deg,#a855f7,#ec4899);border-radius:99px;box-shadow:0 0 10px rgba(168,85,247,0.4);}
+                .vp-desafio-progress .pct{font-size:11px;font-weight:700;color:#b4b4cc;font-family:'JetBrains Mono',monospace;min-width:34px;text-align:right;}
+                .vp-desafio-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#7a7a96;font-family:'JetBrains Mono',monospace;}
+                .vp-desafio-btn{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:#10b981;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+                .vp-desafio-btn:hover{background:rgba(16,185,129,0.18);}
+                .vp-desafio-btn.done{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.08);color:#7a7a96;cursor:default;}
+
+                /* Leituras */
+                .vp-leitura-row{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;margin-bottom:10px;}
+                .vp-leitura-row:last-child{margin-bottom:0;}
+                .vp-leitura-row .head-r{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;}
+                .vp-leitura-row .titulo{font-size:14px;font-weight:600;color:#fff;display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+                .vp-leitura-row .bar{height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;margin-bottom:4px;}
+                .vp-leitura-row .bar .fill{height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);border-radius:99px;box-shadow:0 0 8px rgba(59,130,246,0.4);}
+                .vp-leitura-row .meta{display:flex;justify-content:space-between;font-size:11px;color:#7a7a96;font-family:'JetBrains Mono',monospace;}
+                .vp-leitura-row .parado{color:#f59e0b;font-size:11px;}
+
+                /* Empty state */
+                .vp-empty{text-align:center;padding:28px 16px;color:#7a7a96;font-size:13px;}
+                .vp-empty .emoji{font-size:32px;display:block;margin-bottom:10px;opacity:0.5;}
+                .vp-empty button{margin-top:14px;}
+
+                /* Lista simples (rotina/tarefas) */
+                .vp-lista{display:flex;flex-direction:column;gap:8px;}
+                .vp-lista-item{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;}
+                .vp-lista-check{width:18px;height:18px;border-radius:5px;border:1.5px solid rgba(255,255,255,0.18);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;}
+                .vp-lista-check.done{background:linear-gradient(135deg,#10b981,#14b8a6);border-color:transparent;}
+                .vp-lista-item .txt{flex:1;font-size:13px;color:#b4b4cc;}
+                .vp-lista-item.done .txt{color:#4d4d6a;text-decoration:line-through;}
+
+                /* Mindset */
+                .vp-mindset-card{background:linear-gradient(135deg, rgba(245,158,11,0.10), rgba(168,85,247,0.04));border-color:rgba(245,158,11,0.20);}
+                .vp-mindset-frase{font-size:20px;font-style:italic;color:#fff;line-height:1.4;padding:8px 0;letter-spacing:-0.005em;}
+                .vp-mindset-frase .quote{color:#f59e0b;font-size:32px;line-height:0;vertical-align:-12px;margin:0 4px;}
+
+                /* Heatmap consistência */
+                .vp-heatmap{display:grid;grid-template-columns:repeat(35,1fr);gap:3px;}
+                .vp-heat-cell{aspect-ratio:1;border-radius:3px;background:rgba(255,255,255,0.04);}
+                .vp-heat-cell.h1{background:#3b0764;}
+                .vp-heat-cell.h2{background:#6b21a8;}
+                .vp-heat-cell.h3{background:#a855f7;}
+                .vp-heat-cell.h4{background:#c084fc;box-shadow:0 0 6px rgba(192,132,252,0.4);}
+                .vp-heatmap-foot{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#7a7a96;margin-top:14px;font-family:'JetBrains Mono',monospace;flex-wrap:wrap;gap:10px;}
+                .vp-heatmap-legend{display:flex;align-items:center;gap:5px;}
+                .vp-heatmap-legend .leg-cell{width:11px;height:11px;border-radius:2px;}
+
+                /* Diário */
+                .vp-diario-textarea{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;color:#b4b4cc;font-family:inherit;font-size:13px;width:100%;min-height:80px;resize:vertical;outline:none;box-sizing:border-box;}
+                .vp-diario-textarea:focus{border-color:rgba(168,85,247,0.3);}
+                .vp-diario-meta{display:flex;justify-content:space-between;margin-top:8px;font-size:10px;color:#4d4d6a;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.08em;}
+
+                /* Metas */
+                .vp-metas-list{display:flex;flex-direction:column;gap:10px;}
+                .vp-meta-row{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;}
+                .vp-meta-row .head-r{display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;}
+                .vp-meta-row .nome{font-size:14px;font-weight:600;color:#fff;}
+                .vp-meta-row .pct-meta{font-size:12px;font-weight:700;color:#10b981;font-family:'JetBrains Mono',monospace;}
+                .vp-meta-row .bar{height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;}
+                .vp-meta-row .bar .fill{height:100%;background:linear-gradient(90deg,#10b981,#14b8a6);border-radius:99px;}
+
+                /* Responsive */
+                @media (max-width: 900px){
+                    .vp-grid-hero, .vp-grid-2{grid-template-columns:1fr;}
+                    .vp-score-row{grid-template-columns:1fr;text-align:center;}
+                    .vp-humor-row{grid-template-columns:1fr;}
+                    .vp-heatmap{grid-template-columns:repeat(15,1fr);}
+                }
+            </style>
+
+            <!-- Gradientes SVG -->
+            <svg width="0" height="0" style="position:absolute;"><defs>
+                <linearGradient id="vpScoreGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#a855f7"/>
+                    <stop offset="100%" stop-color="#ec4899"/>
+                </linearGradient>
+            </defs></svg>
+
+            <!-- ═══════ HERO: SCORE + ENERGIA SEMANA ═══════ -->
+            <div class="vp-grid-hero">
+                <!-- Score com breakdown -->
+                <div class="vp-card vp-score-card">
+                    <div class="vp-head">
+                        <h3>Score pessoal</h3>
+                        <span class="vp-chip" id="vp-score-delta">—</span>
+                    </div>
+                    <div class="vp-score-row">
+                        <div class="vp-score-ring">
+                            <svg width="140" height="140">
+                                <circle class="bg" cx="70" cy="70" r="55" fill="none" stroke-width="10"/>
+                                <circle class="fill" id="vp-score-fill" cx="70" cy="70" r="55" fill="none" stroke-width="10" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
+                            </svg>
+                            <div class="vp-score-center">
+                                <div class="n" id="vp-score-n">0<span class="pct">%</span></div>
+                                <div class="l">evolução</div>
+                            </div>
+                        </div>
+                        <div class="vp-score-breakdown" id="vp-score-breakdown"></div>
+                    </div>
+                </div>
+
+                <!-- Energia da semana -->
+                <div class="vp-card vp-energia glow-amber">
+                    <div class="vp-head"><h3>⚡ Energia desta semana</h3></div>
+                    <div class="v-grande" id="vp-energia-titulo">Carregando...</div>
+                    <div class="resumo" id="vp-energia-resumo">—</div>
+                    <div class="vp-energia-bars" id="vp-energia-bars"></div>
+                    <div class="vp-energia-axis"><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span><span>HOJE</span></div>
+                    <div class="vp-energia-detail" id="vp-energia-detail"></div>
+                </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-                <!-- Rotina matinal -->
-                <div id="vp-dash-rotina" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;"></div>
-                <!-- Tarefas pessoais do dia -->
-                <div id="vp-dash-tarefas" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;"></div>
+
+            <!-- ═══════ HUMOR DIÁRIO ═══════ -->
+            <div class="vp-card vp-humor-card" style="margin-bottom:18px;">
+                <div class="vp-humor-row">
+                    <div>
+                        <div class="vp-humor-pergunta">Como foi seu dia?</div>
+                        <div class="vp-humor-sub">1 toque por dia · sem texto, sem fricção</div>
+                    </div>
+                    <div class="vp-humor-opcoes">
+                        <div class="vp-humor-emoji" data-humor="1" onclick="vpMarcarHumor(1)" title="Difícil">😞</div>
+                        <div class="vp-humor-emoji" data-humor="2" onclick="vpMarcarHumor(2)" title="Mediano">😐</div>
+                        <div class="vp-humor-emoji" data-humor="3" onclick="vpMarcarHumor(3)" title="Bom">🙂</div>
+                        <div class="vp-humor-emoji" data-humor="4" onclick="vpMarcarHumor(4)" title="Ótimo">😊</div>
+                        <div class="vp-humor-emoji" data-humor="5" onclick="vpMarcarHumor(5)" title="Incrível">🤩</div>
+                    </div>
+                </div>
+                <div class="vp-humor-trilha" id="vp-humor-trilha"></div>
+                <div class="vp-humor-trilha-label" id="vp-humor-trilha-label">
+                    <span>—</span>
+                    <span>Trilha emocional do mês</span>
+                    <span>hoje</span>
+                </div>
             </div>
-            <!-- Mindset -->
-            <div id="vp-dash-mindset" style="margin-bottom:14px;"></div>
-            <!-- Gráfico de consistência -->
-            <div id="vp-dash-grid-consistencia" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;"></div>
-            <!-- Diário -->
-            <div id="vp-dash-diario" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px;"></div>
-            <!-- Metas pessoais -->
-            <div id="vp-dash-metas" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:14px;"></div>
+
+            <!-- ═══════ DESAFIOS + LEITURAS ═══════ -->
+            <div class="vp-grid-2">
+                <div class="vp-card glow-purple">
+                    <div class="vp-head">
+                        <h3>🏆 Desafios Ativos</h3>
+                        <button class="vp-btn" onclick="abrirModalNovoDesafio()">+ Novo</button>
+                    </div>
+                    <div id="vp-dash-desafios"></div>
+                </div>
+                <div class="vp-card">
+                    <div class="vp-head">
+                        <h3>📚 Lendo / Estudando</h3>
+                        <button class="vp-btn" onclick="ativarAba('conhecimento')">+ Adicionar</button>
+                    </div>
+                    <div id="vp-dash-leituras"></div>
+                </div>
+            </div>
+
+            <!-- ═══════ ROTINA + TAREFAS ═══════ -->
+            <div class="vp-grid-2">
+                <div class="vp-card glow-amber">
+                    <div class="vp-head">
+                        <h3>☀️ Rotina de Hoje</h3>
+                        <button class="vp-btn" onclick="abrirModalConfigRotina()">⚙️ Configurar</button>
+                    </div>
+                    <div id="vp-dash-rotina"></div>
+                </div>
+                <div class="vp-card glow-green">
+                    <div class="vp-head">
+                        <h3>✅ Tarefas Pessoais</h3>
+                        <button class="vp-btn" onclick="abrirModalNovaTarefaPessoal()">+ Nova</button>
+                    </div>
+                    <div id="vp-dash-tarefas"></div>
+                </div>
+            </div>
+
+            <!-- ═══════ MINDSET ═══════ -->
+            <div class="vp-card vp-mindset-card" style="margin-bottom:18px;">
+                <div class="vp-head">
+                    <h3>🧠 Mindset do dia</h3>
+                    <button class="vp-btn" onclick="abrirModalNovaFrase()">+ Frase</button>
+                </div>
+                <div id="vp-dash-mindset"></div>
+            </div>
+
+            <!-- ═══════ CONSISTÊNCIA (heatmap) ═══════ -->
+            <div class="vp-card glow-purple" style="margin-bottom:18px;">
+                <div class="vp-head">
+                    <h3>📈 Consistência — últimos 35 dias</h3>
+                    <span class="vp-chip" id="vp-cons-chip">— dias ativos</span>
+                </div>
+                <div id="vp-dash-grid-consistencia"></div>
+            </div>
+
+            <!-- ═══════ DIÁRIO + METAS ═══════ -->
+            <div class="vp-grid-2">
+                <div class="vp-card">
+                    <div class="vp-head">
+                        <h3>📝 Diário do dia</h3>
+                    </div>
+                    <div id="vp-dash-diario"></div>
+                </div>
+                <div class="vp-card glow-green">
+                    <div class="vp-head">
+                        <h3>🎯 Metas pessoais</h3>
+                        <button class="vp-btn" onclick="abrirModalNovaMetaPessoal()">+ Nova</button>
+                    </div>
+                    <div id="vp-dash-metas"></div>
+                </div>
+            </div>
 
             </div><!-- /vp-sub-dashboard -->
 
@@ -14267,12 +14540,42 @@
             var metas      = _ler('vp-metas')   || [];
             var diario     = _ler('vp-diario')  || [];
             var rotina     = _ler('vp-rotina')  || {};
+            var humor      = _ler('vp-humor')   || {};   // { 'YYYY-MM-DD': 1-5 }
             var tarefas    = (_ler('tarefas')||[]).filter(function(t){
                 return t.tipo==='pessoal' && t.status!=='concluida' &&
                        t.prazo && t.prazo <= hojeStr;
             });
 
-            // ── Score de Evolução ──
+            // ═══════ HELPERS ═══════
+            function diaIso(d){ return d.toISOString().slice(0,10); }
+            function ontemDe(d){ var x = new Date(d); x.setDate(x.getDate()-1); return x; }
+
+            // ═══════ STREAKS — calcular pra cada desafio ═══════
+            // Streak = dias consecutivos a partir de HOJE em que o check do dia foi true
+            // (ou ontem se hoje ainda não marcado)
+            function calcularStreak(d) {
+                var checks = d.checks || [];
+                if (!checks.length) return 0;
+                // checks[i] === true significa que o dia (inicio + i) foi feito
+                // Calcular qual é o índice do dia "hoje" baseado em d.inicio
+                var inicio = d.inicio ? new Date(d.inicio) : null;
+                if (!inicio) return 0;
+                inicio.setHours(0,0,0,0);
+                var diff = Math.floor((hoje - inicio) / (86400000));
+                if (diff < 0) return 0;
+                // Começar contando do índice de hoje (ou ontem se hoje vazio)
+                var idx = Math.min(diff, checks.length - 1);
+                if (idx < 0) return 0;
+                var streak = 0;
+                var startIdx = checks[idx] ? idx : (idx - 1);
+                for (var i = startIdx; i >= 0; i--) {
+                    if (checks[i]) streak++;
+                    else break;
+                }
+                return streak;
+            }
+
+            // ═══════ SCORE COM BREAKDOWN ═══════
             var scoreDesafios = 0, scoreLivros = 0, scoreRotina = 0, scoreMetas = 0;
             desafios.forEach(function(d){
                 var checks = d.checks||[];
@@ -14282,220 +14585,511 @@
             });
             if (desafios.length) scoreDesafios = Math.round(scoreDesafios/desafios.length);
             scoreLivros = Math.min(livros.length * 20, 100);
-            var rotinaHoje = (rotina[hojeStr]||[]);
+            var rotinaHoje  = (rotina[hojeStr]||[]);
             var rotinaItens = rotina._itens||[];
             scoreRotina = rotinaItens.length ? Math.round((rotinaHoje.filter(Boolean).length/rotinaItens.length)*100) : 0;
             var metasConcl = metas.filter(function(m){ return m.concluida; }).length;
             scoreMetas = metas.length ? Math.round((metasConcl/metas.length)*100) : 0;
             var scoreTotal = Math.round((scoreDesafios + scoreLivros + scoreRotina + scoreMetas) / 4);
-            var corScore   = scoreTotal>=75?'var(--green)':scoreTotal>=50?'#ffc107':'var(--red)';
 
-            // Score wrap
-            var elScore = document.getElementById('vp-score-wrap');
-            if (elScore) {
-                elScore.innerHTML = '<div style="background:linear-gradient(135deg,rgba(124,58,237,0.1),rgba(124,58,237,0.04));border:1px solid rgba(124,58,237,0.25);border-radius:12px;padding:16px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;">' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:42px;font-weight:900;color:'+corScore+';font-family:JetBrains Mono,monospace;line-height:1;">'+scoreTotal+'</div>' +
-                        '<div style="font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;">Score pessoal</div>' +
-                    '</div>' +
-                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-                        vpScoreBar('🏆 Desafios', scoreDesafios) +
-                        vpScoreBar('📚 Leituras', scoreLivros) +
-                        vpScoreBar('🌅 Rotina', scoreRotina) +
-                        vpScoreBar('🎯 Metas', scoreMetas) +
-                    '</div>' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:24px;">' + (scoreTotal>=75?'🔥':scoreTotal>=50?'⚡':'💪') + '</div>' +
-                        '<div style="font-size:10px;color:var(--text-dim);">' + (scoreTotal>=75?'Excelente':scoreTotal>=50?'Bom':'Melhorar') + '</div>' +
-                    '</div>' +
-                '</div>';
+            // Atualizar ring + número
+            var scoreN = document.getElementById('vp-score-n');
+            if (scoreN) scoreN.innerHTML = scoreTotal + '<span class="pct">%</span>';
+            var scoreFill = document.getElementById('vp-score-fill');
+            if (scoreFill) {
+                var totalC = 2 * Math.PI * 55;
+                scoreFill.setAttribute('stroke-dashoffset', (totalC * (1 - scoreTotal/100)).toFixed(1));
+            }
+            // Breakdown
+            var elBd = document.getElementById('vp-score-breakdown');
+            if (elBd) {
+                function barItem(classe, emoji, label, pct){
+                    return '<div class="vp-score-bar-item ' + classe + '">' +
+                        '<div class="row"><span class="l">' + emoji + ' ' + label + '</span><span class="v">' + pct + '%</span></div>' +
+                        '<div class="bar"><div class="fill" style="width:' + pct + '%;"></div></div>' +
+                    '</div>';
+                }
+                elBd.innerHTML =
+                    barItem('desafios', '🏆', 'Desafios', scoreDesafios) +
+                    barItem('leituras', '📚', 'Leituras', scoreLivros) +
+                    barItem('rotina',   '☀️', 'Rotina',   scoreRotina) +
+                    barItem('metas',    '🎯', 'Metas',    scoreMetas);
+            }
+            // Delta (placeholder — sem histórico de score salvo)
+            var elDelta = document.getElementById('vp-score-delta');
+            if (elDelta) { elDelta.className = 'vp-chip'; elDelta.textContent = 'esta semana'; }
+
+            // ═══════ ENERGIA DA SEMANA ═══════
+            // Para cada dos últimos 7 dias, calcular "atividade do dia" (0-100):
+            //   - +30 se algum desafio foi marcado nesse dia
+            //   - +25 se livro/curso teve progresso (página/aula)
+            //   - +20 se rotina daquele dia teve pelo menos 1 check
+            //   - +15 se tem tarefa pessoal concluída nesse dia
+            //   - +10 se humor foi >= 3
+            var diasSemana = [];
+            for (var i = 6; i >= 0; i--) {
+                var d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                var ds = diaIso(d);
+                var score = 0;
+                // Desafios marcados nesse dia
+                desafios.forEach(function(des) {
+                    var inicio = des.inicio ? new Date(des.inicio) : null;
+                    if (!inicio) return;
+                    inicio.setHours(0,0,0,0);
+                    var diff = Math.floor((d - inicio) / 86400000);
+                    if (diff >= 0 && diff < (des.checks||[]).length && des.checks[diff]) score += 30;
+                });
+                // Rotina marcada nesse dia
+                if (rotina[ds] && rotina[ds].filter(Boolean).length > 0) score += 20;
+                // Tarefas concluídas nesse dia (não temos data de conclusão precisa — usar tarefas que viraram concluídas nesse dia se houver)
+                var tarefasDia = (_ler('tarefas')||[]).filter(function(t){
+                    return t.tipo==='pessoal' && t.status==='concluida' && t.dataConclusao === ds;
+                });
+                if (tarefasDia.length > 0) score += 15;
+                // Humor
+                if (humor[ds] && humor[ds] >= 3) score += 10;
+                // Livros — bem aproximado, só conta se tem algum livro com progresso recente
+                if (livros.some(function(l){ return l.ultimaLeitura === ds; })) score += 25;
+                // Cap em 100
+                score = Math.min(100, score);
+                diasSemana.push({ ds: ds, score: score, isHoje: i === 0 });
             }
 
-            // ── Desafios ──
+            // Calcular total semana atual + comparar com semana anterior pra dizer "forte/média/devagar"
+            var totalSemana = diasSemana.reduce(function(s, d){ return s + d.score; }, 0);
+            // Semana anterior
+            var diasSemanaAnt = [];
+            for (var i = 13; i >= 7; i--) {
+                var d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                var ds = diaIso(d);
+                var score = 0;
+                desafios.forEach(function(des) {
+                    var inicio = des.inicio ? new Date(des.inicio) : null;
+                    if (!inicio) return;
+                    inicio.setHours(0,0,0,0);
+                    var diff = Math.floor((d - inicio) / 86400000);
+                    if (diff >= 0 && diff < (des.checks||[]).length && des.checks[diff]) score += 30;
+                });
+                if (rotina[ds] && rotina[ds].filter(Boolean).length > 0) score += 20;
+                if (humor[ds] && humor[ds] >= 3) score += 10;
+                diasSemanaAnt.push(score);
+            }
+            var totalSemanaAnt = diasSemanaAnt.reduce(function(s, v){ return s + v; }, 0);
+            var deltaSemana = totalSemana - totalSemanaAnt;
+
+            // Classificar
+            var classificacao, resumo;
+            if (totalSemana >= 350)      classificacao = 'forte';
+            else if (totalSemana >= 200) classificacao = 'consistente';
+            else if (totalSemana >= 100) classificacao = 'morna';
+            else                         classificacao = 'devagar';
+
+            var elTit = document.getElementById('vp-energia-titulo');
+            if (elTit) elTit.innerHTML = 'Semana <em>' + classificacao + '</em>';
+
+            var elRes = document.getElementById('vp-energia-resumo');
+            if (elRes) {
+                if (totalSemana === 0) {
+                    elRes.textContent = 'Sem atividade registrada esta semana. Marque seus desafios e rotina para ver o pulso aqui.';
+                } else if (deltaSemana > 50) {
+                    elRes.textContent = 'Você está acima da semana passada. Continue assim!';
+                } else if (deltaSemana < -50) {
+                    elRes.textContent = 'Ritmo um pouco abaixo da semana passada. Que tal marcar algo agora?';
+                } else {
+                    elRes.textContent = 'Ritmo estável em relação à semana passada.';
+                }
+            }
+
+            // Renderizar barras
+            var elBars = document.getElementById('vp-energia-bars');
+            if (elBars) {
+                var maxScore = Math.max.apply(null, diasSemana.map(function(d){ return d.score; }).concat([1]));
+                elBars.innerHTML = diasSemana.map(function(d){
+                    var h = Math.max(8, (d.score / 100) * 100);
+                    var classe = d.score < 20 ? 'vp-energia-bar low' : 'vp-energia-bar';
+                    return '<div class="' + classe + '" style="height:' + h + '%;" title="' + d.ds + ': ' + d.score + ' pts"></div>';
+                }).join('');
+            }
+
+            // Detail (contagens da semana)
+            var diasComDesafio = diasSemana.filter(function(d){ return d.score >= 30; }).length;
+            var diasComLivro   = diasSemana.filter(function(d){
+                return livros.some(function(l){ return l.ultimaLeitura === d.ds; });
+            }).length;
+            var diasComRotina  = diasSemana.filter(function(d){ return rotina[d.ds] && rotina[d.ds].filter(Boolean).length > 0; }).length;
+
+            var elDet = document.getElementById('vp-energia-detail');
+            if (elDet) {
+                elDet.innerHTML =
+                    '<span>🏆 <b>' + diasComDesafio + '</b> dia' + (diasComDesafio!==1?'s':'') + ' com desafio</span>' +
+                    '<span>📚 <b>' + diasComLivro + '</b> dia' + (diasComLivro!==1?'s':'') + ' lendo</span>' +
+                    '<span>☀️ <b>' + diasComRotina + '</b> rotina' + (diasComRotina!==1?'s':'') + '</span>';
+            }
+
+            // ═══════ HUMOR DIÁRIO ═══════
+            // Marcar emoji do dia se já tem humor cadastrado pra hoje
+            document.querySelectorAll('.vp-humor-emoji').forEach(function(el){
+                el.classList.remove('selected');
+            });
+            if (humor[hojeStr]) {
+                var el = document.querySelector('.vp-humor-emoji[data-humor="' + humor[hojeStr] + '"]');
+                if (el) el.classList.add('selected');
+            }
+            // Trilha do mês (30 dias)
+            var elTrilha = document.getElementById('vp-humor-trilha');
+            if (elTrilha) {
+                var htmlTrilha = '';
+                for (var i = 29; i >= 0; i--) {
+                    var d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                    var ds = diaIso(d);
+                    var h = humor[ds];
+                    htmlTrilha += '<div class="vp-humor-dia' + (h ? ' h' + h : '') + '" title="' + ds + (h ? ': humor ' + h : ': sem registro') + '"></div>';
+                }
+                elTrilha.innerHTML = htmlTrilha;
+            }
+            // Label da trilha
+            var elTrilhaLabel = document.getElementById('vp-humor-trilha-label');
+            if (elTrilhaLabel) {
+                var d30 = new Date(); d30.setDate(d30.getDate() - 29);
+                var meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+                var inicio30 = d30.getDate() + ' ' + meses[d30.getMonth()];
+                elTrilhaLabel.children[0].textContent = inicio30;
+            }
+
+            // ═══════ DESAFIOS (com streak) ═══════
             var elDes = document.getElementById('vp-dash-desafios');
             if (elDes) {
-                elDes.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:10px;">🏆 Desafios Ativos</div>' +
-                    (desafios.length ? desafios.slice(0,4).map(function(d){
-                        var inicio = new Date(d.dataInicio+'T00:00:00');
-                        var checks = d.checks||[];
-                        var feitos = checks.filter(Boolean).length;
-                        var total  = d.duracao||30;
-                        var pct    = Math.round((feitos/total)*100);
-                        var streak = _calcStreak(d);
-                        var corP   = pct>=80?'var(--green)':pct>=50?'#ffc107':'var(--red)';
-                        // Hoje marcado?
-                        var diaIdx = Math.floor((hoje-inicio)/86400000);
-                        var marcadoHoje = checks[diaIdx]===true;
-                        return '<div style="margin-bottom:8px;padding:8px;background:var(--bg-hover);border-radius:8px;">' +
-                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-                                '<span style="font-size:12px;font-weight:600;color:var(--text-main);">'+(d.emoji||'🏆')+' '+d.nome+'</span>' +
-                                '<div style="display:flex;gap:5px;align-items:center;">' +
-                                    (streak>0?'<span style="font-size:10px;color:#ffc107;font-weight:700;">🔥'+streak+'</span>':'') +
-                                    '<button onclick="toggleDia('+d.id+','+diaIdx+');setTimeout(renderVPDashboard,300)" style="font-size:10px;padding:2px 7px;border-radius:5px;cursor:pointer;font-family:inherit;font-weight:700;border:1px solid '+(marcadoHoje?'var(--green)':'var(--border)')+';background:'+(marcadoHoje?'rgba(16,185,129,0.15)':'var(--bg-surface)')+';color:'+(marcadoHoje?'var(--green)':'var(--text-dim)')+';">'+(marcadoHoje?'✓ Feito':'Marcar')+'</button>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div style="height:4px;background:var(--bg-surface);border-radius:2px;overflow:hidden;">' +
-                                '<div style="height:100%;background:'+corP+';width:'+pct+'%;border-radius:2px;"></div>' +
-                            '</div>' +
-                            '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">'+feitos+'/'+total+' dias · '+pct+'%</div>' +
+                if (!desafios.length) {
+                    elDes.innerHTML =
+                        '<div class="vp-empty">' +
+                            '<span class="emoji">🏆</span>' +
+                            '<div>Nenhum desafio ativo</div>' +
+                            '<button class="vp-btn" onclick="abrirModalNovoDesafio()">+ Criar primeiro desafio</button>' +
                         '</div>';
-                    }).join('') + (desafios.length>4?'<div style="font-size:10px;color:var(--text-dim);text-align:center;">+'+( desafios.length-4)+' mais</div>':'')
-                    : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:12px 0;">Nenhum desafio ativo<br><button onclick="navegarPara(\x27desafios\x27)" style="margin-top:6px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;">+ Criar desafio</button></div>');
+                } else {
+                    elDes.innerHTML = '<div class="vp-desafios-list">' + desafios.slice(0, 5).map(function(d){
+                        var checks = d.checks || [];
+                        var feitos = checks.filter(Boolean).length;
+                        var total  = d.duracao || 30;
+                        var pct    = Math.min(100, Math.round((feitos/total) * 100));
+                        var streak = calcularStreak(d);
+                        var emoji  = d.emoji || '🎯';
+
+                        // Verificar se hoje já está marcado
+                        var inicio = d.inicio ? new Date(d.inicio) : null;
+                        var idxHoje = inicio ? Math.floor((hoje - inicio.setHours(0,0,0,0))/86400000) : -1;
+                        var hojeMarcado = idxHoje >= 0 && idxHoje < checks.length && checks[idxHoje];
+
+                        var btnMarcar = hojeMarcado
+                            ? '<button class="vp-desafio-btn done">✓ Feito hoje</button>'
+                            : '<button class="vp-desafio-btn" onclick="vpMarcarDesafio(' + d.id + ')">✓ Marcar hoje</button>';
+
+                        var streakHtml = streak > 0
+                            ? '<div class="streak"><span class="fire">🔥</span> ' + streak + ' dia' + (streak!==1?'s':'') + '</div>'
+                            : '<div class="streak zero">— dias</div>';
+
+                        return '<div class="vp-desafio-row' + (streak >= 3 ? ' hot' : '') + '">' +
+                            '<div class="vp-desafio-head">' +
+                                '<div class="nome"><span class="emoji">' + emoji + '</span>' + (d.nome || 'Desafio') + '</div>' +
+                                streakHtml +
+                            '</div>' +
+                            '<div class="vp-desafio-progress">' +
+                                '<div class="bar"><div class="fill" style="width:' + pct + '%;"></div></div>' +
+                                '<div class="pct">' + pct + '%</div>' +
+                            '</div>' +
+                            '<div class="vp-desafio-meta">' +
+                                '<span>' + feitos + '/' + total + ' dias</span>' +
+                                btnMarcar +
+                            '</div>' +
+                        '</div>';
+                    }).join('') + '</div>';
+                }
             }
 
-            // ── Leituras ──
+            // ═══════ LEITURAS ═══════
             var elLeit = document.getElementById('vp-dash-leituras');
             if (elLeit) {
-                var todosCon = livros.concat(cursos);
-                elLeit.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:10px;">📚 Lendo / Estudando</div>' +
-                    (todosCon.length ? todosCon.slice(0,4).map(function(item){
-                        var pct = item.progresso||0;
-                        var cor = pct>=80?'var(--green)':pct>=40?'#ffc107':'var(--blue)';
-                        var ico = item.plataforma ? '🎓' : '📚';
-                        return '<div style="margin-bottom:8px;padding:8px;background:var(--bg-hover);border-radius:8px;">' +
-                            '<div style="font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:4px;">'+ico+' '+item.titulo+'</div>' +
-                            (item.autor?'<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">por '+item.autor+'</div>':'') +
-                            '<div style="height:4px;background:var(--bg-surface);border-radius:2px;overflow:hidden;">' +
-                                '<div style="height:100%;background:'+cor+';width:'+pct+'%;border-radius:2px;"></div>' +
-                            '</div>' +
-                            '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">'+pct+'% concluído</div>' +
+                var items = [];
+                livros.forEach(function(l){
+                    var pgAtual = parseFloat(l.paginaAtual) || 0;
+                    var pgTotal = parseFloat(l.totalPaginas) || 0;
+                    var pct = pgTotal > 0 ? Math.min(100, Math.round(pgAtual/pgTotal*100)) : 0;
+                    var paradoDias = 0;
+                    if (l.ultimaLeitura) {
+                        paradoDias = Math.floor((hoje - new Date(l.ultimaLeitura))/86400000);
+                    }
+                    items.push({ tipo: '📘', nome: l.titulo, pct: pct, atual: pgAtual, total: pgTotal, unidade: 'pág.', parado: paradoDias });
+                });
+                cursos.forEach(function(c){
+                    var aulasAtual = parseFloat(c.aulasFeitas) || 0;
+                    var aulasTotal = parseFloat(c.totalAulas) || 0;
+                    var pct = aulasTotal > 0 ? Math.min(100, Math.round(aulasAtual/aulasTotal*100)) : 0;
+                    items.push({ tipo: '🎓', nome: c.nome, pct: pct, atual: aulasAtual, total: aulasTotal, unidade: 'aulas', parado: 0 });
+                });
+
+                if (!items.length) {
+                    elLeit.innerHTML =
+                        '<div class="vp-empty">' +
+                            '<span class="emoji">📖</span>' +
+                            '<div>Nenhum livro ou curso em andamento</div>' +
+                            '<button class="vp-btn" onclick="ativarAba(\'conhecimento\')">+ Adicionar leitura</button>' +
                         '</div>';
-                    }).join('') + (todosCon.length>4?'<div style="font-size:10px;color:var(--text-dim);text-align:center;">+'+( todosCon.length-4)+' mais</div>':'')
-                    : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:12px 0;">Nenhuma leitura em andamento<br><button onclick="navegarPara(\x27conhecimento\x27)" style="margin-top:6px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--blue);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;">+ Adicionar livro</button></div>');
+                } else {
+                    elLeit.innerHTML = items.slice(0, 4).map(function(it){
+                        var paradoTxt = it.parado > 3
+                            ? '<span class="parado">parado há ' + it.parado + 'd</span>'
+                            : '';
+                        return '<div class="vp-leitura-row">' +
+                            '<div class="head-r">' +
+                                '<div class="titulo">' + it.tipo + ' ' + it.nome + '</div>' +
+                                paradoTxt +
+                            '</div>' +
+                            '<div class="bar"><div class="fill" style="width:' + it.pct + '%;"></div></div>' +
+                            '<div class="meta">' +
+                                '<span>' + it.pct + '% concluído</span>' +
+                                '<span>' + it.atual + '/' + it.total + ' ' + it.unidade + '</span>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('');
+                }
             }
 
-            // ── Rotina Matinal ──
+            // ═══════ ROTINA ═══════
             var elRotina = document.getElementById('vp-dash-rotina');
             if (elRotina) {
-                var itens = rotina._itens || [];
-                var hoje_ = rotina[hojeStr] || [];
-                elRotina.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-                    '<div style="font-size:12px;font-weight:700;color:var(--text-main);">🌅 Rotina de Hoje</div>' +
-                    '<button onclick="vpAbrirEditarRotina()" style="font-size:10px;padding:2px 8px;border-radius:5px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-family:inherit;">✏️</button>' +
-                '</div>' +
-                (itens.length ? itens.map(function(item, i){
-                    var feito = hoje_[i]===true;
-                    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">' +
-                        '<button onclick="vpToggleRotina('+i+')" style="width:22px;height:22px;border-radius:50%;border:2px solid '+(feito?'var(--green)':'var(--border)')+';background:'+(feito?'rgba(16,185,129,0.15)':'none')+';cursor:pointer;font-size:11px;flex-shrink:0;color:'+(feito?'var(--green)':'var(--text-dim)')+';">'+(feito?'✓':'')+'</button>' +
-                        '<span style="font-size:12px;color:'+(feito?'var(--text-dim)':'var(--text-main)')+';'+(feito?'text-decoration:line-through;':'')+'">'+item+'</span>' +
-                    '</div>';
-                }).join('') + '<div style="font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center;">'+hoje_.filter(Boolean).length+'/'+itens.length+' concluídos hoje</div>'
-                : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:8px 0;">Nenhum item na rotina<br><button onclick="vpAbrirEditarRotina()" style="margin-top:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;">+ Configurar rotina</button></div>');
+                if (!rotinaItens.length) {
+                    elRotina.innerHTML =
+                        '<div class="vp-empty">' +
+                            '<span class="emoji">☀️</span>' +
+                            '<div>Nenhum item na rotina</div>' +
+                            '<button class="vp-btn" onclick="abrirModalConfigRotina()">+ Configurar rotina</button>' +
+                        '</div>';
+                } else {
+                    elRotina.innerHTML = '<div class="vp-lista">' + rotinaItens.map(function(item, idx){
+                        var feito = rotinaHoje[idx];
+                        return '<div class="vp-lista-item' + (feito ? ' done' : '') + '">' +
+                            '<div class="vp-lista-check' + (feito ? ' done' : '') + '" onclick="vpToggleRotina(' + idx + ')">' + (feito ? '✓' : '') + '</div>' +
+                            '<div class="txt">' + item + '</div>' +
+                        '</div>';
+                    }).join('') + '</div>';
+                }
             }
 
-            // ── Tarefas pessoais do dia ──
+            // ═══════ TAREFAS ═══════
             var elTar = document.getElementById('vp-dash-tarefas');
             if (elTar) {
-                elTar.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:10px;">✅ Tarefas Pessoais</div>' +
-                    (tarefas.length ? tarefas.slice(0,5).map(function(t){
-                        var atrasada = t.prazo < hojeStr;
-                        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">' +
-                            '<button onclick="vpConcluirTarefa('+t.id+')" style="width:22px;height:22px;border-radius:50%;border:2px solid '+(atrasada?'var(--red)':'var(--purple-light)')+';background:none;cursor:pointer;font-size:11px;flex-shrink:0;color:'+(atrasada?'var(--red)':'var(--purple-light)')+';">✓</button>' +
-                            '<div style="flex:1;min-width:0;">' +
-                                '<div style="font-size:12px;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+t.titulo+'</div>' +
-                                (atrasada?'<div style="font-size:10px;color:var(--red);">⚠️ Atrasada</div>':'<div style="font-size:10px;color:var(--text-dim);">📅 Hoje</div>') +
-                            '</div>' +
+                if (!tarefas.length) {
+                    elTar.innerHTML =
+                        '<div class="vp-empty">' +
+                            '<span class="emoji">📋</span>' +
+                            '<div>Nenhuma tarefa pessoal para hoje</div>' +
+                            '<button class="vp-btn" onclick="abrirModalNovaTarefaPessoal()">+ Adicionar tarefa</button>' +
                         '</div>';
-                    }).join('') + (tarefas.length>5?'<div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:4px;">+'+( tarefas.length-5)+' mais</div>':'')
-                    : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:12px 0;">✅ Nenhuma tarefa pessoal para hoje</div>');
+                } else {
+                    elTar.innerHTML = '<div class="vp-lista">' + tarefas.slice(0, 8).map(function(t){
+                        return '<div class="vp-lista-item">' +
+                            '<div class="vp-lista-check" onclick="vpConcluirTarefa(' + t.id + ')"></div>' +
+                            '<div class="txt">' + (t.descricao || t.titulo || 'Tarefa') + '</div>' +
+                        '</div>';
+                    }).join('') + '</div>';
+                }
             }
 
-            // ── Mindset ──
+            // ═══════ MINDSET ═══════
             var elMind = document.getElementById('vp-dash-mindset');
-            if (elMind && mindset.length) {
-                var idx = Math.floor(new Date().getDate() % mindset.length);
-                var frase = mindset[idx];
-                elMind.innerHTML = '<div style="background:linear-gradient(135deg,rgba(255,193,7,0.08),rgba(255,193,7,0.02));border:1px solid rgba(255,193,7,0.2);border-radius:12px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;">' +
-                    '<div>' +
-                        '<div style="font-size:10px;color:#ffc107;font-weight:700;text-transform:uppercase;margin-bottom:6px;">💭 Mindset do dia</div>' +
-                        '<div style="font-size:14px;font-style:italic;color:var(--text-main);font-weight:500;">"'+frase.texto+'"</div>' +
-                        (frase.autor?'<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">— '+frase.autor+'</div>':'') +
-                    '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">' +
-                        '<button onclick="vpAbrirMindset()" style="font-size:10px;padding:3px 9px;border-radius:5px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);color:#ffc107;cursor:pointer;font-family:inherit;">+ Frase</button>' +
-                    '</div>' +
-                '</div>';
-            } else if (elMind) {
-                elMind.innerHTML = '<div style="background:rgba(255,193,7,0.06);border:1px solid rgba(255,193,7,0.15);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;">' +
-                    '<div style="font-size:12px;color:var(--text-dim);">💭 Cadastre suas frases de mindset</div>' +
-                    '<button onclick="vpAbrirMindset()" style="font-size:11px;padding:5px 12px;border-radius:6px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);color:#ffc107;cursor:pointer;font-family:inherit;font-weight:700;">+ Adicionar frase</button>' +
-                '</div>';
+            if (elMind) {
+                if (!mindset.length) {
+                    elMind.innerHTML = '<div class="vp-empty" style="padding:14px 0;"><span class="emoji">🧠</span><div>Nenhuma frase ainda</div><button class="vp-btn" onclick="abrirModalNovaFrase()">+ Adicionar primeira frase</button></div>';
+                } else {
+                    var frase = mindset[Math.floor(Math.random() * mindset.length)];
+                    var texto = typeof frase === 'string' ? frase : (frase.texto || frase.frase || '');
+                    elMind.innerHTML = '<div class="vp-mindset-frase"><span class="quote">"</span>' + texto + '<span class="quote">"</span></div>';
+                }
             }
 
-            // ── Gráfico de Consistência (últimos 35 dias) ──
+            // ═══════ CONSISTÊNCIA (heatmap) ═══════
             var elGrid = document.getElementById('vp-dash-grid-consistencia');
             if (elGrid) {
-                var dias35 = [];
-                for (var i=34; i>=0; i--) {
-                    var d = new Date(hoje.getTime() - i*86400000);
-                    var ds = d.toISOString().slice(0,10);
-                    // Verificar se teve atividade: desafio marcado OU rotina OU diário
-                    var temDesafio = desafios.some(function(dz){
-                        var ini = new Date(dz.dataInicio+'T00:00:00');
-                        var idx2 = Math.floor((d-ini)/86400000);
-                        return idx2>=0 && (dz.checks||[])[idx2]===true;
+                // Para cada um dos últimos 35 dias, calcular intensidade (0-4)
+                var html35 = '<div class="vp-heatmap">';
+                var diasAtivos = 0;
+                var d0 = new Date(); d0.setDate(d0.getDate() - 34); d0.setHours(0,0,0,0);
+                for (var i = 0; i < 35; i++) {
+                    var d = new Date(d0); d.setDate(d.getDate() + i);
+                    var ds = diaIso(d);
+                    var pts = 0;
+                    desafios.forEach(function(des){
+                        var inicio = des.inicio ? new Date(des.inicio) : null;
+                        if (!inicio) return;
+                        inicio.setHours(0,0,0,0);
+                        var diff = Math.floor((d - inicio)/86400000);
+                        if (diff >= 0 && diff < (des.checks||[]).length && des.checks[diff]) pts += 1;
                     });
-                    var temRotina  = (rotina[ds]||[]).some(Boolean);
-                    var temDiario  = diario.some(function(e){ return e.data===ds; });
-                    var nivel = (temDesafio?1:0) + (temRotina?1:0) + (temDiario?1:0);
-                    dias35.push({ ds, nivel, d });
+                    if (rotina[ds] && rotina[ds].filter(Boolean).length > 0) pts += 1;
+                    if (humor[ds] && humor[ds] >= 3) pts += 1;
+                    // Determinar nível 0-4
+                    var nivel = 0;
+                    if (pts === 0)      nivel = 0;
+                    else if (pts === 1) nivel = 1;
+                    else if (pts === 2) nivel = 2;
+                    else if (pts === 3) nivel = 3;
+                    else                nivel = 4;
+                    if (pts > 0) diasAtivos++;
+                    html35 += '<div class="vp-heat-cell' + (nivel ? ' h' + nivel : '') + '" title="' + ds + ': ' + pts + ' pontos"></div>';
                 }
-                var cores = ['var(--bg-hover)', 'rgba(124,58,237,0.3)', 'rgba(124,58,237,0.6)', 'var(--purple-light)'];
-                elGrid.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--text-main);margin-bottom:10px;">📈 Consistência — últimos 35 dias</div>' +
-                    '<div style="display:flex;gap:3px;flex-wrap:wrap;">' +
-                    dias35.map(function(dia){
-                        var isHoje = dia.ds === hojeStr;
-                        return '<div title="'+dia.ds+' · '+dia.nivel+' atividade(s)" style="width:20px;height:20px;border-radius:4px;background:'+cores[dia.nivel]+';'+(isHoje?'outline:2px solid var(--purple-light);outline-offset:1px;':'')+'cursor:default;flex-shrink:0;"></div>';
-                    }).join('') +
-                    '</div>' +
-                    '<div style="display:flex;gap:10px;margin-top:8px;align-items:center;font-size:10px;color:var(--text-dim);">' +
-                        '<span>Menos</span>' +
-                        ['var(--bg-hover)','rgba(124,58,237,0.3)','rgba(124,58,237,0.6)','var(--purple-light)'].map(function(c){ return '<div style="width:12px;height:12px;border-radius:2px;background:'+c+'"></div>'; }).join('') +
-                        '<span>Mais</span>' +
-                    '</div>';
+                html35 += '</div>';
+                // Footer
+                html35 += '<div class="vp-heatmap-foot">' +
+                    '<span>' + diaIso(d0).split('-').reverse().slice(0,2).join('/') + '</span>' +
+                    '<div class="vp-heatmap-legend">Menos' +
+                        '<span class="leg-cell" style="background:rgba(255,255,255,0.04);"></span>' +
+                        '<span class="leg-cell" style="background:#3b0764;"></span>' +
+                        '<span class="leg-cell" style="background:#6b21a8;"></span>' +
+                        '<span class="leg-cell" style="background:#a855f7;"></span>' +
+                        '<span class="leg-cell" style="background:#c084fc;"></span>' +
+                    'Mais</div>' +
+                    '<span>hoje</span>' +
+                '</div>';
+                elGrid.innerHTML = html35;
+                // Chip de dias ativos
+                var elCons = document.getElementById('vp-cons-chip');
+                if (elCons) elCons.textContent = diasAtivos + ' dias ativos';
             }
 
-            // ── Diário ──
+            // ═══════ DIÁRIO ═══════
             var elDiario = document.getElementById('vp-dash-diario');
             if (elDiario) {
-                var entHoje = diario.find(function(e){ return e.data===hojeStr; });
-                elDiario.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-                    '<div style="font-size:12px;font-weight:700;color:var(--text-main);">📓 Diário de Hoje</div>' +
-                    '<span style="font-size:10px;color:var(--text-dim);">'+new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"})+'</span>' +
-                '</div>' +
-                '<textarea id="vp-diario-input" placeholder="Como foi seu dia? O que aprendeu? O que pode melhorar?" style="width:100%;min-height:80px;background:var(--bg-hover);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-size:12px;resize:vertical;box-sizing:border-box;">'+(entHoje?entHoje.texto:'')+'</textarea>' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">' +
-                    '<div style="font-size:10px;color:var(--text-dim);">'+diario.length+' entradas no diário</div>' +
-                    '<button onclick="vpSalvarDiario()" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);padding:5px 12px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;">💾 Salvar</button>' +
-                '</div>';
+                var entradaHoje = diario.find(function(d){ return d.data === hojeStr; });
+                var texto = entradaHoje ? (entradaHoje.texto || '') : '';
+                elDiario.innerHTML =
+                    '<textarea class="vp-diario-textarea" id="vp-diario-input" placeholder="O que você gostaria de registrar hoje? Pensamentos, conquistas, ideias..." onchange="vpSalvarDiario(this.value)" oninput="vpAtualizarContador()">' + texto + '</textarea>' +
+                    '<div class="vp-diario-meta">' +
+                        '<span id="vp-diario-contador">' + texto.length + ' caracteres</span>' +
+                        '<span>Salva automaticamente</span>' +
+                    '</div>';
             }
 
-            // ── Metas Pessoais ──
+            // ═══════ METAS PESSOAIS ═══════
             var elMetas = document.getElementById('vp-dash-metas');
             if (elMetas) {
-                elMetas.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-                    '<div style="font-size:12px;font-weight:700;color:var(--text-main);">🎯 Metas Pessoais</div>' +
-                    '<button onclick="vpAbrirFormMeta()" style="font-size:10px;padding:3px 9px;border-radius:5px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green);cursor:pointer;font-family:inherit;font-weight:700;">+ Meta</button>' +
-                '</div>' +
-                (metas.length ? metas.map(function(m){
-                    var pct = m.atual && m.total ? Math.min(Math.round((m.atual/m.total)*100),100) : (m.concluida?100:0);
-                    var cor = pct>=100?'var(--green)':pct>=50?'#ffc107':'var(--blue)';
-                    return '<div style="margin-bottom:8px;padding:8px;background:var(--bg-hover);border-radius:8px;">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-                            '<span style="font-size:12px;font-weight:600;color:var(--text-main);">'+(m.emoji||'🎯')+' '+m.titulo+'</span>' +
-                            '<div style="display:flex;gap:4px;">' +
-                                '<span style="font-size:10px;color:'+cor+';font-weight:700;">'+pct+'%</span>' +
-                                '<button onclick="vpToggleMeta('+m.id+')" style="font-size:10px;padding:1px 6px;border-radius:4px;cursor:pointer;font-family:inherit;border:1px solid '+(m.concluida?'var(--green)':'var(--border)')+';background:'+(m.concluida?'rgba(16,185,129,0.15)':'var(--bg-surface)')+';color:'+(m.concluida?'var(--green)':'var(--text-muted)')+';">'+(m.concluida?'✓':'○')+'</button>' +
-                                '<button onclick="vpDeletarMeta('+m.id+')" style="font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;background:none;border:1px solid rgba(244,63,94,0.2);color:var(--red);">✕</button>' +
+                if (!metas.length) {
+                    elMetas.innerHTML =
+                        '<div class="vp-empty">' +
+                            '<span class="emoji">🎯</span>' +
+                            '<div>Defina metas pessoais para acompanhar o progresso aqui</div>' +
+                            '<button class="vp-btn" onclick="abrirModalNovaMetaPessoal()">+ Criar primeira meta</button>' +
+                        '</div>';
+                } else {
+                    elMetas.innerHTML = '<div class="vp-metas-list">' + metas.slice(0, 5).map(function(m){
+                        var pct = m.concluida ? 100 : (m.progresso || 0);
+                        return '<div class="vp-meta-row">' +
+                            '<div class="head-r">' +
+                                '<div class="nome">' + (m.titulo || m.nome || 'Meta') + '</div>' +
+                                '<div class="pct-meta">' + pct + '%</div>' +
                             '</div>' +
-                        '</div>' +
-                        '<div style="height:4px;background:var(--bg-surface);border-radius:2px;overflow:hidden;">' +
-                            '<div style="height:100%;background:'+cor+';width:'+pct+'%;border-radius:2px;"></div>' +
-                        '</div>' +
-                    '</div>';
-                }).join('')
-                : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:8px 0;">Nenhuma meta cadastrada</div>');
+                            '<div class="bar"><div class="fill" style="width:' + pct + '%;"></div></div>' +
+                        '</div>';
+                    }).join('') + '</div>';
+                }
             }
+        }
+
+        // ═══════════════════════════════════════════════
+        // FUNÇÕES AUXILIARES NOVAS
+        // ═══════════════════════════════════════════════
+
+        // Marcar humor do dia
+        async function vpMarcarHumor(nivel) {
+            var hojeStr = new Date().toISOString().slice(0,10);
+            var humor = _ler('vp-humor') || {};
+            humor[hojeStr] = nivel;
+            await _salvar('vp-humor', humor);
+            // Atualizar visual
+            document.querySelectorAll('.vp-humor-emoji').forEach(function(el){ el.classList.remove('selected'); });
+            var sel = document.querySelector('.vp-humor-emoji[data-humor="' + nivel + '"]');
+            if (sel) sel.classList.add('selected');
+            // Re-renderizar trilha
+            setTimeout(renderVPDashboard, 100);
+        }
+
+        // Marcar desafio do dia
+        async function vpMarcarDesafio(id) {
+            var desafios = _ler('desafios') || [];
+            var idx = desafios.findIndex(function(d){ return d.id === id || String(d.id) === String(id); });
+            if (idx < 0) { alert('Desafio não encontrado'); return; }
+            var d = desafios[idx];
+            if (!d.inicio) d.inicio = new Date().toISOString().slice(0,10);
+            if (!d.checks) d.checks = [];
+            var hoje = new Date(); hoje.setHours(0,0,0,0);
+            var inicio = new Date(d.inicio); inicio.setHours(0,0,0,0);
+            var diaIdx = Math.floor((hoje - inicio)/86400000);
+            if (diaIdx < 0) { alert('Desafio ainda não começou'); return; }
+            while (d.checks.length <= diaIdx) d.checks.push(false);
+            if (d.checks[diaIdx]) { alert('Já marcado hoje! 🔥'); return; }
+            d.checks[diaIdx] = true;
+            await _salvar('desafios', desafios);
+            renderVPDashboard();
+        }
+
+        // Toggle item da rotina
+        async function vpToggleRotina(idx) {
+            var rotina = _ler('vp-rotina') || {};
+            var hojeStr = new Date().toISOString().slice(0,10);
+            if (!rotina[hojeStr]) rotina[hojeStr] = [];
+            rotina[hojeStr][idx] = !rotina[hojeStr][idx];
+            await _salvar('vp-rotina', rotina);
+            renderVPDashboard();
+        }
+
+        // Concluir tarefa pessoal
+        async function vpConcluirTarefa(id) {
+            var tarefas = _ler('tarefas') || [];
+            var idx = tarefas.findIndex(function(t){ return t.id === id || String(t.id) === String(id); });
+            if (idx < 0) return;
+            tarefas[idx].status = 'concluida';
+            tarefas[idx].dataConclusao = new Date().toISOString().slice(0,10);
+            await _salvar('tarefas', tarefas);
+            renderVPDashboard();
+        }
+
+        // Salvar diário (debounce)
+        var _vpDiarioTimer = null;
+        async function vpSalvarDiario(texto) {
+            if (_vpDiarioTimer) clearTimeout(_vpDiarioTimer);
+            _vpDiarioTimer = setTimeout(async function(){
+                var diario = _ler('vp-diario') || [];
+                var hojeStr = new Date().toISOString().slice(0,10);
+                var idx = diario.findIndex(function(d){ return d.data === hojeStr; });
+                if (idx >= 0) {
+                    diario[idx].texto = texto;
+                } else {
+                    diario.push({ id: Date.now() + Math.floor(Math.random()*1000), data: hojeStr, texto: texto });
+                }
+                await _salvar('vp-diario', diario);
+            }, 800);
+        }
+        function vpAtualizarContador() {
+            var ta = document.getElementById('vp-diario-input');
+            var el = document.getElementById('vp-diario-contador');
+            if (ta && el) el.textContent = ta.value.length + ' caracteres';
+            vpSalvarDiario(ta.value);
+        }
+
+        // Placeholders para botões (se as funções originais existem, ela leva pra elas; senão, alerta amigável)
+        if (typeof abrirModalNovoDesafio === 'undefined') {
+            window.abrirModalNovoDesafio = function(){ alert('Crie desafios na aba Vida Pessoal (modal antiga).'); };
+        }
+        if (typeof abrirModalConfigRotina === 'undefined') {
+            window.abrirModalConfigRotina = function(){ alert('Configure rotina na aba Vida Pessoal (modal antiga).'); };
+        }
+        if (typeof abrirModalNovaTarefaPessoal === 'undefined') {
+            window.abrirModalNovaTarefaPessoal = function(){ ativarAba('tarefas'); };
+        }
+        if (typeof abrirModalNovaFrase === 'undefined') {
+            window.abrirModalNovaFrase = function(){ alert('Adicione frases de mindset na aba Vida Pessoal (modal antiga).'); };
+        }
+        if (typeof abrirModalNovaMetaPessoal === 'undefined') {
+            window.abrirModalNovaMetaPessoal = function(){ alert('Crie metas pessoais na aba Vida Pessoal (modal antiga).'); };
         }
 
         function vpScoreBar(label, pct) {
