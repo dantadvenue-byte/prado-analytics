@@ -12,6 +12,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <!-- Apple/iOS específico -->
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Prado">
@@ -2045,309 +2046,543 @@
 
                 <div id="dashboard" class="tab-content active">
 
-            <!-- CSS do dashboard -->
+            <!-- ═══════════════════════════════════════
+                 CSS DASHBOARD NOVO (Glow Theme)
+                 ═══════════════════════════════════════ -->
             <style>
-                .dash-hero { display:grid; grid-template-columns:1fr 340px; gap:16px; margin-bottom:16px; }
-                .dash-row2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
-                .dash-row3 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
-                .dash-layout { display:grid; grid-template-columns:1fr 280px; gap:16px; }
-                .dash-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
-                .dash-card:hover { border-color:var(--border-mid); }
-                .kpi-hero-value { font-size:36px; font-weight:800; color:var(--text-main); letter-spacing:-1px; font-family:JetBrains Mono,monospace; }
-                .kpi-up { color:var(--green-light); font-size:13px; font-weight:600; display:flex; align-items:center; gap:4px; }
-                .kpi-down { color:var(--red); font-size:13px; font-weight:600; display:flex; align-items:center; gap:4px; }
-                .mini-kpi { display:flex; align-items:center; gap:10px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
-                .mini-kpi-icon { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-                .mini-kpi-val { font-size:16px; font-weight:700; font-family:JetBrains Mono,monospace; }
-                .mini-kpi-lbl { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
-                .score-ring { position:relative; width:110px; height:110px; flex-shrink:0; }
-                .score-ring svg { transform:rotate(-90deg); }
-                .score-ring-val { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-                .score-ring-val strong { font-size:28px; font-weight:800; color:var(--text-main); font-family:JetBrains Mono,monospace; }
-                .score-ring-val span { font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
-                .objetivo-card { background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; padding:14px; }
-                .objetivo-pct-ring { position:relative; width:52px; height:52px; flex-shrink:0; }
-                .objetivo-pct-ring svg { transform:rotate(-90deg); }
-                .objetivo-pct-val { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
-                .conquista-badge { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px; }
-                .acao-rapida { display:flex; flex-direction:column; align-items:center; gap:6px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; padding:14px 10px; cursor:pointer; transition:all 0.18s; font-size:11px; font-weight:600; color:var(--text-muted); }
-                .acao-rapida:hover { background:var(--bg-hover); color:var(--text-main); border-color:var(--border-mid); }
-                .acao-rapida-icon { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px; }
-                .dash-section-title { font-size:14px; font-weight:700; color:var(--text-main); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
-                .dash-section-title a { font-size:11px; color:var(--purple-light); font-weight:500; cursor:pointer; }
-                .meta-progress { height:6px; background:var(--bg-hover); border-radius:3px; overflow:hidden; }
-                .meta-progress-bar { height:100%; border-radius:3px; transition:width 0.5s ease; }
+                /* Background ambient com glow (escopo só no dashboard) */
+                #dashboard{position:relative;}
+                #dashboard::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 800px 400px at 25% 10%, rgba(124,58,237,0.10), transparent 60%),radial-gradient(ellipse 600px 300px at 75% 60%, rgba(59,130,246,0.06), transparent 60%);}
+                #dashboard > * {position:relative;z-index:1;}
+
+                /* Card genérico */
+                .dx-card{background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:24px;position:relative;overflow:hidden;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+                .dx-card.glow-purple{border-color:rgba(168,85,247,0.18);box-shadow:0 0 40px rgba(168,85,247,0.06), inset 0 1px 0 rgba(255,255,255,0.03);}
+                .dx-card.glow-blue{border-color:rgba(59,130,246,0.18);box-shadow:0 0 40px rgba(59,130,246,0.06);}
+                .dx-card.glow-green{border-color:rgba(16,185,129,0.18);box-shadow:0 0 40px rgba(16,185,129,0.06);}
+                .dx-card.glow-amber{border-color:rgba(245,158,11,0.18);box-shadow:0 0 40px rgba(245,158,11,0.06);}
+
+                /* Card head */
+                .dx-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+                .dx-head h3{font-size:14px;font-weight:600;color:var(--text-dim,#b4b4cc);display:flex;align-items:center;gap:8px;margin:0;}
+                .dx-chip{font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:5px 10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);color:#7a7a96;display:inline-flex;align-items:center;gap:5px;}
+                .dx-chip.up{color:#10b981;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.2);}
+                .dx-chip.down{color:#f43f5e;background:rgba(244,63,94,0.08);border-color:rgba(244,63,94,0.2);}
+                .dx-chip.warn{color:#f59e0b;background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.2);}
+
+                /* Grids */
+                .dx-grid-main{display:grid;grid-template-columns:2.2fr 1fr;gap:18px;margin-bottom:18px;}
+                .dx-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:18px;}
+                .dx-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+                .dx-grid-comp{display:grid;grid-template-columns:1fr 1.4fr;gap:18px;margin-bottom:18px;}
+
+                /* Hero patrimônio */
+                .dx-hero-patrimonio::before{content:"";position:absolute;top:-20%;right:-10%;width:60%;height:140%;background:radial-gradient(circle, rgba(168,85,247,0.18), transparent 60%);pointer-events:none;}
+                .dx-hero-num{font-size:52px;font-weight:800;line-height:1;letter-spacing:-0.03em;color:#fff;position:relative;margin:8px 0 12px;}
+                .dx-hero-num .cur{font-size:24px;color:var(--text-dim,#b4b4cc);font-weight:500;margin-right:6px;vertical-align:top;line-height:1.5;}
+                .dx-hero-delta{display:flex;align-items:center;gap:8px;font-size:13px;color:#10b981;font-weight:600;}
+                .dx-hero-delta .arrow{width:16px;height:16px;border-radius:50%;background:rgba(16,185,129,0.18);display:flex;align-items:center;justify-content:center;font-size:10px;}
+                .dx-hero-delta.down{color:#f43f5e;}
+                .dx-hero-delta.down .arrow{background:rgba(244,63,94,0.18);}
+                .dx-hero-chart{margin:20px -8px 0;height:160px;position:relative;}
+                .dx-hero-chart svg{width:100%;height:100%;overflow:visible;}
+                .dx-hero-chart .line{fill:none;stroke:url(#dxPurpleGrad);stroke-width:3;filter:drop-shadow(0 0 8px rgba(168,85,247,0.6));}
+                .dx-hero-chart .area{fill:url(#dxPurpleFill);opacity:0.5;}
+                .dx-hero-chart .end-dot{fill:#a855f7;filter:drop-shadow(0 0 10px #a855f7);}
+                .dx-hero-chart .grid line{stroke:rgba(255,255,255,0.04);stroke-dasharray:2 4;}
+                .dx-hero-stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;}
+                .dx-hero-stat{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+                .dx-hero-stat .ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+                .dx-hero-stat.entrada .ico{background:rgba(16,185,129,0.12);color:#10b981;box-shadow:0 0 12px rgba(16,185,129,0.18);}
+                .dx-hero-stat.saida .ico{background:rgba(244,63,94,0.12);color:#f43f5e;box-shadow:0 0 12px rgba(244,63,94,0.18);}
+                .dx-hero-stat .lbl{font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;}
+                .dx-hero-stat .v{font-size:18px;font-weight:700;color:#f5f5fa;margin-top:2px;}
+
+                /* Score */
+                .dx-score-ring{position:relative;display:flex;align-items:center;justify-content:center;margin:14px auto 10px;}
+                .dx-score-ring svg{transform:rotate(-90deg);filter:drop-shadow(0 0 14px rgba(16,185,129,0.45));}
+                .dx-score-ring .bg-track{stroke:rgba(255,255,255,0.06);}
+                .dx-score-ring .progress{stroke:url(#dxScoreGrad);stroke-linecap:round;}
+                .dx-score-center{position:absolute;text-align:center;}
+                .dx-score-center .n{font-size:42px;font-weight:800;line-height:1;letter-spacing:-0.02em;color:#fff;}
+                .dx-score-center .lbl{font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;font-weight:600;}
+                .dx-score-status{text-align:center;font-size:12px;font-weight:600;color:#10b981;margin-bottom:18px;}
+                .dx-score-evol{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:12px 14px;}
+                .dx-score-evol .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+                .dx-score-evol .l{font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;}
+                .dx-score-evol .v{font-size:13px;font-weight:700;color:#10b981;}
+                .dx-score-evol .spark{height:24px;}
+                .dx-score-evol .spark svg{width:100%;height:100%;}
+
+                /* KPI Cards */
+                .dx-kpi{background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:20px 22px;position:relative;overflow:hidden;backdrop-filter:blur(20px);}
+                .dx-kpi .lbl{font-size:11px;font-weight:600;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+                .dx-kpi .n{font-size:32px;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em;margin-bottom:8px;}
+                .dx-kpi .n .cur{font-size:16px;color:var(--text-dim,#b4b4cc);font-weight:500;margin-right:4px;}
+                .dx-kpi .d{font-size:12px;font-weight:600;}
+                .dx-kpi .d.up{color:#10b981;}
+                .dx-kpi .d.down{color:#f43f5e;}
+                .dx-kpi.receita{border-color:rgba(59,130,246,0.18);box-shadow:0 0 30px rgba(59,130,246,0.05);}
+                .dx-kpi.lucro{border-color:rgba(16,185,129,0.18);box-shadow:0 0 30px rgba(16,185,129,0.05);}
+                .dx-kpi.cpl{border-color:rgba(245,158,11,0.18);}
+
+                /* Donut */
+                .dx-donut-wrap{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center;}
+                .dx-donut{position:relative;width:140px;height:140px;}
+                .dx-donut svg{transform:rotate(-90deg);}
+                .dx-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+                .dx-donut-center .v{font-size:18px;font-weight:700;color:#fff;letter-spacing:-0.02em;line-height:1;}
+                .dx-donut-center .v .cur{font-size:11px;color:#7a7a96;font-weight:500;margin-right:2px;}
+                .dx-donut-center .l{font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;font-weight:600;}
+                .dx-donut-legend{display:flex;flex-direction:column;gap:9px;}
+                .dx-legend-item{display:flex;align-items:center;justify-content:space-between;font-size:12px;}
+                .dx-legend-item .left{display:flex;align-items:center;gap:8px;color:var(--text-dim,#b4b4cc);}
+                .dx-legend-item .dot{width:8px;height:8px;border-radius:50%;}
+                .dx-legend-item .pct{font-weight:600;color:#f5f5fa;font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+                /* Forecast */
+                .dx-forecast .big{font-size:30px;font-weight:800;color:#10b981;line-height:1;letter-spacing:-0.02em;margin:6px 0 4px;text-shadow:0 0 24px rgba(16,185,129,0.3);}
+                .dx-forecast .big.neg{color:#f43f5e;text-shadow:0 0 24px rgba(244,63,94,0.3);}
+                .dx-forecast .big .cur{font-size:15px;color:var(--text-dim,#b4b4cc);font-weight:500;margin-right:4px;}
+                .dx-forecast .sub{font-size:12px;color:#7a7a96;margin-bottom:14px;}
+                .dx-forecast-chart{height:80px;margin:0 -6px 12px;}
+                .dx-forecast-chart svg{width:100%;height:100%;}
+                .dx-forecast-chart .area{fill:url(#dxTealFill);}
+                .dx-forecast-chart .l{fill:none;stroke:#14b8a6;stroke-width:2;filter:drop-shadow(0 0 6px rgba(20,184,166,0.5));}
+                .dx-forecast-chart .l.dash{stroke-dasharray:4 4;opacity:0.6;}
+                .dx-forecast-axis{display:flex;justify-content:space-between;font-size:10px;color:#4d4d6a;font-family:'JetBrains Mono',monospace;padding:0 4px;margin-bottom:14px;}
+                .dx-forecast-alert{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px;}
+                .dx-forecast-alert.ok{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);}
+                .dx-forecast-alert .ico{font-size:14px;line-height:1.2;color:#f59e0b;}
+                .dx-forecast-alert.ok .ico{color:#10b981;}
+                .dx-forecast-alert .txt{font-size:11.5px;color:#f59e0b;line-height:1.45;}
+                .dx-forecast-alert.ok .txt{color:#10b981;}
+                .dx-forecast-alert .txt b{color:#fff;}
+
+                /* Bar chart */
+                .dx-bar-chart{height:160px;display:flex;align-items:flex-end;gap:6px;padding:8px 4px 8px;}
+                .dx-bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}
+                .dx-bar-stack{width:100%;display:flex;flex-direction:column;align-items:center;gap:3px;justify-content:flex-end;height:100%;}
+                .dx-bar-blue,.dx-bar-pink{width:80%;border-radius:4px 4px 2px 2px;min-height:2px;}
+                .dx-bar-blue{background:linear-gradient(180deg,#06b6d4,#3b82f6);box-shadow:0 0 12px rgba(59,130,246,0.4);}
+                .dx-bar-pink{background:linear-gradient(180deg,#f9a8d4,#ec4899);box-shadow:0 0 12px rgba(236,72,153,0.4);}
+                .dx-bar-axis{display:flex;justify-content:space-between;font-size:10px;color:#4d4d6a;font-family:'JetBrains Mono',monospace;padding:8px 4px 0;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;}
+                .dx-bar-legend{display:flex;gap:14px;font-size:11px;color:#7a7a96;margin-bottom:10px;}
+                .dx-bar-legend .item{display:flex;align-items:center;gap:6px;}
+                .dx-bar-legend .dot{width:8px;height:8px;border-radius:50%;}
+
+                /* Link / CTA */
+                .dx-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#a855f7;font-weight:600;cursor:pointer;text-decoration:none;margin-top:14px;background:none;border:none;font-family:inherit;padding:0;}
+                .dx-link:hover{color:#f5f5fa;}
+                .dx-link::after{content:"→";transition:transform 0.2s;}
+                .dx-link:hover::after{transform:translateX(4px);}
+
+                /* Previsão compras (feature nova) */
+                .dx-prev-compras{background:linear-gradient(135deg, rgba(168,85,247,0.10), rgba(99,102,241,0.04));border-color:rgba(168,85,247,0.25);}
+                .dx-prev-compras::before{content:"";position:absolute;top:-30%;right:-15%;width:50%;height:160%;background:radial-gradient(circle, rgba(168,85,247,0.18), transparent 60%);pointer-events:none;}
+                .dx-prev-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:18px;align-items:center;margin:8px 0 18px;position:relative;}
+                .dx-prev-step{text-align:center;padding:18px 14px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;}
+                .dx-prev-step.now{border-color:rgba(255,255,255,0.12);}
+                .dx-prev-step.add{background:linear-gradient(135deg, rgba(245,158,11,0.10), transparent);border-color:rgba(245,158,11,0.25);}
+                .dx-prev-step.proj{background:linear-gradient(135deg, rgba(16,185,129,0.10), transparent);border-color:rgba(16,185,129,0.30);box-shadow:0 0 24px rgba(16,185,129,0.10);}
+                .dx-prev-step .l{font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:8px;}
+                .dx-prev-step .v{font-size:26px;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em;}
+                .dx-prev-step .v .cur{font-size:13px;color:var(--text-dim,#b4b4cc);font-weight:500;margin-right:3px;}
+                .dx-prev-step .s{font-size:11px;color:#7a7a96;margin-top:6px;}
+                .dx-prev-step.proj .v{color:#10b981;text-shadow:0 0 14px rgba(16,185,129,0.4);}
+                .dx-prev-arrow{font-size:24px;color:#a855f7;font-weight:300;display:flex;align-items:center;justify-content:center;}
+                .dx-prev-list-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+                .dx-prev-list-head .t{font-size:12px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;}
+                .dx-prev-list-head .n{font-size:11px;color:#4d4d6a;font-family:'JetBrains Mono',monospace;}
+                .dx-prev-list{display:flex;flex-direction:column;gap:10px;}
+                .dx-prev-item{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;cursor:pointer;transition:all 0.2s;}
+                .dx-prev-item:hover{border-color:rgba(168,85,247,0.18);background:rgba(255,255,255,0.04);}
+                .dx-prev-item .ico{width:34px;height:34px;border-radius:9px;background:rgba(168,85,247,0.12);color:#a855f7;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 10px rgba(168,85,247,0.2);}
+                .dx-prev-item .body .t{font-size:13px;font-weight:600;color:#f5f5fa;}
+                .dx-prev-item .body .s{font-size:11px;color:#7a7a96;margin-top:2px;font-family:'JetBrains Mono',monospace;}
+                .dx-prev-item .invest{text-align:right;font-size:13px;font-weight:600;color:#f43f5e;font-family:'JetBrains Mono',monospace;}
+                .dx-prev-item .invest .l{font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:2px;font-family:'Outfit',sans-serif;}
+                .dx-prev-item .lucro{text-align:right;font-size:13px;font-weight:700;color:#10b981;font-family:'JetBrains Mono',monospace;text-shadow:0 0 8px rgba(16,185,129,0.3);}
+                .dx-prev-item .lucro .l{font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:2px;font-family:'Outfit',sans-serif;}
+
+                /* Comp row (caixas/estoque) */
+                .dx-comp-list{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+                .dx-comp-row{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.2s;}
+                .dx-comp-row:hover{border-color:rgba(168,85,247,0.18);background:rgba(255,255,255,0.04);}
+                .dx-comp-row .ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+                .dx-comp-row .ico.cash{background:rgba(59,130,246,0.12);color:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,0.2);}
+                .dx-comp-row .ico.stock{background:rgba(245,158,11,0.12);color:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,0.2);}
+                .dx-comp-row .body{flex:1;min-width:0;}
+                .dx-comp-row .body .t{font-size:13px;font-weight:600;color:#f5f5fa;}
+                .dx-comp-row .body .s{font-size:11px;color:#7a7a96;margin-top:2px;font-family:'JetBrains Mono',monospace;}
+                .dx-comp-row .value{text-align:right;}
+                .dx-comp-row .value .v{font-size:14px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;}
+                .dx-comp-row .value .p{font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;font-weight:600;}
+
+                /* Ações prioritárias */
+                .dx-actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+                .dx-action{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;position:relative;overflow:hidden;cursor:pointer;transition:all 0.25s;}
+                .dx-action:hover{transform:translateY(-2px);border-color:rgba(168,85,247,0.18);box-shadow:0 8px 32px rgba(168,85,247,0.12);}
+                .dx-action.urgent{border-color:rgba(244,63,94,0.25);background:linear-gradient(135deg, rgba(244,63,94,0.06), transparent);}
+                .dx-action.medium{border-color:rgba(245,158,11,0.22);background:linear-gradient(135deg, rgba(245,158,11,0.06), transparent);}
+                .dx-action.low{border-color:rgba(59,130,246,0.22);background:linear-gradient(135deg, rgba(59,130,246,0.06), transparent);}
+                .dx-action .tag{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;}
+                .dx-action.urgent .tag{color:#f43f5e;background:rgba(244,63,94,0.15);}
+                .dx-action.medium .tag{color:#f59e0b;background:rgba(245,158,11,0.15);}
+                .dx-action.low .tag{color:#3b82f6;background:rgba(59,130,246,0.15);}
+                .dx-action h4{font-size:15px;font-weight:700;margin:0 0 6px;color:#fff;letter-spacing:-0.01em;}
+                .dx-action p{font-size:12px;color:#7a7a96;line-height:1.5;margin:0 0 14px;}
+                .dx-action .cta{font-size:11.5px;color:#a855f7;font-weight:600;display:flex;align-items:center;gap:6px;}
+                .dx-action .cta::after{content:"→";transition:transform 0.2s;}
+                .dx-action:hover .cta::after{transform:translateX(4px);}
+
+                /* Projeções */
+                .dx-proj-list{display:flex;flex-direction:column;}
+                .dx-proj-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+                .dx-proj-row:last-child{border:none;}
+                .dx-proj-row .body .t{font-size:13.5px;font-weight:600;color:#f5f5fa;}
+                .dx-proj-row .body .s{font-size:11.5px;color:#7a7a96;margin-top:3px;}
+                .dx-proj-row .num{text-align:right;display:flex;align-items:baseline;gap:6px;justify-content:flex-end;}
+                .dx-proj-row .num .v{font-size:22px;font-weight:800;line-height:1;letter-spacing:-0.02em;}
+                .dx-proj-row .num .v.ok{color:#10b981;text-shadow:0 0 12px rgba(16,185,129,0.4);}
+                .dx-proj-row .num .v.warn{color:#f59e0b;text-shadow:0 0 12px rgba(245,158,11,0.4);}
+                .dx-proj-row .num .v.crit{color:#f43f5e;text-shadow:0 0 12px rgba(244,63,94,0.4);}
+                .dx-proj-row .num .u{font-size:10.5px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;}
+
+                /* Meta do mês */
+                .dx-meta-mes{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;}
+                .dx-meta-ring{position:relative;width:140px;height:140px;flex-shrink:0;}
+                .dx-meta-ring svg{transform:rotate(-90deg);}
+                .dx-meta-ring .bg{stroke:rgba(255,255,255,0.06);}
+                .dx-meta-ring .fill{stroke:url(#dxMetaGrad);stroke-linecap:round;filter:drop-shadow(0 0 12px rgba(168,85,247,0.5));}
+                .dx-meta-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+                .dx-meta-center .n{font-size:36px;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em;}
+                .dx-meta-center .pct{font-size:18px;color:#a855f7;}
+                .dx-meta-center .l{font-size:9.5px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;margin-top:4px;font-weight:600;}
+                .dx-meta-info h2{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.015em;margin:0 0 6px;}
+                .dx-meta-info p{font-size:13px;color:#7a7a96;margin:0 0 16px;line-height:1.5;}
+                .dx-meta-info p b{color:#f5f5fa;font-weight:600;}
+                .dx-meta-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+                .dx-meta-stat{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;}
+                .dx-meta-stat .l{font-size:9.5px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:4px;}
+                .dx-meta-stat .v{font-size:14px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;}
+                .dx-meta-stat .v.green{color:#10b981;}
+
+                /* Metas por loja */
+                .dx-lojas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px;}
+                .dx-loja-tile{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;position:relative;overflow:hidden;}
+                .dx-loja-tile.ok{border-color:rgba(16,185,129,0.20);}
+                .dx-loja-tile.atencao{border-color:rgba(245,158,11,0.22);}
+                .dx-loja-tile.atrasada{border-color:rgba(244,63,94,0.22);}
+                .dx-loja-tile .htile{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;gap:8px;}
+                .dx-loja-tile .nome{font-size:14px;font-weight:700;color:#fff;line-height:1.2;}
+                .dx-loja-tile .pct-chip{font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;white-space:nowrap;}
+                .dx-loja-tile.ok .pct-chip{color:#10b981;background:rgba(16,185,129,0.12);}
+                .dx-loja-tile.atencao .pct-chip{color:#f59e0b;background:rgba(245,158,11,0.12);}
+                .dx-loja-tile.atrasada .pct-chip{color:#f43f5e;background:rgba(244,63,94,0.12);}
+                .dx-loja-tile .vals{display:flex;justify-content:space-between;font-size:11px;color:#7a7a96;margin-bottom:8px;font-family:'JetBrains Mono',monospace;}
+                .dx-loja-tile .vals b{color:#f5f5fa;font-weight:600;}
+                .dx-loja-bar{height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;}
+                .dx-loja-bar .fill{height:100%;border-radius:99px;}
+                .dx-loja-tile.ok .dx-loja-bar .fill{background:linear-gradient(90deg,#14b8a6,#10b981);box-shadow:0 0 8px rgba(16,185,129,0.4);}
+                .dx-loja-tile.atencao .dx-loja-bar .fill{background:linear-gradient(90deg,#f97316,#f59e0b);}
+                .dx-loja-tile.atrasada .dx-loja-bar .fill{background:linear-gradient(90deg,#f43f5e,#ec4899);}
+
+                /* Tendências */
+                .dx-trend{background:linear-gradient(180deg, rgba(28,28,58,0.6), rgba(19,19,38,0.5));border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:16px;backdrop-filter:blur(20px);}
+                .dx-trend .l{font-size:10.5px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:10px;}
+                .dx-trend .v{font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.02em;line-height:1;}
+                .dx-trend .v .cur{font-size:12px;color:#7a7a96;font-weight:500;margin-right:3px;}
+                .dx-trend .d{font-size:11px;font-weight:600;margin-top:6px;font-family:'JetBrains Mono',monospace;}
+                .dx-trend .d.up{color:#10b981;}
+                .dx-trend .d.down{color:#f43f5e;}
+                .dx-trend .d.neutral{color:#7a7a96;}
+                .dx-trend .spark{height:30px;margin-top:8px;}
+                .dx-trend .spark svg{width:100%;height:100%;}
+
+                /* Responsive */
+                @media (max-width: 900px) {
+                    .dx-grid-main, .dx-grid-3, .dx-grid-4, .dx-grid-comp { grid-template-columns: 1fr; }
+                    .dx-prev-flow { grid-template-columns: 1fr; }
+                    .dx-prev-arrow { transform: rotate(90deg); margin: -8px 0; }
+                    .dx-meta-mes { grid-template-columns: 1fr; text-align: center; }
+                    .dx-hero-num { font-size: 38px; }
+                    .dx-hero-num .cur { font-size: 18px; }
+                    .dx-actions-grid { grid-template-columns: 1fr; }
+                }
             </style>
 
-            <!-- FILTROS topo -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-                <div>
-                    <div style="font-size:22px;font-weight:800;color:var(--text-main);">Olá, Dant 👋</div>
-                    <div style="font-size:13px;color:var(--text-muted);margin-top:2px;">Aqui está o seu panorama de vendas hoje.</div>
-                </div>
-                <div style="display:flex;gap:8px;">
-                    <select id="dashPeriodo" onchange="renderDashboard()" style="background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-family:'Outfit',sans-serif;font-size:13px;">
-                        <option value="7">Últimos 7 dias</option>
-                        <option value="30" selected>Este mês</option>
-                        <option value="90">Últimos 90 dias</option>
-                        <option value="999">Todo período</option>
-                    </select>
-                    <select id="dashProduto" onchange="renderDashboard()" style="background:var(--bg-surface);color:var(--text-main);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-family:'Outfit',sans-serif;font-size:13px;">
-                        <option value="">Todos os produtos</option>
-                    </select>
-                </div>
-            </div>
+            <!-- Gradientes globais usados pelos SVGs -->
+            <svg width="0" height="0" style="position:absolute;">
+                <defs>
+                    <linearGradient id="dxPurpleGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#6366f1"/>
+                        <stop offset="50%" stop-color="#a855f7"/>
+                        <stop offset="100%" stop-color="#ec4899"/>
+                    </linearGradient>
+                    <linearGradient id="dxPurpleFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#a855f7" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="dxScoreGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#10b981"/>
+                        <stop offset="100%" stop-color="#06b6d4"/>
+                    </linearGradient>
+                    <linearGradient id="dxTealFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="dxMetaGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#6366f1"/>
+                        <stop offset="100%" stop-color="#a855f7"/>
+                    </linearGradient>
+                </defs>
+            </svg>
 
-            <div class="dash-layout">
-                <!-- COLUNA PRINCIPAL -->
-                <div>
+            <!-- ═══════ HERO: PATRIMÔNIO + SCORE ═══════ -->
+            <div class="dx-grid-main">
 
-                    <!-- HERO: PATRIMÔNIO + GRÁFICO + SCORE -->
-                    <div class="dash-hero">
+                <!-- Patrimônio líquido -->
+                <div class="dx-card glow-purple dx-hero-patrimonio">
+                    <div class="dx-head">
+                        <h3>Patrimônio líquido</h3>
+                        <span id="dx-pat-periodo" class="dx-chip">Este mês</span>
+                    </div>
+                    <div class="dx-hero-num" id="dx-pat-num"><span class="cur">R$</span>0,00</div>
+                    <div class="dx-hero-delta" id="dx-pat-delta"><span class="arrow">▲</span><span>—</span></div>
 
-                        <!-- Card principal -->
-                        <div class="dash-card" style="position:relative;overflow:hidden;">
-                            <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 80% 50%, rgba(124,58,237,0.08) 0%, transparent 70%);pointer-events:none;"></div>
-
-                            <!-- Patrimônio líquido (principal) -->
-                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">
-                                <div style="font-size:13px;font-weight:600;color:var(--text-muted);">Patrimônio líquido</div>
-                                <div style="font-size:11px;background:var(--purple-bg);color:var(--purple-light);padding:3px 10px;border-radius:20px;border:1px solid rgba(124,58,237,0.2);" id="dash-periodo-label">Este mês</div>
-                            </div>
-                            <div class="kpi-hero-value" id="dash-patrimonio">R$ 0,00</div>
-                            <div style="display:flex;gap:6px;align-items:center;margin:4px 0 14px;">
-                                <span style="font-size:11px;color:var(--text-muted);">Caixa</span>
-                                <span onclick="toggleDetalheCaixaDash()" style="font-size:12px;font-weight:700;color:var(--blue);font-family:JetBrains Mono,monospace;cursor:pointer;text-decoration:underline dotted;" id="dash-pat-caixa" title="Clique para ver detalhes">R$ 0</span>
-                                <span style="font-size:10px;color:var(--text-dim);cursor:pointer;" onclick="toggleDetalheCaixaDash()">👁</span>
-                                <span style="font-size:11px;color:var(--text-dim);">+</span>
-                                <span style="font-size:11px;color:var(--text-muted);">Estoque</span>
-                                <span onclick="toggleDetalheEstoqueDash()" style="font-size:12px;font-weight:700;color:var(--yellow);font-family:JetBrains Mono,monospace;cursor:pointer;text-decoration:underline dotted;" id="dash-pat-estoque" title="Clique para ver detalhes">R$ 0</span>
-                                <span style="font-size:10px;color:var(--text-dim);cursor:pointer;" onclick="toggleDetalheEstoqueDash()">👁</span>
-                            </div>
-
-                            <!-- Detalhe do caixa (expansível) -->
-                            <div id="dash-caixa-detalhe" style="display:none;background:var(--bg-hover);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px;margin-bottom:10px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                    <div style="font-size:12px;font-weight:700;color:var(--blue);">💼 Composição dos Caixas</div>
-                                    <button onclick="toggleDetalheCaixaDash()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;">✕</button>
-                                </div>
-                                <div id="dash-caixa-lista" style="max-height:240px;overflow-y:auto;"></div>
-                                <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:12px;font-weight:700;">
-                                    <span style="color:var(--text-muted);">Total (meu patrimônio)</span>
-                                    <span id="dash-caixa-total-detalhe" style="color:var(--blue);">R$ 0,00</span>
-                                </div>
-                            </div>
-
-                            <!-- Detalhe do estoque (expansível) -->
-                            <div id="dash-estoque-detalhe" style="display:none;background:var(--bg-hover);border:1px solid rgba(255,193,7,0.2);border-radius:10px;padding:12px;margin-bottom:10px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                    <div style="font-size:12px;font-weight:700;color:#ffc107;">📦 Composição do Estoque</div>
-                                    <button onclick="toggleDetalheEstoqueDash()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;">✕</button>
-                                </div>
-                                <div id="dash-estoque-lista" style="max-height:240px;overflow-y:auto;"></div>
-                                <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:12px;font-weight:700;">
-                                    <span style="color:var(--text-muted);">Total (meu patrimônio)</span>
-                                    <span style="color:var(--yellow);" id="dash-estoque-total-detalhe">R$ 0</span>
-                                </div>
-                            </div>
-
-                            <!-- Gráfico de linha (lucro ao longo do tempo) -->
-                            <div style="height:80px;margin:0 -4px;">
-                                <canvas id="chart-faturamento-linha" height="80"></canvas>
-                            </div>
-
-                            <!-- Mini KPIs: lucro período + receita + tráfego -->
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;">
-                                <div class="mini-kpi">
-                                    <div class="mini-kpi-icon" style="background:var(--green-bg);">📈</div>
-                                    <div>
-                                        <div class="mini-kpi-lbl">Lucro período</div>
-                                        <div class="mini-kpi-val" style="color:var(--green-light);" id="dash-faturamento">R$ 0</div>
-                                    </div>
-                                </div>
-                                <div class="mini-kpi">
-                                    <div class="mini-kpi-icon" style="background:var(--blue-bg);">💰</div>
-                                    <div>
-                                        <div class="mini-kpi-lbl">Receita bruta</div>
-                                        <div class="mini-kpi-val" style="color:var(--blue);" id="dash-receita">R$ 0</div>
-                                    </div>
-                                </div>
-                                <div class="mini-kpi">
-                                    <div class="mini-kpi-icon" style="background:var(--red-bg);">📢</div>
-                                    <div>
-                                        <div class="mini-kpi-lbl">Tráfego pago</div>
-                                        <div class="mini-kpi-val" style="color:var(--red);" id="dash-trafego-val">R$ 0</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Score + evolução anual -->
-                        <div style="display:flex;flex-direction:column;gap:14px;">
-                            <div class="dash-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;flex:1;">
-                                <div class="score-ring">
-                                    <svg width="110" height="110" viewBox="0 0 110 110">
-                                        <circle cx="55" cy="55" r="46" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
-                                        <circle cx="55" cy="55" r="46" fill="none" stroke="url(#scoreGrad)" stroke-width="10"
-                                            stroke-linecap="round" id="score-arc"
-                                            stroke-dasharray="289" stroke-dashoffset="289"/>
-                                        <defs>
-                                            <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" stop-color="#7c3aed"/>
-                                                <stop offset="100%" stop-color="#10b981"/>
-                                            </linearGradient>
-                                        </defs>
-                                    </svg>
-                                    <div class="score-ring-val">
-                                        <strong id="dash-score">0</strong>
-                                        <span>score</span>
-                                    </div>
-                                </div>
-                                <div style="text-align:center;">
-                                    <div style="font-size:12px;font-weight:600;color:var(--text-main);">Score do negócio</div>
-                                    <div style="font-size:11px;color:var(--green-light);" id="dash-score-label">—</div>
-                                </div>
-                            </div>
-                            <div class="dash-card">
-                                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Evolução do CPL</div>
-                                <div style="font-size:11px;font-weight:700;" id="dash-cpl-evol" class="kpi-up">—</div>
-                                <div style="height:40px;margin-top:8px;">
-                                    <canvas id="chart-cpl-mini" height="40"></canvas>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="dx-hero-chart" id="dx-pat-chart">
+                        <svg viewBox="0 0 600 160" preserveAspectRatio="none">
+                            <g class="grid">
+                                <line x1="0" y1="40" x2="600" y2="40"/>
+                                <line x1="0" y1="80" x2="600" y2="80"/>
+                                <line x1="0" y1="120" x2="600" y2="120"/>
+                            </g>
+                            <path class="area" id="dx-pat-area" d=""/>
+                            <path class="line" id="dx-pat-line" d=""/>
+                            <circle class="end-dot" id="dx-pat-dot" cx="600" cy="80" r="6"/>
+                        </svg>
                     </div>
 
-                    <!-- LINHA 2: RESUMO DO MÊS | FUNIL | FLUXO DE LEADS -->
-                    <div class="dash-row2">
-
-                        <!-- Resumo do mês (donut) -->
-                        <div class="dash-card">
-                            <div class="dash-section-title">Resumo do mês <a onclick="document.querySelector('[data-tab=vendas]').click()">Ver relatório →</a></div>
-                            <div style="display:flex;gap:14px;align-items:center;">
-                                <div style="position:relative;width:100px;height:100px;flex-shrink:0;">
-                                    <canvas id="chart-donut" width="100" height="100"></canvas>
-                                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                                        <div style="font-size:12px;font-weight:700;color:var(--text-main);" id="dash-donut-total">R$ 0</div>
-                                        <div style="font-size:9px;color:var(--text-muted);">lucro</div>
-                                    </div>
-                                </div>
-                                <div style="flex:1;font-size:12px;" id="dash-donut-legenda"></div>
+                    <div class="dx-hero-stats">
+                        <div class="dx-hero-stat entrada">
+                            <div class="ico">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 14l-7 7-7-7"/><path d="M12 21V3"/></svg>
                             </div>
-                        </div>
-
-                        <!-- Funil de conversão -->
-                        <div class="dash-card">
-                            <div class="dash-section-title">Funil de conversão</div>
-                            <div id="dash-funil-mini" style="display:flex;flex-direction:column;gap:5px;font-size:12px;"></div>
-                        </div>
-
-                        <!-- Fluxo de leads (gráfico barras) -->
-                        <div class="dash-card">
-                            <div class="dash-section-title">Fluxo de leads <span style="font-size:11px;color:var(--text-muted);">Últimos 7 dias</span></div>
-                            <div style="height:100px;">
-                                <canvas id="chart-leads-barras" height="100"></canvas>
-                            </div>
-                            <div id="dash-fluxo-info" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
-                        </div>
-                    </div>
-
-                    <!-- LINHA 3: METAS + VENDAS RECENTES -->
-                    <div class="dash-row3">
-
-                        <!-- Metas das lojas -->
-                        <div class="dash-card">
-                            <div class="dash-section-title">Metas das Lojas <a onclick="document.querySelector('[data-tab=lojas-gestao]').click()">Ver todas →</a></div>
-                            <div id="dash-metas" style="display:flex;flex-direction:column;gap:10px;"></div>
-                        </div>
-
-                        <!-- Produtos em teste -->
-                        <div class="dash-card">
-                            <div class="dash-section-title">Produtos em Validação <a onclick="document.querySelector('[data-tab=validacao]').click()">Ver pipeline →</a></div>
-                            <div id="dash-validacoes" style="display:flex;flex-direction:column;gap:8px;"></div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- COLUNA DIREITA -->
-                <div style="display:flex;flex-direction:column;gap:14px;">
-
-                    <!-- Prado IA -->
-                    <div class="dash-card" style="background:linear-gradient(135deg,#1a1035 0%,#0f1629 100%);border-color:rgba(124,58,237,0.2);position:relative;overflow:hidden;">
-                        <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(124,58,237,0.15) 0%,transparent 70%);pointer-events:none;"></div>
-                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                            <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 16px rgba(124,58,237,0.4);">🤖</div>
                             <div>
-                                <div style="font-size:14px;font-weight:700;color:var(--text-main);">Prado IA</div>
-                                <div style="font-size:11px;color:var(--purple-light);">Seu assistente de vendas</div>
+                                <div class="lbl">Entradas (mês)</div>
+                                <div class="v" id="dx-entradas">R$ 0</div>
                             </div>
                         </div>
-                        <div id="dash-ia-insight" style="font-size:13px;color:var(--text-main);line-height:1.6;margin-bottom:12px;">
-                            Carregando análise...
-                        </div>
-                        <button onclick="document.querySelector('[data-tab=metricas]').click()" style="width:100%;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:'Outfit',sans-serif;transition:all 0.18s;">
-                            Ver análise completa →
-                        </button>
-                    </div>
-
-                    <!-- Ações rápidas -->
-                    <div class="dash-card">
-                        <div class="dash-section-title">Ações rápidas</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                            <div class="acao-rapida" onclick="document.querySelector('[data-tab=vendas]').click()">
-                                <div class="acao-rapida-icon" style="background:var(--green-bg);">💰</div>
-                                Registrar venda
+                        <div class="dx-hero-stat saida">
+                            <div class="ico">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 10l7-7 7 7"/><path d="M12 3v18"/></svg>
                             </div>
-                            <div class="acao-rapida" onclick="document.querySelector('[data-tab=metricas]').click()">
-                                <div class="acao-rapida-icon" style="background:var(--blue-bg);">📊</div>
-                                Métricas do dia
-                            </div>
-                            <div class="acao-rapida" onclick="document.querySelector('[data-tab=estoque]').click()">
-                                <div class="acao-rapida-icon" style="background:var(--yellow-bg);">📦</div>
-                                Ver estoque
-                            </div>
-                            <div class="acao-rapida" onclick="document.querySelector('[data-tab=validacao]').click()">
-                                <div class="acao-rapida-icon" style="background:var(--purple-bg);">🧪</div>
-                                Nova validação
-                            </div>
-                            <div class="acao-rapida" onclick="document.querySelector('[data-tab=financeiro]').click()" style="grid-column:span 2;">
-                                <div class="acao-rapida-icon" style="background:rgba(244,63,94,0.1);">🏦</div>
-                                Acessar financeiro
+                            <div>
+                                <div class="lbl">Saídas (mês)</div>
+                                <div class="v" id="dx-saidas">R$ 0</div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Conquistas -->
-                    <div class="dash-card">
-                        <div class="dash-section-title">Conquistas <a>Ver todas</a></div>
-                        <div id="dash-conquistas" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+                <!-- Score financeiro -->
+                <div class="dx-card glow-green">
+                    <div class="dx-head"><h3>Score financeiro</h3></div>
+                    <div class="dx-score-ring">
+                        <svg width="180" height="180">
+                            <circle class="bg-track" cx="90" cy="90" r="70" fill="none" stroke-width="11"/>
+                            <circle class="progress" id="dx-score-prog" cx="90" cy="90" r="70" fill="none" stroke-width="11" stroke-dasharray="439.8" stroke-dashoffset="439.8"/>
+                        </svg>
+                        <div class="dx-score-center">
+                            <div class="n" id="dx-score-n">0</div>
+                            <div class="lbl">Score financeiro</div>
+                        </div>
                     </div>
-
-                    <!-- KPIs compactos -->
-                    <div class="dash-card">
-                        <div class="dash-section-title">Indicadores</div>
-                        <div id="dash-kpis-lateral" style="display:flex;flex-direction:column;gap:8px;"></div>
+                    <div class="dx-score-status" id="dx-score-status">—</div>
+                    <div class="dx-score-evol">
+                        <div class="row">
+                            <span class="l">Evolução anual</span>
+                            <span class="v" id="dx-score-evol-v">—</span>
+                        </div>
+                        <div class="spark">
+                            <svg viewBox="0 0 200 30" preserveAspectRatio="none">
+                                <path id="dx-score-spark" fill="none" stroke="#10b981" stroke-width="1.5" d="" style="filter:drop-shadow(0 0 4px rgba(16,185,129,0.5));"/>
+                            </svg>
+                        </div>
                     </div>
-
                 </div>
             </div>
 
-            <!-- TAREFAS DE HOJE — abaixo do patrimônio -->
-            <div class="dash-card" style="margin-top:16px;padding:14px 18px;">
-                <div class="dash-section-title" style="margin-bottom:10px;">
-                    <span>✅ Tarefas de Hoje</span>
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <button id="dash-tar-filtro-minhas" onclick="dashTarFiltro('minhas')" style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--purple-light);border:1px solid var(--purple-light);color:#fff;">Minhas</button>
-                        <button id="dash-tar-filtro-equipe" onclick="dashTarFiltro('equipe')" style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">Equipe</button>
-                        <button id="dash-tar-filtro-todas" onclick="dashTarFiltro('todas')" style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">Todas</button>
-                        <a onclick="navegarPara('tarefas')" style="font-size:11px;color:var(--purple-light);cursor:pointer;margin-left:4px;">Ver todas →</a>
+            <!-- ═══════ 3 KPIs: RECEITA, LUCRO, CPL ═══════ -->
+            <div class="dx-grid-3">
+                <div class="dx-kpi receita">
+                    <div class="lbl">Receita Bruta — <span id="dx-receita-mes">mês</span> <span id="dx-receita-chip" class="dx-chip"></span></div>
+                    <div class="n" id="dx-receita-n"><span class="cur">R$</span>0</div>
+                    <div class="d" id="dx-receita-d">—</div>
+                </div>
+                <div class="dx-kpi lucro">
+                    <div class="lbl">Lucro do Período — <span id="dx-lucro-mes">mês</span> <span id="dx-lucro-chip" class="dx-chip"></span></div>
+                    <div class="n" id="dx-lucro-n"><span class="cur">R$</span>0</div>
+                    <div class="d" id="dx-lucro-d">—</div>
+                </div>
+                <div class="dx-kpi cpl">
+                    <div class="lbl">CPL Médio — 14d <span id="dx-cpl-chip" class="dx-chip"></span></div>
+                    <div class="n" id="dx-cpl-n"><span class="cur">R$</span>0,00</div>
+                    <div class="d" id="dx-cpl-d">—</div>
+                </div>
+            </div>
+
+            <!-- ═══════ DONUT + FORECAST + FLUXO ═══════ -->
+            <div class="dx-grid-3">
+
+                <!-- Composição estoque -->
+                <div class="dx-card">
+                    <div class="dx-head"><h3>Composição do estoque</h3></div>
+                    <div class="dx-donut-wrap">
+                        <div class="dx-donut">
+                            <svg width="140" height="140" id="dx-donut-svg">
+                                <circle cx="70" cy="70" r="48" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="20"/>
+                                <!-- Segmentos serão injetados via JS -->
+                                <g id="dx-donut-segs"></g>
+                            </svg>
+                            <div class="dx-donut-center">
+                                <div class="v" id="dx-donut-total"><span class="cur">R$</span>0</div>
+                                <div class="l">em estoque</div>
+                            </div>
+                        </div>
+                        <div class="dx-donut-legend" id="dx-donut-legend"></div>
+                    </div>
+                    <button class="dx-link" onclick="ativarAba('financeiro')">Ver detalhes</button>
+                </div>
+
+                <!-- Previsão de saldo -->
+                <div class="dx-card glow-green dx-forecast">
+                    <div class="dx-head"><h3>Previsão de saldo</h3></div>
+                    <div class="big" id="dx-saldo-prev"><span class="cur">R$</span>0,00</div>
+                    <div class="sub" id="dx-saldo-prev-sub">em 30 dias (ritmo atual)</div>
+                    <div class="dx-forecast-chart">
+                        <svg viewBox="0 0 240 80" preserveAspectRatio="none">
+                            <path class="area" id="dx-saldo-area" d=""/>
+                            <path class="l" id="dx-saldo-line-real" d=""/>
+                            <path class="l dash" id="dx-saldo-line-prev" d=""/>
+                        </svg>
+                    </div>
+                    <div class="dx-forecast-axis"><span>Hoje</span><span>7d</span><span>14d</span><span>21d</span><span>30d</span></div>
+                    <div id="dx-saldo-alert" class="dx-forecast-alert" style="display:none;">
+                        <span class="ico">⚠</span><span class="txt" id="dx-saldo-alert-txt"></span>
                     </div>
                 </div>
-                <div id="dash-tarefas-hoje"></div>
+
+                <!-- Fluxo de caixa -->
+                <div class="dx-card glow-blue">
+                    <div class="dx-head"><h3>Fluxo de caixa</h3><span class="dx-chip">Este mês</span></div>
+                    <div class="dx-bar-legend">
+                        <span class="item"><span class="dot" style="background:#3b82f6;box-shadow:0 0 8px #3b82f6;"></span>Entradas</span>
+                        <span class="item"><span class="dot" style="background:#ec4899;box-shadow:0 0 8px #ec4899;"></span>Saídas</span>
+                    </div>
+                    <div class="dx-bar-chart" id="dx-bar-chart"></div>
+                    <div class="dx-bar-axis"><span>S1</span><span>S2</span><span>S3</span><span>S4</span></div>
+                    <button class="dx-link" onclick="ativarAba('financeiro')">Ver fluxo completo</button>
+                </div>
             </div>
+
+            <!-- ═══════ PREVISÃO COM PRÓXIMAS COMPRAS (FEATURE NOVA) ═══════ -->
+            <div class="dx-card dx-prev-compras" style="margin-bottom:18px;">
+                <div class="dx-head">
+                    <h3>📈 Previsão de patrimônio — próximas compras</h3>
+                    <span class="dx-chip" style="color:#a855f7;background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.25);">cenário otimista</span>
+                </div>
+                <div class="dx-prev-flow" id="dx-prev-flow">
+                    <div class="dx-prev-step now">
+                        <div class="l">Patrimônio hoje</div>
+                        <div class="v" id="dx-prev-hoje"><span class="cur">R$</span>0</div>
+                        <div class="s">situação atual</div>
+                    </div>
+                    <div class="dx-prev-arrow">＋</div>
+                    <div class="dx-prev-step add">
+                        <div class="l">Próximas compras</div>
+                        <div class="v" id="dx-prev-add" style="color:#f59e0b;"><span class="cur" style="color:rgba(245,158,11,0.6);">R$</span>0</div>
+                        <div class="s" id="dx-prev-add-s">0 compras programadas</div>
+                    </div>
+                    <div class="dx-prev-arrow">＝</div>
+                    <div class="dx-prev-step proj">
+                        <div class="l">Patrimônio projetado</div>
+                        <div class="v" id="dx-prev-proj"><span class="cur">R$</span>0</div>
+                        <div class="s" id="dx-prev-proj-s">—</div>
+                    </div>
+                </div>
+                <div class="dx-prev-list-head">
+                    <span class="t">Compras programadas — impacto individual</span>
+                    <span class="n" id="dx-prev-count">0 itens</span>
+                </div>
+                <div class="dx-prev-list" id="dx-prev-list"></div>
+            </div>
+
+            <!-- ═══════ COMPOSIÇÃO PATRIMÔNIO (CAIXAS + ESTOQUE) ═══════ -->
+            <div class="dx-grid-comp">
+                <div class="dx-card glow-blue">
+                    <div class="dx-head"><h3>Caixas — onde está seu dinheiro</h3></div>
+                    <div class="dx-comp-list" id="dx-caixas-list"></div>
+                    <button class="dx-link" onclick="ativarAba('financeiro')">Ver todos os caixas</button>
+                </div>
+
+                <div class="dx-card glow-purple">
+                    <div class="dx-head"><h3>Estoque — composição do patrimônio</h3><span class="dx-chip" id="dx-estoque-count">0 produtos</span></div>
+                    <div class="dx-comp-list" id="dx-estoque-list"></div>
+                    <button class="dx-link" onclick="ativarAba('operacoes')">Ver detalhamento</button>
+                </div>
+            </div>
+
+            <!-- ═══════ META DO MÊS (TOTAL) ═══════ -->
+            <div class="dx-card glow-purple" style="margin-bottom:18px;">
+                <div class="dx-head"><h3>Meta do mês — Total Consolidado</h3><span class="dx-chip warn" id="dx-meta-dias">— dias restantes</span></div>
+                <div class="dx-meta-mes">
+                    <div class="dx-meta-ring">
+                        <svg width="140" height="140">
+                            <circle class="bg" cx="70" cy="70" r="55" fill="none" stroke-width="10"/>
+                            <circle class="fill" id="dx-meta-fill" cx="70" cy="70" r="55" fill="none" stroke-width="10" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
+                        </svg>
+                        <div class="dx-meta-center">
+                            <div class="n" id="dx-meta-pct">0<span class="pct">%</span></div>
+                            <div class="l">da meta</div>
+                        </div>
+                    </div>
+                    <div class="dx-meta-info">
+                        <h2 id="dx-meta-h">Configure suas metas mensais</h2>
+                        <p id="dx-meta-p">Cadastre uma meta total para acompanhar o progresso aqui.</p>
+                        <div class="dx-meta-stats">
+                            <div class="dx-meta-stat"><div class="l">Realizado</div><div class="v" id="dx-meta-real">R$ 0</div></div>
+                            <div class="dx-meta-stat"><div class="l">Meta</div><div class="v" id="dx-meta-tot">R$ 0</div></div>
+                            <div class="dx-meta-stat"><div class="l">Falta</div><div class="v green" id="dx-meta-falta">R$ 0</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ METAS POR LOJA ═══════ -->
+            <div class="dx-card glow-blue" style="margin-bottom:18px;">
+                <div class="dx-head"><h3>Metas por loja — mês corrente</h3><span class="dx-chip" id="dx-lojas-count">0 lojas</span></div>
+                <div class="dx-lojas-grid" id="dx-lojas-grid"></div>
+            </div>
+
+            <!-- ═══════ AÇÕES PRIORITÁRIAS ═══════ -->
+            <div class="dx-card" style="margin-bottom:18px;">
+                <div class="dx-head"><h3>O que precisa de atenção hoje</h3><span class="dx-chip" id="dx-acoes-count">0 ações</span></div>
+                <div class="dx-actions-grid" id="dx-acoes-grid"></div>
+            </div>
+
+            <!-- ═══════ PROJEÇÕES ═══════ -->
+            <div class="dx-card" style="margin-bottom:18px;">
+                <div class="dx-head"><h3>Projeções <span style="color:#7a7a96;font-weight:400;margin-left:6px;font-size:12px;">baseadas no ritmo atual</span></h3></div>
+                <div class="dx-proj-list" id="dx-proj-list"></div>
+            </div>
+
+            <!-- ═══════ TENDÊNCIAS ═══════ -->
+            <div class="dx-grid-4" id="dx-trends-grid"></div>
 
         </div>
+        <!-- FIM DASHBOARD NOVO -->
 
         <!-- TAB: FINANCEIRO -->
         <div id="financeiro" class="tab-content">
@@ -2719,6 +2954,9 @@
                 <!-- Recomendação de alocação -->
                 <div id="roce-recomendacao"></div>
             </div>
+            </div>
+            <!-- FIM sub-fin-analise -->
+
             <!-- PRÓXIMAS COMPRAS -->
             <div id="sub-fin-compras" class="sub-content" style="display:none;">
                 <div class="form-section">
@@ -2926,9 +3164,8 @@
             <!-- Modais inline -->
             <div id="cc-modal-area"></div>
             </div>
-            <!-- FIM CONTAS DO MÊS -->
+            <!-- FIM CARTÕES -->
 
-        </div>
         </div>
         <!-- FIM TAB FINANCEIRO -->
 
@@ -6759,137 +6996,68 @@
 
         // ===== DASHBOARD =====
         function renderDashboard() {
-            const metricas   = _ler('metricas')    || [];
+            // ═══════════════════════════════════════════════════════
+            // NOVO DASHBOARD — Etapa A (visual com dados reais onde possível)
+            // ═══════════════════════════════════════════════════════
             const vendas     = _ler('vendas')      || [];
             const produtos   = _ler('produtos')    || [];
             const lojas      = _ler('lojas')       || [];
             const metas      = _ler('metas-lojas') || {};
-            const validacoes = _ler('validacoes')  || [];
             const caixas     = _ler('fin-caixas')  || [];
+            const estoqueMap = _ler('estoque')     || {};
+            const obrigacoes = _ler('fin-obrigacoes') || [];
 
-            // Popular filtro produto
-            const dashProd = document.getElementById('dashProduto');
-            if (dashProd) {
-                const val = dashProd.value;
-                dashProd.innerHTML = '<option value="">Todos os produtos</option>';
-                produtos.forEach(p => { const o = document.createElement('option'); o.value = p.nome; o.textContent = p.nome; dashProd.appendChild(o); });
-                dashProd.value = val;
-            }
+            // ─── Helpers ───
+            const fmtBR = (n, casas=2) => 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', {minimumFractionDigits:casas, maximumFractionDigits:casas});
+            const fmtBRk = (n) => {
+                const v = Number(n)||0;
+                if (Math.abs(v) >= 1000) return 'R$ ' + (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + 'k';
+                return 'R$ ' + v.toLocaleString('pt-BR',{maximumFractionDigits:0});
+            };
 
-            const filtroProd = document.getElementById('dashProduto')?.value || '';
-            const filtroDias = parseInt(document.getElementById('dashPeriodo')?.value || 30);
-            const hoje = new Date();
-            const dataCorte = new Date(); dataCorte.setDate(dataCorte.getDate() - filtroDias);
-            const dataCorteAnt = new Date(); dataCorteAnt.setDate(dataCorteAnt.getDate() - filtroDias * 2);
-
-            const filtrar = (arr, campoData, campoProd) => arr.filter(m => {
-                const d = new Date(m[campoData]);
-                return d >= dataCorte && (!filtroProd || m[campoProd] === filtroProd);
-            });
-            const filtrarAnt = (arr, campoData, campoProd) => arr.filter(m => {
-                const d = new Date(m[campoData]);
-                return d >= dataCorteAnt && d < dataCorte && (!filtroProd || m[campoProd] === filtroProd);
-            });
-
-            const metF   = filtrar(metricas, 'data', 'produto');
-            const venF   = filtrar(vendas, 'data', 'produtoNome');
-            const metAnt = filtrarAnt(metricas, 'data', 'produto');
-            const venAnt = filtrarAnt(vendas, 'data', 'produtoNome');
-
-            // Métricas período
-            const totalTrafego  = metF.reduce((s,m) => s+(m.trafego||0), 0);
-            const totalImp      = metF.reduce((s,m) => s+(m.impressoes||0), 0);
-            const totalCliq     = metF.reduce((s,m) => s+(m.cliques||0), 0);
-            const totalLeads    = metF.reduce((s,m) => s+(m.etapas?.[0]||0), 0);
-            const totalVendidos = metF.reduce((s,m) => s+(m.etapas?.[6]||0), 0);
-            const totalReceita  = venF.reduce((s,v) => s+((v.precoFinal||0)*(v.quantidade||0)), 0);
-            const totalLucro    = venF.reduce((s,v) => s+(v.lucroTotal||0), 0);
-            const totalVenQtd   = venF.reduce((s,v) => s+(v.quantidade||0), 0);
-            const proLabore     = totalLucro * 0.30;
-            const lucroLiq      = totalLucro - proLabore;
-
-            // Período anterior
-            const recAnt = venAnt.reduce((s,v) => s+((v.precoFinal||0)*(v.quantidade||0)), 0);
-            const crescReceita = recAnt > 0 ? ((totalReceita - recAnt) / recAnt * 100) : 0;
-
-            const cpl = totalLeads > 0 ? totalTrafego / totalLeads : 0;
-            const ctr = totalImp > 0 ? (totalCliq / totalImp * 100) : 0;
-            const taxaConv = totalLeads > 0 ? (totalVendidos / totalLeads * 100) : 0;
-
-            // ── Label período ──
-            const periodoLabels = { '7':'Últimos 7 dias', '30':'Este mês', '90':'Últimos 90 dias', '999':'Todo período' };
-            const elPL = document.getElementById('dash-periodo-label');
-            if (elPL) elPL.textContent = periodoLabels[filtroDias] || 'Este mês';
-
-            // ── Patrimônio líquido = saldo em caixa + contas a receber + valor em estoque ──
-            const obrigDash = _ler('fin-obrigacoes') || [];
+            // ═══════════════════════════════════════════════
+            // 1) HERO — PATRIMÔNIO LÍQUIDO (real)
+            // ═══════════════════════════════════════════════
             let totalCaixa = 0;
             caixas.forEach(c => {
-                const s      = calcularSaldoCaixa(c.id);
+                const s = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0, lucroTotal: 0 };
                 const titular = c.titular || 'solo';
-
-                // Contas a receber pendentes desse caixa
-                const receberDoCaixa = obrigDash
+                const receberDoCaixa = obrigacoes
                     .filter(o => o.caixaId == c.id && o.tipo === 'receber' && o.status !== 'quitado')
                     .reduce((acc, o) => acc + Math.max((parseFloat(o.valor)||0) - (parseFloat(o.pago)||0), 0), 0);
 
-                let meuValCaixa = 0;
+                let meuVal = 0;
                 if (titular === 'socio_lucro') {
-                    // Sócio só no lucro: minha parte do lucro, mas LIMITADA ao saldo atual
-                    // (se o caixa esvaziou, não há mais lucro pra realizar)
                     const minhaParteLucro = Math.min(s.lucroTotal || 0, Math.max(s.saldo || 0, 0));
-                    // A receber também conta como meu (vai vir como lucro)
-                    meuValCaixa = minhaParteLucro + receberDoCaixa;
+                    meuVal = minhaParteLucro + receberDoCaixa;
                 } else if (titular === 'compartilhado') {
                     const meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
-                    meuValCaixa = (s.saldo + receberDoCaixa) * meuPct;
+                    meuVal = (s.saldo + receberDoCaixa) * meuPct;
                 } else {
-                    meuValCaixa = s.saldo + receberDoCaixa; // 100% meu
+                    meuVal = s.saldo + receberDoCaixa;
                 }
-                totalCaixa += meuValCaixa;
+                totalCaixa += meuVal;
             });
 
             let totalEstoque = 0;
-            const _est = _ler('estoque') || {};
             produtos.forEach(p => {
-                const k     = Object.keys(_est).find(k => String(k) === String(p.id));
-                const qtd   = k ? (_est[k].quantidade || 0) : 0;
+                const k = Object.keys(estoqueMap).find(k => String(k) === String(p.id));
+                const qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
                 if (qtd <= 0) return;
                 const custoBase = parseFloat(p.precoCusto || p.custoDireto) || 0;
                 const custosAdic = Object.values(p.custos||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);
-                const comissao   = parseFloat(p.comissao) || 0;
+                const comissao = parseFloat(p.comissao) || 0;
                 const custo = custoBase + custosAdic + comissao;
                 const venda = parseFloat(p.precoVenda) || 0;
                 const lucro = venda - custo;
-                const soc   = p.sociedade || 'solo';
+                const soc = p.sociedade || 'solo';
 
-                // FÓRMULA UNIFICADA DO PATRIMÔNIO POR UNIDADE:
-                //   meuValor = (custo × minha % do estoque) + (lucro × minha % do lucro)
-                //
-                // Ou seja: o que é meu no estoque = o que eu BANQUEI do custo
-                // + o que vai me caber do lucro quando vender.
-                //
-                // Cada tipo de sociedade define meuEstPct e meuLucPct:
-                //   • solo          → 100% / 100%   (meuValor = venda)
-                //   • meio_a_meio   →  50% /  50%   (meuValor = venda × 50%)
-                //   • socio_lucro   →   0% / X%     (você NÃO bancou o estoque, só entra no lucro)
-                //   • personalizado → A%  /  B%     (independentes)
                 let meuEstPct, meuLucPct;
-                if (soc === 'solo') {
-                    meuEstPct = 1.0; meuLucPct = 1.0;
-                } else if (soc === 'meio_a_meio') {
-                    meuEstPct = 0.5; meuLucPct = 0.5;
-                } else if (soc === 'socio_lucro') {
-                    meuEstPct = 0.0;  // <- não bancou o estoque
-                    meuLucPct = ((p.meuLucroPct ?? 100) / 100);
-                } else if (soc === 'personalizado') {
-                    meuEstPct = ((p.meuEstoquePct ?? 100) / 100);
-                    meuLucPct = ((p.meuLucroPct   ?? 100) / 100);
-                } else {
-                    // fallback defensivo: usar o que estiver salvo, ou 100/100
-                    meuEstPct = ((p.meuEstoquePct ?? 100) / 100);
-                    meuLucPct = ((p.meuLucroPct   ?? 100) / 100);
-                }
+                if (soc === 'solo')             { meuEstPct = 1.0; meuLucPct = 1.0; }
+                else if (soc === 'meio_a_meio') { meuEstPct = 0.5; meuLucPct = 0.5; }
+                else if (soc === 'socio_lucro') { meuEstPct = 0.0; meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
+                else if (soc === 'personalizado'){ meuEstPct = ((p.meuEstoquePct ?? 100) / 100); meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
+                else                            { meuEstPct = ((p.meuEstoquePct ?? 100) / 100); meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
 
                 const meuValor = (custo * meuEstPct) + (lucro * meuLucPct);
                 totalEstoque += qtd * meuValor;
@@ -6897,252 +7065,1126 @@
 
             const patrimonioLiq = totalCaixa + totalEstoque;
 
-            const elPat = document.getElementById('dash-patrimonio');
-            if (elPat) elPat.textContent = `R$ ${patrimonioLiq.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+            const setText = (id, txt) => { const e = document.getElementById(id); if (e) e.textContent = txt; };
+            const setHTML = (id, html) => { const e = document.getElementById(id); if (e) e.innerHTML = html; };
 
-            const elPatCaixa = document.getElementById('dash-pat-caixa');
-            if (elPatCaixa) elPatCaixa.textContent = `R$ ${totalCaixa.toLocaleString('pt-BR',{minimumFractionDigits:0})}`;
+            const elPatNum = document.getElementById('dx-pat-num');
+            if (elPatNum) elPatNum.innerHTML = `<span class="cur">R$</span>${patrimonioLiq.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 
-            const elPatEst = document.getElementById('dash-pat-estoque');
-            if (elPatEst) elPatEst.textContent = `R$ ${totalEstoque.toLocaleString('pt-BR',{minimumFractionDigits:0})}`;
-
-            // ── Faturamento hero (lucro do período) ──
-            const elFat = document.getElementById('dash-faturamento');
-            if (elFat) elFat.textContent = `R$ ${totalLucro.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
-
-            const elCrsc = document.getElementById('dash-crescimento');
-            if (elCrsc) {
-                const up = crescReceita >= 0;
-                elCrsc.className = up ? 'kpi-up' : 'kpi-down';
-                elCrsc.innerHTML = `<span>${up?'↑':'↓'}</span><span>${Math.abs(crescReceita).toFixed(1)}%</span><span style="color:var(--text-muted);font-weight:400;">em relação ao período anterior</span>`;
-            }
-
-            const elRec = document.getElementById('dash-receita');
-            if (elRec) elRec.textContent = `R$ ${totalReceita.toFixed(0)}`;
-
-            const elTraf = document.getElementById('dash-trafego-val');
-            if (elTraf) elTraf.textContent = `R$ ${totalTrafego.toFixed(0)}`;
-
-            // ── Score do negócio ──
-            let score = 50;
-            if (cpl > 0 && cpl <= 2)   score += 15;
-            else if (cpl <= 5)          score += 5;
-            else if (cpl > 5)           score -= 10;
-            if (taxaConv >= 8)          score += 15;
-            else if (taxaConv >= 5)     score += 8;
-            else if (taxaConv < 2)      score -= 10;
-            if (totalVenQtd >= 5)       score += 10;
-            if (lucroLiq > 0)           score += 10;
-            score = Math.min(Math.max(score, 0), 100);
-
-            const elScore = document.getElementById('dash-score');
-            const elScoreLbl = document.getElementById('dash-score-label');
-            const scoreArc = document.getElementById('score-arc');
-            if (elScore) elScore.textContent = score;
-            if (elScoreLbl) elScoreLbl.textContent = score >= 80 ? 'Excelente 🚀' : score >= 60 ? 'Bom 👍' : score >= 40 ? 'Atenção ⚠️' : 'Crítico 🔴';
-            if (scoreArc) scoreArc.style.strokeDashoffset = 289 - (289 * score / 100);
-
-            // ── CPL evolução mini ──
-            const elCplEvol = document.getElementById('dash-cpl-evol');
-            if (elCplEvol) {
-                const cplAnt = metAnt.reduce((s,m)=>s+(m.trafego||0),0) / Math.max(metAnt.reduce((s,m)=>s+(m.etapas?.[0]||0),0),1);
-                const cplDiff = cpl > 0 && cplAnt > 0 ? ((cpl - cplAnt)/cplAnt*100) : 0;
-                elCplEvol.className = cplDiff <= 0 ? 'kpi-up' : 'kpi-down';
-                elCplEvol.innerHTML = cpl > 0 ? `CPL R$ ${cpl.toFixed(2)} ${cplDiff !== 0 ? (cplDiff<=0?'↓':'↑')+Math.abs(cplDiff).toFixed(0)+'% vs anterior' : ''}` : 'Sem dados de CPL';
-            }
-
-            // ── Gráfico linha faturamento ──
-            const diasGraf = Math.min(filtroDias, 14);
-            const labelsGraf = [], dataGraf = [];
-            for (let i = diasGraf - 1; i >= 0; i--) {
-                const d = new Date(); d.setDate(d.getDate() - i);
-                const ds = d.toISOString().slice(0,10);
-                labelsGraf.push(d.getDate()+'/'+(d.getMonth()+1));
-                const vDia = vendas.filter(v => v.data === ds).reduce((s,v) => s+(v.lucroTotal||0), 0);
-                dataGraf.push(vDia);
-            }
-            const ctxLinha = document.getElementById('chart-faturamento-linha');
-            if (ctxLinha) {
-                if (ctxLinha._chart) ctxLinha._chart.destroy();
-                ctxLinha._chart = new Chart(ctxLinha, {
-                    type: 'line',
-                    data: { labels: labelsGraf, datasets: [{ data: dataGraf, borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
-                });
-            }
-
-            // ── Gráfico CPL mini ──
-            const cplDias = metF.slice(-7).map(m => m.etapas?.[0] > 0 ? (m.trafego / m.etapas[0]) : 0).filter(v => v > 0);
-            const ctxCpl = document.getElementById('chart-cpl-mini');
-            if (ctxCpl) {
-                if (ctxCpl._chart) ctxCpl._chart.destroy();
-                ctxCpl._chart = new Chart(ctxCpl, {
-                    type: 'line',
-                    data: { labels: cplDias.map((_,i) => i), datasets: [{ data: cplDias, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.4, borderWidth: 1.5, pointRadius: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
-                });
-            }
-
-            // ── Donut resumo do mês ──
-            const porProd = {};
-            venF.forEach(v => {
-                if (!porProd[v.produtoNome]) porProd[v.produtoNome] = 0;
-                porProd[v.produtoNome] += v.lucroTotal || 0;
+            // ─── Entradas/Saídas do mês ───
+            const movs = _ler('fin-movs') || [];
+            const hoje = new Date();
+            const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            let totalEntradas = 0, totalSaidas = 0;
+            movs.forEach(m => {
+                const d = new Date(m.data);
+                if (d < inicioMes) return;
+                const v = parseFloat(m.valor) || 0;
+                if (m.tipo === 'entrada') totalEntradas += v;
+                else if (m.tipo === 'saida') totalSaidas += v;
             });
-            const donutLabels = Object.keys(porProd);
-            const donutData   = Object.values(porProd);
-            const donutCores  = ['#7c3aed','#10b981','#3b82f6','#f59e0b','#f43f5e','#8b5cf6'];
-            const ctxDonut = document.getElementById('chart-donut');
-            if (ctxDonut) {
-                if (ctxDonut._chart) ctxDonut._chart.destroy();
-                ctxDonut._chart = new Chart(ctxDonut, {
-                    type: 'doughnut',
-                    data: { labels: donutLabels, datasets: [{ data: donutData.length ? donutData : [1], backgroundColor: donutData.length ? donutCores.slice(0,donutData.length) : ['rgba(255,255,255,0.05)'], borderWidth: 0 }] },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { enabled: !!donutData.length } } }
-                });
+            setText('dx-entradas', fmtBR(totalEntradas, 2));
+            setText('dx-saidas',   fmtBR(totalSaidas, 2));
+
+            // Delta do mês (vs anterior) — placeholder até Etapa B
+            const elDelta = document.getElementById('dx-pat-delta');
+            if (elDelta) elDelta.innerHTML = `<span class="arrow">▲</span><span>Visual em desenvolvimento</span>`;
+
+            // ─── Chart hero (curva ascendente decorativa por enquanto) ───
+            const areaPath = "M0,120 C 40,115 80,108 120,100 S 200,90 240,75 S 320,65 360,55 S 440,35 480,28 S 560,20 600,18 L 600,160 L 0,160 Z";
+            const linePath = "M0,120 C 40,115 80,108 120,100 S 200,90 240,75 S 320,65 360,55 S 440,35 480,28 S 560,20 600,18";
+            const aPath = document.getElementById('dx-pat-area'); if (aPath) aPath.setAttribute('d', areaPath);
+            const lPath = document.getElementById('dx-pat-line'); if (lPath) lPath.setAttribute('d', linePath);
+            const dPath = document.getElementById('dx-pat-dot');  if (dPath) { dPath.setAttribute('cx', 600); dPath.setAttribute('cy', 18); }
+
+            // ═══════════════════════════════════════════════
+            // 3) KPI ROW — Receita / Lucro / CPL (DADOS REAIS)
+            // ═══════════════════════════════════════════════
+            const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            const nomeMes = meses[hoje.getMonth()];
+            setText('dx-receita-mes', nomeMes);
+            setText('dx-lucro-mes', nomeMes);
+
+            // Mês atual e anterior
+            const mesAtualStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+            const mesAnt = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+            const mesAntStr = `${mesAnt.getFullYear()}-${String(mesAnt.getMonth()+1).padStart(2,'0')}`;
+
+            // Receita = faturamento total das vendas (preço final × qtd)
+            // Lucro = lucroTotal das vendas (já calculado considerando sociedade)
+            let receitaMes = 0, lucroMes = 0, receitaMesAnt = 0, lucroMesAnt = 0;
+            vendas.forEach(v => {
+                const d = v.data || '';
+                const valVenda = (parseFloat(v.precoFinal) || 0) * (parseFloat(v.quantidade) || 1);
+                const valLucro = parseFloat(v.lucroTotal) || 0;
+                if (d.startsWith(mesAtualStr)) {
+                    receitaMes += valVenda;
+                    lucroMes   += valLucro;
+                } else if (d.startsWith(mesAntStr)) {
+                    receitaMesAnt += valVenda;
+                    lucroMesAnt   += valLucro;
+                }
+            });
+            const margemMes = receitaMes > 0 ? (lucroMes / receitaMes * 100) : 0;
+            const deltaReceita = receitaMesAnt > 0 ? ((receitaMes - receitaMesAnt) / receitaMesAnt * 100) : 0;
+            const deltaLucro   = lucroMesAnt > 0 ? ((lucroMes   - lucroMesAnt)   / lucroMesAnt   * 100) : 0;
+
+            setHTML('dx-receita-n', `<span class="cur">R$</span>${receitaMes.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+            setHTML('dx-lucro-n',   `<span class="cur">R$</span>${lucroMes.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+
+            const chipReceita = document.getElementById('dx-receita-chip');
+            if (chipReceita) {
+                if (receitaMesAnt === 0) {
+                    chipReceita.className = 'dx-chip';
+                    chipReceita.textContent = '—';
+                } else {
+                    chipReceita.className = 'dx-chip ' + (deltaReceita >= 0 ? 'up' : 'down');
+                    chipReceita.textContent = (deltaReceita >= 0 ? '▲' : '▼') + ' ' + Math.abs(deltaReceita).toFixed(1) + '%';
+                }
             }
-            const elDonutTotal = document.getElementById('dash-donut-total');
-            if (elDonutTotal) elDonutTotal.textContent = `R$ ${totalLucro.toFixed(0)}`;
-            const elDonutLeg = document.getElementById('dash-donut-legenda');
-            if (elDonutLeg) {
-                if (!donutLabels.length) { elDonutLeg.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">Sem vendas no período</div>'; }
-                else { elDonutLeg.innerHTML = donutLabels.map((l,i) => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;"><span style="width:8px;height:8px;border-radius:50%;background:${donutCores[i]};flex-shrink:0;"></span><span style="color:var(--text-muted);">${l}</span><span style="margin-left:auto;font-weight:600;color:var(--text-main);">R$ ${donutData[i].toFixed(0)}</span></div>`).join(''); }
+            const chipLucro = document.getElementById('dx-lucro-chip');
+            if (chipLucro) {
+                if (lucroMesAnt === 0) {
+                    chipLucro.className = 'dx-chip';
+                    chipLucro.textContent = '—';
+                } else {
+                    chipLucro.className = 'dx-chip ' + (deltaLucro >= 0 ? 'up' : 'down');
+                    chipLucro.textContent = (deltaLucro >= 0 ? '▲' : '▼') + ' ' + Math.abs(deltaLucro).toFixed(1) + '%';
+                }
             }
 
-            // ── Funil mini ──
-            const totaisEt = [0,0,0,0,0,0,0];
-            metF.forEach(m => { (m.etapas||[]).forEach((v,i) => { totaisEt[i] += v||0; }); });
-            const avancou = [totaisEt[0], totaisEt[0]-totaisEt[1], totaisEt[0]-totaisEt[1]-totaisEt[2], totaisEt[0]-totaisEt[1]-totaisEt[2]-totaisEt[3], totaisEt[0]-totaisEt[1]-totaisEt[2]-totaisEt[3]-totaisEt[4], totaisEt[0]-totaisEt[1]-totaisEt[2]-totaisEt[3]-totaisEt[4]-totaisEt[5], totaisEt[6]];
-            const base = avancou[0] || 1;
-            const etNomes = ['Chegada','Saudação','Qualif.','Apresentação','Oferta','Visita','Vendido'];
-            const etCores = ['#7c3aed','#8b5cf6','#6366f1','#3b82f6','#06b6d4','#10b981','#22c55e'];
-            const elFunil = document.getElementById('dash-funil-mini');
-            if (elFunil) {
-                if (!totaisEt[0]) { elFunil.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:16px;">Registre métricas para ver o funil</div>'; }
-                else { elFunil.innerHTML = avancou.map((v,i) => `
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <div style="font-size:10px;color:var(--text-muted);width:58px;flex-shrink:0;">${etNomes[i]}</div>
-                        <div style="flex:1;background:var(--bg-hover);border-radius:3px;height:18px;position:relative;overflow:hidden;">
-                            <div style="width:${Math.max((v/base)*100,2)}%;background:${etCores[i]};height:100%;border-radius:3px;opacity:0.8;"></div>
+            const dReceita = document.getElementById('dx-receita-d');
+            if (dReceita) {
+                if (receitaMesAnt > 0) {
+                    dReceita.className = 'd ' + (deltaReceita >= 0 ? 'up' : 'down');
+                    dReceita.textContent = `vs ${fmtBRk(receitaMesAnt)} em ${meses[mesAnt.getMonth()]}`;
+                } else {
+                    dReceita.className = 'd';
+                    dReceita.style.color = '#7a7a96';
+                    dReceita.textContent = 'sem dados do mês anterior';
+                }
+            }
+            const dLucro = document.getElementById('dx-lucro-d');
+            if (dLucro) {
+                dLucro.className = 'd ' + (deltaLucro >= 0 ? 'up' : 'down');
+                dLucro.textContent = `Margem: ${margemMes.toFixed(1)}%`;
+            }
+
+            // CPL Médio dos últimos 14 dias (via métricas)
+            const metricasArr = _ler('metricas') || [];
+            const hoje14 = new Date(); const inicio14 = new Date(); inicio14.setDate(inicio14.getDate() - 14);
+            const ant14ini = new Date(); ant14ini.setDate(ant14ini.getDate() - 28);
+            const ant14fim = new Date(); ant14fim.setDate(ant14fim.getDate() - 14);
+
+            let cplGasto14 = 0, cplLeads14 = 0, cplGastoAnt = 0, cplLeadsAnt = 0;
+            metricasArr.forEach(m => {
+                const d = new Date(m.data);
+                const gasto = parseFloat(m.gastos || m.gastoTotal || 0);
+                const leads = parseFloat(m.leads || m.contatos || 0);
+                if (d >= inicio14 && d <= hoje14) { cplGasto14 += gasto; cplLeads14 += leads; }
+                else if (d >= ant14ini && d < ant14fim) { cplGastoAnt += gasto; cplLeadsAnt += leads; }
+            });
+            const cplMedio   = cplLeads14   > 0 ? (cplGasto14   / cplLeads14)   : 0;
+            const cplMedioAnt= cplLeadsAnt  > 0 ? (cplGastoAnt  / cplLeadsAnt)  : 0;
+            const deltaCpl   = cplMedioAnt > 0 ? ((cplMedio - cplMedioAnt) / cplMedioAnt * 100) : 0;
+
+            setHTML('dx-cpl-n', cplMedio > 0
+                ? `<span class="cur">R$</span>${cplMedio.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+                : `<span class="cur">R$</span>—`);
+            const chipCpl = document.getElementById('dx-cpl-chip');
+            if (chipCpl) {
+                if (cplMedio === 0 || cplMedioAnt === 0) {
+                    chipCpl.className = 'dx-chip'; chipCpl.textContent = '—';
+                } else {
+                    // CPL subindo é RUIM, então usa down (vermelho) quando sobe
+                    chipCpl.className = 'dx-chip ' + (deltaCpl > 0 ? 'down' : 'up');
+                    chipCpl.textContent = (deltaCpl > 0 ? '▲' : '▼') + ' ' + Math.abs(deltaCpl).toFixed(0) + '%';
+                }
+            }
+            const dCpl = document.getElementById('dx-cpl-d');
+            if (dCpl) {
+                if (cplMedio > 0 && cplMedioAnt > 0) {
+                    dCpl.className = 'd ' + (deltaCpl > 0 ? 'down' : 'up');
+                    dCpl.textContent = `vs ${fmtBR(cplMedioAnt, 2).replace('R$ ','R$')} (14d ant.)`;
+                } else if (cplMedio === 0) {
+                    dCpl.className = 'd'; dCpl.style.color = '#7a7a96';
+                    dCpl.textContent = 'sem leads registrados';
+                } else {
+                    dCpl.className = 'd'; dCpl.style.color = '#7a7a96';
+                    dCpl.textContent = 'sem comparativo';
+                }
+            }
+
+            // ═══════════════════════════════════════════════
+            // ═══════════════════════════════════════════════
+            // 2) SCORE FINANCEIRO — calculado a partir de 5 fatores
+            // ═══════════════════════════════════════════════
+            // Fórmula: cada fator vale 0-20 pontos (total 100)
+            //   F1: Margem do mês (≥30% = 20pts, escala linear)
+            //   F2: Saldo positivo dos caixas (sem caixa negativo = 20pts)
+            //   F3: Crescimento da receita mês a mês (≥10% = 20pts)
+            //   F4: Pontualidade — obrigações vencidas penalizam
+            //   F5: Liquidez — caixa cobre próx. 30d de saídas (≥1.0 = 20pts)
+
+            // F1: Margem
+            const f1 = Math.max(0, Math.min(20, (margemMes / 30) * 20));
+
+            // F2: Saldos
+            let caixasOK = 0;
+            caixas.forEach(c => {
+                const s = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0 };
+                if ((s.saldo || 0) >= 0) caixasOK++;
+            });
+            const f2 = caixas.length > 0 ? (caixasOK / caixas.length) * 20 : 10;
+
+            // F3: Crescimento
+            const f3 = Math.max(0, Math.min(20, ((deltaReceita || 0) / 10) * 20));
+
+            // F4: Pontualidade
+            const obrigVencidas = obrigacoes.filter(o => {
+                if (o.status === 'quitado' || o.tipo !== 'pagar') return false;
+                if (!o.vencimento) return false;
+                return new Date(o.vencimento) < hoje;
+            }).length;
+            const f4 = Math.max(0, 20 - obrigVencidas * 5);
+
+            // F5: Liquidez (saldo total / saídas projetadas 30d)
+            const saidasProjetadas = Math.abs(taxaDiariaLiq < 0 ? taxaDiariaLiq * 30 : saidas30);
+            const liquidez = saidasProjetadas > 0 ? (saldoAtualTotal / saidasProjetadas) : 2;
+            const f5 = Math.max(0, Math.min(20, liquidez * 20));
+
+            const scoreCalc = Math.round(f1 + f2 + f3 + f4 + f5);
+            let scoreStatus, scoreColor;
+            if      (scoreCalc >= 80) { scoreStatus = 'Muito bom';   scoreColor = '#10b981'; }
+            else if (scoreCalc >= 60) { scoreStatus = 'Bom';         scoreColor = '#14b8a6'; }
+            else if (scoreCalc >= 40) { scoreStatus = 'Atenção';     scoreColor = '#f59e0b'; }
+            else                      { scoreStatus = 'Crítico';     scoreColor = '#f43f5e'; }
+
+            setText('dx-score-n', String(scoreCalc));
+            const elScoreStatus = document.getElementById('dx-score-status');
+            if (elScoreStatus) {
+                elScoreStatus.textContent = scoreStatus;
+                elScoreStatus.style.color = scoreColor;
+            }
+            // Anel: 439.8 = circunferência total (2π × 70). offset = total × (1 - score/100)
+            const scoreProg = document.getElementById('dx-score-prog');
+            if (scoreProg) {
+                const totalC = 2 * Math.PI * 70;
+                scoreProg.setAttribute('stroke-dasharray', totalC.toFixed(1));
+                scoreProg.setAttribute('stroke-dashoffset', (totalC * (1 - scoreCalc/100)).toFixed(1));
+            }
+            // Evolução: comparar com mês anterior (margem anterior + delta receita)
+            const margemAnt = receitaMesAnt > 0 ? (lucroMesAnt / receitaMesAnt * 100) : 0;
+            const evolBase = Math.max(0, Math.min(20, (margemAnt / 30) * 20)) + (deltaReceita >= 0 ? 10 : 0);
+            const evolPct = scoreCalc > 0 && evolBase > 0 ? ((scoreCalc - evolBase) / evolBase * 100) : 0;
+            const elScoreEvol = document.getElementById('dx-score-evol-v');
+            if (elScoreEvol) {
+                elScoreEvol.textContent = (evolPct >= 0 ? '▲ ' : '▼ ') + Math.abs(evolPct).toFixed(1) + '%';
+                elScoreEvol.style.color = evolPct >= 0 ? '#10b981' : '#f43f5e';
+            }
+            // Sparkline (não temos histórico de score — gerar curva visualmente baseada no score)
+            const elSpark = document.getElementById('dx-score-spark');
+            if (elSpark) {
+                // Curva subindo gradualmente até score atual
+                const sParts = [];
+                for (let i = 0; i < 11; i++) {
+                    const x = i * 20;
+                    const y = 28 - ((scoreCalc/100) * (i/10) * 24);
+                    sParts.push(`${x},${y.toFixed(1)}`);
+                }
+                elSpark.setAttribute('d', 'M' + sParts.join(' L '));
+            }
+
+            // 4) DONUT — Composição do estoque (DADOS REAIS)
+            // ═══════════════════════════════════════════════
+            const _coresDonut = ['#a855f7', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f43f5e', '#6366f1'];
+            const _gradDonut  = ['url(#dxPurpleGrad)', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f43f5e', '#6366f1'];
+
+            const itensDonut = [];
+            produtos.forEach(p => {
+                const k = Object.keys(estoqueMap).find(k => String(k) === String(p.id));
+                const qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                if (qtd <= 0) return;
+                const custoBase = parseFloat(p.precoCusto || p.custoDireto) || 0;
+                const custosAdic = Object.values(p.custos||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);
+                const comissao = parseFloat(p.comissao) || 0;
+                const custo = custoBase + custosAdic + comissao;
+                const venda = parseFloat(p.precoVenda) || 0;
+                const lucro = venda - custo;
+                const soc = p.sociedade || 'solo';
+                let meuEstPct, meuLucPct;
+                if (soc === 'solo')             { meuEstPct = 1.0; meuLucPct = 1.0; }
+                else if (soc === 'meio_a_meio') { meuEstPct = 0.5; meuLucPct = 0.5; }
+                else if (soc === 'socio_lucro') { meuEstPct = 0.0; meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
+                else                            { meuEstPct = ((p.meuEstoquePct ?? 100) / 100); meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
+                const meuValor = qtd * ((custo * meuEstPct) + (lucro * meuLucPct));
+                if (meuValor > 0.01) itensDonut.push({ nome: p.nome, valor: meuValor });
+            });
+            itensDonut.sort((a,b) => b.valor - a.valor);
+
+            // Agrupar: top 3 + "Outros"
+            const totalDonut = itensDonut.reduce((s,i) => s+i.valor, 0);
+            const top3 = itensDonut.slice(0, 3);
+            const restoVal = itensDonut.slice(3).reduce((s,i)=>s+i.valor, 0);
+            const segs = top3.map((i, idx) => ({ nome: i.nome, valor: i.valor, cor: _coresDonut[idx], grad: _gradDonut[idx] }));
+            if (restoVal > 0) segs.push({ nome: 'Outros', valor: restoVal, cor: _coresDonut[3], grad: _gradDonut[3] });
+
+            // Gerar paths do donut (circunferência = 2πr = ~301.6 quando r=48)
+            const r = 48, C = 2 * Math.PI * r;
+            let offsetAcc = 0;
+            const segsHTML = segs.map(s => {
+                const pct = totalDonut > 0 ? (s.valor / totalDonut) : 0;
+                const dashLen = pct * C;
+                const restoDash = C - dashLen;
+                const html = `<circle cx="70" cy="70" r="${r}" fill="none" stroke="${s.grad}" stroke-width="20" stroke-dasharray="${dashLen.toFixed(2)} ${restoDash.toFixed(2)}" stroke-dashoffset="${(-offsetAcc).toFixed(2)}" transform="rotate(-90 70 70)"/>`;
+                offsetAcc += dashLen;
+                return html;
+            }).join('');
+            setHTML('dx-donut-segs', segsHTML);
+
+            // Total centro
+            if (totalDonut >= 1000) {
+                setHTML('dx-donut-total', `<span class="cur">R$</span>${(totalDonut/1000).toFixed(0)}k`);
+            } else {
+                setHTML('dx-donut-total', `<span class="cur">R$</span>${totalDonut.toFixed(0)}`);
+            }
+
+            // Legenda
+            const legHTML = segs.map(s => {
+                const pct = totalDonut > 0 ? (s.valor / totalDonut * 100).toFixed(0) : 0;
+                return `<div class="dx-legend-item"><span class="left"><span class="dot" style="background:${s.cor};"></span>${s.nome}</span><span class="pct">${pct}%</span></div>`;
+            }).join('');
+            setHTML('dx-donut-legend', legHTML || `<div style="font-size:11px;color:#7a7a96;">Sem produtos em estoque</div>`);
+
+            // ═══════════════════════════════════════════════
+            // 5) PREVISÃO DE SALDO — DADOS REAIS
+            // ═══════════════════════════════════════════════
+            // Calcula taxa diária média (entradas - saídas) dos últimos 30 dias
+            // e extrapola pros próximos 30 dias.
+            const hoje30 = new Date();
+            const inicio30 = new Date(); inicio30.setDate(inicio30.getDate() - 30);
+            let entradas30 = 0, saidas30 = 0;
+            movs.forEach(m => {
+                const d = new Date(m.data);
+                if (d < inicio30 || d > hoje30) return;
+                const v = parseFloat(m.valor) || 0;
+                if (m.tipo === 'entrada') entradas30 += v;
+                else if (m.tipo === 'saida') saidas30 += v;
+            });
+            const taxaDiariaLiq = (entradas30 - saidas30) / 30; // pode ser negativa
+            const saldoAtualTotal = caixas.reduce((s, c) => {
+                const sc = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0 };
+                return s + (sc.saldo || 0);
+            }, 0);
+            const saldoProjetado30d = saldoAtualTotal + (taxaDiariaLiq * 30);
+
+            // Mostrar valor projetado
+            const elPrevBig = document.getElementById('dx-saldo-prev');
+            if (elPrevBig) {
+                elPrevBig.className = 'big' + (saldoProjetado30d < 0 ? ' neg' : '');
+                elPrevBig.innerHTML = `<span class="cur">R$</span>${saldoProjetado30d.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            }
+            const dirText = taxaDiariaLiq >= 0 ? 'em 30 dias (ritmo atual)' : 'em 30 dias (queda ' + fmtBR(Math.abs(taxaDiariaLiq), 0) + '/dia)';
+            setText('dx-saldo-prev-sub', dirText);
+
+            // Chart: 14 dias reais + 16 dias projeção tracejada
+            // Vamos calcular o saldo diário acumulado dos últimos 14 dias
+            const saldosDiarios = [];
+            for (let i = 13; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                // Reconstrução simplificada: pegar saldo atual e voltar pelos movs
+                saldosDiarios.push({ data: new Date(d), saldo: saldoAtualTotal });
+            }
+            // Calcular saldo de cada dia subtraindo movs futuros (do dia i até hoje)
+            for (let i = 0; i < 14; i++) {
+                const corte = saldosDiarios[i].data;
+                let movsPosteriores = 0;
+                movs.forEach(m => {
+                    const d = new Date(m.data);
+                    if (d <= corte) return;
+                    const v = parseFloat(m.valor) || 0;
+                    if (m.tipo === 'entrada') movsPosteriores += v;
+                    else if (m.tipo === 'saida') movsPosteriores -= v;
+                });
+                saldosDiarios[i].saldo = saldoAtualTotal - movsPosteriores;
+            }
+
+            // Determinar min/max para escalar o chart (0 = topo, 80 = base, invertido)
+            const valores = saldosDiarios.map(s => s.saldo).concat([0, saldoProjetado30d]);
+            const minV = Math.min(...valores);
+            const maxV = Math.max(...valores);
+            const range = maxV - minV || 1;
+            const scaleY = v => 75 - ((v - minV) / range) * 70;  // 5px topo, 75px base (linha do 0 no meio)
+
+            // Path da linha real (14 pontos em x:0 a 140, espaçados 10px)
+            const realPoints = saldosDiarios.map((s, i) => `${i*10},${scaleY(s.saldo).toFixed(1)}`).join(' L ');
+            const realStartY = scaleY(saldosDiarios[0].saldo).toFixed(1);
+            const realPath  = `M${realPoints}`;
+            const areaPathSaldo = `M0,${realStartY} L ${saldosDiarios.slice(1).map((s,i)=>`${(i+1)*10},${scaleY(s.saldo).toFixed(1)}`).join(' L ')} L 130,80 L 0,80 Z`;
+            const prevEndY = scaleY(saldoProjetado30d).toFixed(1);
+            const prevStartX = 130;
+            const lastRealY = scaleY(saldosDiarios[13].saldo).toFixed(1);
+            const prevPath = `M ${prevStartX},${lastRealY} C 170,${((Number(lastRealY)+Number(prevEndY))/2).toFixed(1)} 200,${prevEndY} 240,${prevEndY}`;
+
+            const elSA = document.getElementById('dx-saldo-area');     if (elSA) elSA.setAttribute('d', areaPathSaldo);
+            const elSR = document.getElementById('dx-saldo-line-real');if (elSR) elSR.setAttribute('d', realPath);
+            const elSP = document.getElementById('dx-saldo-line-prev');if (elSP) elSP.setAttribute('d', prevPath);
+
+            // Alerta: ficará negativo?
+            const alertEl = document.getElementById('dx-saldo-alert');
+            const alertTxt = document.getElementById('dx-saldo-alert-txt');
+            if (alertEl && alertTxt) {
+                if (saldoProjetado30d < 0 && taxaDiariaLiq < 0) {
+                    // Dias até zerar
+                    const diasZero = Math.ceil(saldoAtualTotal / Math.abs(taxaDiariaLiq));
+                    alertEl.style.display = 'flex';
+                    alertEl.className = 'dx-forecast-alert';
+                    alertTxt.innerHTML = `Você ficará <b>negativo em ${diasZero} dias</b> se mantiver o ritmo atual de gastos.`;
+                } else if (taxaDiariaLiq < 0 && saldoProjetado30d > 0) {
+                    alertEl.style.display = 'flex';
+                    alertEl.className = 'dx-forecast-alert';
+                    alertTxt.innerHTML = `Saídas excedem entradas em <b>${fmtBR(Math.abs(taxaDiariaLiq), 0)}/dia</b>. Monitore o saldo.`;
+                } else if (taxaDiariaLiq > 0) {
+                    alertEl.style.display = 'flex';
+                    alertEl.className = 'dx-forecast-alert ok';
+                    alertTxt.innerHTML = `Saldo crescendo <b>${fmtBR(taxaDiariaLiq, 0)}/dia</b> em média.`;
+                } else {
+                    alertEl.style.display = 'none';
+                }
+            }
+
+            // ═══════════════════════════════════════════════
+            // 6) FLUXO DE CAIXA — barras com dados REAIS (semanais do mês)
+            // ═══════════════════════════════════════════════
+            const barChart = document.getElementById('dx-bar-chart');
+            if (barChart) {
+                // 4 semanas do mês atual
+                const semanas = [
+                    { i: 1, entradas: 0, saidas: 0 },
+                    { i: 2, entradas: 0, saidas: 0 },
+                    { i: 3, entradas: 0, saidas: 0 },
+                    { i: 4, entradas: 0, saidas: 0 }
+                ];
+                movs.forEach(m => {
+                    const d = new Date(m.data);
+                    if (d < inicioMes) return;
+                    if (d.getMonth() !== hoje.getMonth() || d.getFullYear() !== hoje.getFullYear()) return;
+                    const diaDoMes = d.getDate();
+                    const idx = Math.min(3, Math.floor((diaDoMes - 1) / 7));
+                    const v = parseFloat(m.valor) || 0;
+                    if (m.tipo === 'entrada') semanas[idx].entradas += v;
+                    else if (m.tipo === 'saida') semanas[idx].saidas += v;
+                });
+                // Escala (% do maior valor de qualquer barra)
+                const maxBar = Math.max(...semanas.flatMap(s => [s.entradas, s.saidas]), 1);
+                barChart.innerHTML = semanas.map(s => {
+                    const hE = (s.entradas / maxBar * 90).toFixed(1);
+                    const hS = (s.saidas   / maxBar * 90).toFixed(1);
+                    return `<div class="dx-bar-group" title="Semana ${s.i}: entradas ${fmtBR(s.entradas,0)}, saídas ${fmtBR(s.saidas,0)}"><div class="dx-bar-stack"><div class="dx-bar-blue" style="height:${hE}%;"></div><div class="dx-bar-pink" style="height:${hS}%;"></div></div></div>`;
+                }).join('');
+            }
+
+            // ═══════════════════════════════════════════════
+            // 7) PREVISÃO COM PRÓXIMAS COMPRAS — DADOS REAIS
+            // ═══════════════════════════════════════════════
+            const comprasProgr = (_ler('fin-compras') || []).filter(c => c.status !== 'concluida' && c.status !== 'cancelada');
+
+            let totalInvestimento = 0;     // o que sai do caixa
+            let totalPatrimAdd    = 0;     // o que entra no patrimônio (custo bancado + lucro projetado)
+            const itensPrev = [];
+
+            comprasProgr.forEach(c => {
+                const itens = c.itens || [];
+                const sociedade = c.sociedade || 'solo';
+                const socioPct  = parseFloat(c.socioPct) || 0;
+
+                // Determinar minha % no estoque e no lucro a partir da sociedade da compra
+                let meuEstPct, meuLucPct;
+                if (sociedade === 'solo') {
+                    meuEstPct = 1.0; meuLucPct = 1.0;
+                } else {
+                    // "socio" = sócio entra com X% — significa que o sócio banca X% do estoque
+                    // e fica com X% do lucro. Eu fico com (100-X)% de cada.
+                    const meuParte = (100 - socioPct) / 100;
+                    meuEstPct = meuParte;
+                    meuLucPct = meuParte;
+                }
+
+                let custoTotalCompra = 0;
+                let lucroProjetadoCompra = 0;
+                let qtdTotal = 0;
+                itens.forEach(it => {
+                    const qtd = parseFloat(it.qtd) || 0;
+                    const cu  = parseFloat(it.custoUnit) || 0;
+                    const vu  = parseFloat(it.vendaUnit) || 0;
+                    custoTotalCompra    += qtd * cu;
+                    lucroProjetadoCompra += qtd * Math.max(0, vu - cu);
+                    qtdTotal += qtd;
+                });
+
+                // Meu investimento = o que SAI do meu caixa (= o que eu banco do estoque)
+                const meuInvestimento = custoTotalCompra * meuEstPct;
+                // Meu patrimônio adicionado = custo que eu banquei (vira estoque) + lucro projetado que vai me caber
+                const meuPatrimAdd = (custoTotalCompra * meuEstPct) + (lucroProjetadoCompra * meuLucPct);
+
+                totalInvestimento += meuInvestimento;
+                totalPatrimAdd    += meuPatrimAdd;
+
+                const nomesItens = itens.map(i => i.nome).filter(Boolean).join(', ') || c.produtoNome || 'Compra programada';
+                const socDesc = sociedade === 'solo'
+                    ? '100% meu'
+                    : `${(100-socioPct).toFixed(0)}/${socioPct.toFixed(0)} com sócio`;
+
+                itensPrev.push({
+                    nome: nomesItens,
+                    desc: `${qtdTotal} un · ${socDesc}${c.prazo ? ' · prazo ' + c.prazo : ''}`,
+                    invest: meuInvestimento,
+                    patrim: meuPatrimAdd,
+                    custoTotal: custoTotalCompra,
+                    lucroProj: lucroProjetadoCompra
+                });
+            });
+
+            // Patrimônio projetado = atual + adicionado pelas compras (estoque + lucro)
+            //                       − investimento (que sai do caixa)
+            // Importante: o "investimento" SAI do caixa mas ENTRA no estoque, então sai e entra do patrimônio,
+            // resultando em zero efeito do investimento. O ganho líquido é só o lucro projetado.
+            // Mas como você quer ver "cenário otimista", mostramos o impacto bruto.
+            //
+            // Fórmula correta:
+            //   patrimônio projetado = atual + (lucro projetado × minha %)
+            // Porque: investimento sai do caixa (−X) mas vira estoque seu (+X) → líquido zero
+            //         lucro virá quando vender (+X×%)
+            const lucroProjetadoMeu = itensPrev.reduce((s, i) => s + (i.lucroProj * (i.invest > 0 ? (i.patrim - i.invest) / i.lucroProj : 0)), 0);
+            // Simplificando: o ganho líquido = totalPatrimAdd − totalInvestimento (= soma dos lucros projetados que serão meus)
+            const ganhoLiquido = totalPatrimAdd - totalInvestimento;
+            const patrimProjetado = patrimonioLiq + ganhoLiquido;
+
+            setHTML('dx-prev-hoje', `<span class="cur">R$</span>${patrimonioLiq.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+
+            if (comprasProgr.length === 0) {
+                setHTML('dx-prev-add', `<span class="cur" style="color:rgba(245,158,11,0.6);">R$</span>0`);
+                setText('dx-prev-add-s', 'nenhuma compra programada');
+                setHTML('dx-prev-proj', `<span class="cur">R$</span>${patrimonioLiq.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+                setText('dx-prev-proj-s', 'sem mudança projetada');
+                setHTML('dx-prev-list', `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;">Nenhuma compra programada.<br><br><small>Cadastre em <b>Financeiro → Próximas Compras</b> para ver projeções aqui.</small></div>`);
+                setText('dx-prev-count', '0 itens');
+            } else {
+                setHTML('dx-prev-add', `<span class="cur" style="color:rgba(245,158,11,0.6);">R$</span>${totalInvestimento.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+                setText('dx-prev-add-s', `${comprasProgr.length} compra${comprasProgr.length!==1?'s':''} programada${comprasProgr.length!==1?'s':''}`);
+                setHTML('dx-prev-proj', `<span class="cur">R$</span>${patrimProjetado.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+                const pctCresc = patrimonioLiq > 0 ? ((ganhoLiquido / patrimonioLiq) * 100) : 0;
+                setText('dx-prev-proj-s', ganhoLiquido > 0
+                    ? `+${fmtBR(ganhoLiquido, 0).replace('R$ ','R$ ')} (+${pctCresc.toFixed(1)}%)`
+                    : `${fmtBR(ganhoLiquido, 0).replace('R$ ','R$ ')} sem lucro projetado`);
+                setText('dx-prev-count', `${itensPrev.length} ${itensPrev.length===1?'item':'itens'}`);
+
+                // Ícone por tipo de item (heurística simples)
+                const iconOf = (nome) => {
+                    const n = nome.toLowerCase();
+                    if (n.includes('scooter') || n.includes('moto')) return '🛵';
+                    if (n.includes('s10') || n.includes('hilux') || n.includes('caminhonete')) return '🚙';
+                    if (n.includes('star') || n.includes('antena')) return '📡';
+                    if (n.includes('vidro')) return '🪟';
+                    if (n.includes('onix') || n.includes('prisma') || n.includes('hb20')) return '🚗';
+                    return '📦';
+                };
+
+                setHTML('dx-prev-list', itensPrev.map(it => `
+                    <div class="dx-prev-item" onclick="ativarAba('financeiro')">
+                        <div class="ico">${iconOf(it.nome)}</div>
+                        <div class="body">
+                            <div class="t">${it.nome}</div>
+                            <div class="s">${it.desc}</div>
                         </div>
-                        <div style="font-size:10px;font-weight:700;color:${etCores[i]};font-family:JetBrains Mono,monospace;width:24px;text-align:right;">${v}</div>
-                    </div>`).join(''); }
+                        <div class="invest">
+                            <div class="l">investimento</div>
+                            ${fmtBR(it.invest, 0).replace('R$ ','R$ ')}
+                        </div>
+                        <div class="lucro">
+                            <div class="l">meu patrimônio</div>
+                            ${(it.patrim - it.invest) >= 0 ? '+' : ''}${fmtBR(it.patrim - it.invest, 0).replace('R$ ','R$ ')}
+                        </div>
+                    </div>
+                `).join(''));
             }
 
-            // ── Barras de leads por dia ──
-            const ultimos7 = [];
-            const labLeads = [];
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date(); d.setDate(d.getDate() - i);
-                const ds = d.toISOString().slice(0,10);
-                labLeads.push(d.getDate()+'/'+(d.getMonth()+1));
-                ultimos7.push(metricas.filter(m => m.data === ds).reduce((s,m) => s+(m.etapas?.[0]||0), 0));
-            }
-            const ctxLeads = document.getElementById('chart-leads-barras');
-            if (ctxLeads) {
-                if (ctxLeads._chart) ctxLeads._chart.destroy();
-                ctxLeads._chart = new Chart(ctxLeads, {
-                    type: 'bar',
-                    data: { labels: labLeads, datasets: [{ data: ultimos7, backgroundColor: 'rgba(124,58,237,0.6)', borderRadius: 4 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
-                });
-            }
-            const elFluxo = document.getElementById('dash-fluxo-info');
-            if (elFluxo) { const tot7 = ultimos7.reduce((s,v)=>s+v,0); elFluxo.textContent = tot7 > 0 ? `${tot7} leads nos últimos 7 dias · média ${(tot7/7).toFixed(1)}/dia` : 'Sem leads nos últimos 7 dias'; }
+            // ═══════════════════════════════════════════════
+            // 8) CAIXAS — lista real
+            // ═══════════════════════════════════════════════
+            const caixasList = document.getElementById('dx-caixas-list');
+            if (caixasList) {
+                if (!caixas.length) {
+                    caixasList.innerHTML = `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;">Nenhum caixa cadastrado</div>`;
+                } else {
+                    const caixasComSaldo = caixas.map(c => {
+                        const s = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0, lucroTotal: 0 };
+                        const titular = c.titular || 'solo';
+                        const receber = obrigacoes
+                            .filter(o => o.caixaId == c.id && o.tipo === 'receber' && o.status !== 'quitado')
+                            .reduce((acc, o) => acc + Math.max((parseFloat(o.valor)||0) - (parseFloat(o.pago)||0), 0), 0);
+                        let meuVal = 0;
+                        let pctLabel = '100% meu';
+                        if (titular === 'socio_lucro') {
+                            const lp = Math.min(s.lucroTotal || 0, Math.max(s.saldo || 0, 0));
+                            meuVal = lp + receber;
+                            pctLabel = 'sócio só no lucro';
+                        } else if (titular === 'compartilhado') {
+                            const meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
+                            meuVal = (s.saldo + receber) * meuPct;
+                            pctLabel = (meuPct*100).toFixed(0) + '% meu';
+                        } else {
+                            meuVal = s.saldo + receber;
+                        }
+                        return { nome: c.nome, meuVal, pctLabel, receber };
+                    }).filter(c => Math.abs(c.meuVal) > 0.01)
+                      .sort((a,b) => b.meuVal - a.meuVal);
 
-            // ── Metas das lojas ──
-            const elMetas = document.getElementById('dash-metas');
-            if (elMetas) {
-                if (!lojas.length) { elMetas.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">Cadastre lojas e defina metas</div>'; }
-                else {
-                    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-                    elMetas.innerHTML = lojas.map(loja => {
-                        const meta = metas[loja.id] || {};
-                        const vendasLojaMes = vendas.filter(v => { const p = produtos.find(p=>String(p.id)===String(v.produtoId)||p.nome===v.produtoNome); return p && String(p.loja)===String(loja.id) && v.data?.startsWith(mesAtual); });
-                        const unVendidas = vendasLojaMes.reduce((s,v)=>s+(v.quantidade||0),0);
-                        const pct = meta.unidades > 0 ? Math.min((unVendidas/meta.unidades)*100,100) : 0;
-                        const corPct = pct >= 80 ? 'var(--green-light)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+                    const totalC = caixasComSaldo.reduce((s,c)=>s+c.meuVal,0);
+                    caixasList.innerHTML = caixasComSaldo.slice(0, 5).map(c => {
+                        const pctDoCaixa = totalC > 0 ? (c.meuVal/totalC*100).toFixed(0) : 0;
+                        const extra = c.receber > 0 ? ` · +${fmtBRk(c.receber)} a receber` : '';
                         return `
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div class="objetivo-pct-ring">
-                                <svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="5"/><circle cx="26" cy="26" r="22" fill="none" stroke="${corPct}" stroke-width="5" stroke-linecap="round" stroke-dasharray="138" stroke-dashoffset="${138 - (138*pct/100)}" transform="rotate(-90 26 26)"/></svg>
-                                <div class="objetivo-pct-val" style="color:${corPct};">${pct.toFixed(0)}%</div>
+                        <div class="dx-comp-row" onclick="ativarAba('financeiro')">
+                            <div class="ico cash">🏦</div>
+                            <div class="body">
+                                <div class="t">${c.nome}</div>
+                                <div class="s">${c.pctLabel}${extra}</div>
                             </div>
-                            <div style="flex:1;">
-                                <div style="font-size:13px;font-weight:600;color:var(--text-main);">${loja.nome}</div>
-                                <div style="font-size:11px;color:var(--text-muted);">${unVendidas} / ${meta.unidades||'—'} un · Meta ${meta.faturamento?'R$'+meta.faturamento:'não definida'}</div>
-                                <div class="meta-progress" style="margin-top:4px;"><div class="meta-progress-bar" style="width:${pct}%;background:${corPct};"></div></div>
+                            <div class="value">
+                                <div class="v">${fmtBR(c.meuVal, 0)}</div>
+                                <div class="p">${pctDoCaixa}% do total</div>
                             </div>
                         </div>`;
                     }).join('');
                 }
             }
 
-            // ── Produtos em validação ──
-            const elVal = document.getElementById('dash-validacoes');
-            if (elVal) {
-                const ativos = validacoes.filter(v => v.status === 'testando' || v.status === 'cadastrado');
-                if (!ativos.length) { elVal.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">Nenhum produto em validação</div>'; }
-                else { elVal.innerHTML = ativos.slice(0,3).map(v => {
-                    const corSt = { testando:'var(--purple-light)', cadastrado:'var(--text-muted)' }[v.status] || 'var(--text-muted)';
-                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            ${v.foto ? `<img src="${v.foto}" style="width:28px;height:28px;border-radius:6px;object-fit:cover;">` : '<div style="width:28px;height:28px;border-radius:6px;background:var(--bg-hover);display:flex;align-items:center;justify-content:center;font-size:12px;">📦</div>'}
-                            <div>
-                                <div style="font-size:12px;font-weight:600;color:var(--text-main);">${v.nome}</div>
-                                <div style="font-size:10px;color:var(--text-muted);">Margem ${(v.margemPct||0).toFixed(1)}%</div>
+            // ═══════════════════════════════════════════════
+            // 9) ESTOQUE — lista real
+            // ═══════════════════════════════════════════════
+            const estoqueList = document.getElementById('dx-estoque-list');
+            const estoqueCount = document.getElementById('dx-estoque-count');
+            if (estoqueList) {
+                const itens = [];
+                produtos.forEach(p => {
+                    const k = Object.keys(estoqueMap).find(k => String(k) === String(p.id));
+                    const qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                    if (qtd <= 0) return;
+                    const custoBase = parseFloat(p.precoCusto || p.custoDireto) || 0;
+                    const custosAdic = Object.values(p.custos||{}).reduce((s,v)=>s+(parseFloat(v)||0),0);
+                    const comissao = parseFloat(p.comissao) || 0;
+                    const custo = custoBase + custosAdic + comissao;
+                    const venda = parseFloat(p.precoVenda) || 0;
+                    const lucro = venda - custo;
+                    const soc = p.sociedade || 'solo';
+                    let meuEstPct, meuLucPct;
+                    if (soc === 'solo')             { meuEstPct = 1.0; meuLucPct = 1.0; }
+                    else if (soc === 'meio_a_meio') { meuEstPct = 0.5; meuLucPct = 0.5; }
+                    else if (soc === 'socio_lucro') { meuEstPct = 0.0; meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
+                    else                            { meuEstPct = ((p.meuEstoquePct ?? 100) / 100); meuLucPct = ((p.meuLucroPct ?? 100) / 100); }
+                    const meuUnit = (custo * meuEstPct) + (lucro * meuLucPct);
+                    const meuTotal = qtd * meuUnit;
+                    if (meuTotal > 0.01) {
+                        const socDesc = {solo:'100% meu', meio_a_meio:'50/50', socio_lucro:'sócio só no lucro', personalizado:`${(meuEstPct*100).toFixed(0)}%/${(meuLucPct*100).toFixed(0)}%`}[soc] || soc;
+                        itens.push({ nome: p.nome, qtd, meuTotal, socDesc });
+                    }
+                });
+                itens.sort((a,b)=>b.meuTotal - a.meuTotal);
+                const totalE = itens.reduce((s,i)=>s+i.meuTotal,0);
+                if (estoqueCount) estoqueCount.textContent = itens.length + (itens.length === 1 ? ' produto' : ' produtos');
+                if (!itens.length) {
+                    estoqueList.innerHTML = `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;">Nenhum produto em estoque</div>`;
+                } else {
+                    estoqueList.innerHTML = itens.slice(0, 5).map(i => {
+                        const pct = totalE > 0 ? (i.meuTotal/totalE*100).toFixed(1) : 0;
+                        return `
+                        <div class="dx-comp-row" onclick="ativarAba('operacoes')">
+                            <div class="ico stock">📦</div>
+                            <div class="body">
+                                <div class="t">${i.nome}</div>
+                                <div class="s">${i.qtd} un · ${i.socDesc}</div>
                             </div>
+                            <div class="value">
+                                <div class="v">${fmtBR(i.meuTotal, 0)}</div>
+                                <div class="p">${pct}% do estoque</div>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // ═══════════════════════════════════════════════
+            // 10) META MÊS — total consolidado (DADOS REAIS)
+            // ═══════════════════════════════════════════════
+            // Soma as metas de faturamento de todas as lojas e compara com receita do mês
+            let metaTotalFat = 0;
+            Object.values(metas).forEach(m => {
+                if (m && typeof m === 'object') {
+                    metaTotalFat += parseFloat(m.faturamento) || 0;
+                }
+            });
+            // Dias do mês e dias restantes
+            const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+            const diaAtual = hoje.getDate();
+            const diasRestantes = Math.max(0, ultimoDiaMes - diaAtual);
+            const diasCorridos = diaAtual;
+
+            const pctMeta = metaTotalFat > 0 ? Math.min(100, (receitaMes / metaTotalFat * 100)) : 0;
+            const falta = Math.max(0, metaTotalFat - receitaMes);
+            const ritmoAtualDia = diasCorridos > 0 ? (receitaMes / diasCorridos) : 0;
+            const necessarioDia = diasRestantes > 0 ? (falta / diasRestantes) : 0;
+
+            setText('dx-meta-pct', metaTotalFat > 0 ? String(Math.round(pctMeta)) : '—');
+            setText('dx-meta-dias', metaTotalFat > 0 ? `${diasRestantes} dias restantes` : 'sem meta');
+
+            const elMetaH = document.getElementById('dx-meta-h');
+            const elMetaP = document.getElementById('dx-meta-p');
+            if (metaTotalFat > 0) {
+                if (pctMeta >= 100) {
+                    if (elMetaH) elMetaH.textContent = '🎉 Meta batida!';
+                    if (elMetaP) elMetaP.innerHTML = `Realizado: <b>${fmtBR(receitaMes, 0)}</b>. Continue assim até fim do mês.`;
+                } else {
+                    if (elMetaH) elMetaH.textContent = `Para bater a meta, vender ${fmtBR(necessarioDia, 0)}/dia`;
+                    const diff = necessarioDia - ritmoAtualDia;
+                    const diffTxt = diff > 0
+                        ? `Ritmo atual: <b>${fmtBR(ritmoAtualDia, 0)}/dia</b>. Faltam <b>${fmtBR(diff, 0)}/dia</b> a mais para fechar.`
+                        : `Ritmo atual: <b>${fmtBR(ritmoAtualDia, 0)}/dia</b> está acima do necessário.`;
+                    if (elMetaP) elMetaP.innerHTML = diffTxt;
+                }
+            } else {
+                if (elMetaH) elMetaH.textContent = 'Configure suas metas mensais';
+                if (elMetaP) elMetaP.textContent = 'Cadastre metas por loja em Operações → Gestão das Lojas para acompanhar aqui.';
+            }
+            setText('dx-meta-real', fmtBRk(receitaMes));
+            setText('dx-meta-tot',  metaTotalFat > 0 ? fmtBRk(metaTotalFat) : '—');
+            setText('dx-meta-falta', metaTotalFat > 0 ? fmtBRk(falta) : '—');
+
+            // Anel da meta (345.6 = 2π × 55)
+            const elMetaFill = document.getElementById('dx-meta-fill');
+            if (elMetaFill) {
+                const totalC2 = 2 * Math.PI * 55;
+                elMetaFill.setAttribute('stroke-dasharray', totalC2.toFixed(1));
+                elMetaFill.setAttribute('stroke-dashoffset', metaTotalFat > 0 ? (totalC2 * (1 - pctMeta/100)).toFixed(1) : totalC2.toFixed(1));
+            }
+
+            // ═══════════════════════════════════════════════
+            // 11) METAS POR LOJA — DADOS REAIS
+            // ═══════════════════════════════════════════════
+            const lojasGrid = document.getElementById('dx-lojas-grid');
+            const lojasCount = document.getElementById('dx-lojas-count');
+            if (lojasGrid) {
+                if (!lojas.length) {
+                    lojasGrid.innerHTML = `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;grid-column:1/-1;">Nenhuma loja cadastrada</div>`;
+                    if (lojasCount) lojasCount.textContent = '0 lojas';
+                } else {
+                    if (lojasCount) lojasCount.textContent = lojas.length + (lojas.length === 1 ? ' loja' : ' lojas');
+                    // Pra cada loja: pegar meta de faturamento e calcular realizado do mês
+                    const lojasComMeta = lojas.map(l => {
+                        const lid = l.id || l;
+                        const m = metas[lid] || {};
+                        const metaFat = parseFloat(m.faturamento) || 0;
+                        // Vendas dessa loja no mês atual
+                        const produtosLoja = produtos.filter(p => p.loja == lid);
+                        const vendasMesLoja = vendas.filter(v => {
+                            if (!v.data || !v.data.startsWith(mesAtualStr)) return false;
+                            return produtosLoja.some(p => p.id == v.produtoId || p.nome === v.produtoNome);
+                        });
+                        const realizado = vendasMesLoja.reduce((s, v) => s + ((parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1)), 0);
+                        const pct = metaFat > 0 ? Math.min(100, (realizado / metaFat * 100)) : 0;
+                        return { nome: l.nome || String(l), meta: metaFat, real: realizado, pct };
+                    });
+                    // Filtrar: mostrar só lojas com meta cadastrada OU com vendas
+                    const lojasMostrar = lojasComMeta.filter(l => l.meta > 0 || l.real > 0);
+                    if (!lojasMostrar.length) {
+                        lojasGrid.innerHTML = `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;grid-column:1/-1;">Nenhuma loja com meta cadastrada ou vendas no mês.<br><br><small>Configure metas em Operações → Gestão das Lojas</small></div>`;
+                    } else {
+                        lojasGrid.innerHTML = lojasMostrar.slice(0, 6).map(l => {
+                            let classe = 'atrasada';
+                            if (l.pct >= 80) classe = 'ok';
+                            else if (l.pct >= 50) classe = 'atencao';
+                            const pctTxt = l.meta > 0 ? Math.round(l.pct) + '%' : '—';
+                            const realStr = l.real > 0 ? fmtBRk(l.real).replace('R$ ', 'R$') : 'R$ 0';
+                            const metaStr = l.meta > 0 ? fmtBRk(l.meta).replace('R$ ', 'R$') : '—';
+                            return `
+                                <div class="dx-loja-tile ${classe}">
+                                    <div class="htile"><div class="nome">${l.nome}</div><div class="pct-chip">${pctTxt}</div></div>
+                                    <div class="vals"><span>Real: <b>${realStr}</b></span><span>Meta: <b>${metaStr}</b></span></div>
+                                    <div class="dx-loja-bar"><div class="fill" style="width:${l.pct}%;"></div></div>
+                                </div>`;
+                        }).join('');
+                    }
+                }
+            }
+
+            // ═══════════════════════════════════════════════
+            // 12) AÇÕES PRIORITÁRIAS — DADOS REAIS
+            // ═══════════════════════════════════════════════
+            // Analisa obrigações + estoque + receber e gera até 6 ações ordenadas por urgência
+            const acoes = [];
+            const hoje7d = new Date(); hoje7d.setDate(hoje7d.getDate() + 7);
+
+            // 1. Contas a pagar vencidas
+            obrigacoes.forEach(o => {
+                if (o.status === 'quitado' || o.tipo !== 'pagar') return;
+                if (!o.vencimento) return;
+                const venc = new Date(o.vencimento);
+                const valor = (parseFloat(o.valor)||0) - (parseFloat(o.pago)||0);
+                if (valor <= 0) return;
+                if (venc < hoje) {
+                    const diasAtraso = Math.floor((hoje - venc) / (1000*60*60*24));
+                    acoes.push({
+                        prio: 1, level: 'urgent', valor,
+                        tag: `Vencido há ${diasAtraso}d · ${fmtBRk(valor)}`,
+                        title: `Pagar ${o.descricao || o.fornecedor || 'conta vencida'}`,
+                        desc: `Conta vencida há ${diasAtraso} dia${diasAtraso!==1?'s':''}. Pagamento em atraso prejudica score e gera juros.`,
+                        cta: 'Marcar como pago',
+                        href: 'financeiro'
+                    });
+                } else if (venc <= hoje7d) {
+                    const diasFalta = Math.ceil((venc - hoje) / (1000*60*60*24));
+                    acoes.push({
+                        prio: 2, level: 'medium', valor,
+                        tag: diasFalta === 0 ? `Vence hoje · ${fmtBRk(valor)}` : `Vence em ${diasFalta}d · ${fmtBRk(valor)}`,
+                        title: `${o.descricao || o.fornecedor || 'Conta'}`,
+                        desc: `Vencimento próximo. Programar pagamento evita juros e mantém o score saudável.`,
+                        cta: 'Programar pagamento',
+                        href: 'financeiro'
+                    });
+                }
+            });
+
+            // 2. Contas a receber atrasadas
+            obrigacoes.forEach(o => {
+                if (o.status === 'quitado' || o.tipo !== 'receber') return;
+                if (!o.vencimento) return;
+                const venc = new Date(o.vencimento);
+                const valor = (parseFloat(o.valor)||0) - (parseFloat(o.pago)||0);
+                if (valor <= 0) return;
+                if (venc < hoje) {
+                    const diasAtraso = Math.floor((hoje - venc) / (1000*60*60*24));
+                    acoes.push({
+                        prio: 1, level: 'urgent', valor,
+                        tag: `Atraso ${diasAtraso}d · ${fmtBRk(valor)}`,
+                        title: `Cobrar ${o.descricao || o.cliente || 'cliente em atraso'}`,
+                        desc: `Cliente em atraso há ${diasAtraso} dia${diasAtraso!==1?'s':''}. Cobrança ativa aumenta chance de recuperação.`,
+                        cta: 'Cobrar agora',
+                        href: 'financeiro'
+                    });
+                }
+            });
+
+            // 3. Estoque crítico (menos de 7 dias até esgotar baseado em vendas dos últimos 30d)
+            produtos.forEach(p => {
+                const k = Object.keys(estoqueMap).find(k => String(k) === String(p.id));
+                const qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                if (qtd <= 0) return;
+                // Vendas desse produto últimos 30d
+                const inicio30d = new Date(); inicio30d.setDate(inicio30d.getDate() - 30);
+                const vendasProd = vendas.filter(v => {
+                    if (!v.data) return false;
+                    if (new Date(v.data) < inicio30d) return false;
+                    return v.produtoId == p.id || v.produtoNome === p.nome;
+                });
+                const totalVendido = vendasProd.reduce((s,v) => s + (parseFloat(v.quantidade) || 1), 0);
+                if (totalVendido === 0) return;
+                const vendasPorDia = totalVendido / 30;
+                const diasAteAcabar = Math.floor(qtd / vendasPorDia);
+                if (diasAteAcabar <= 7) {
+                    acoes.push({
+                        prio: 3, level: 'low', valor: 0,
+                        tag: `Acaba em ${diasAteAcabar}d · ${qtd} un`,
+                        title: `Repor ${p.nome}`,
+                        desc: `Estoque atual: ${qtd} un. Ritmo de venda: ${vendasPorDia.toFixed(1)}/dia. Programar reposição evita ruptura.`,
+                        cta: 'Planejar compra',
+                        href: 'financeiro'
+                    });
+                }
+            });
+
+            // Ordenar por prioridade depois por valor desc
+            acoes.sort((a,b) => a.prio - b.prio || b.valor - a.valor);
+            const top6 = acoes.slice(0, 6);
+
+            const acoesGrid = document.getElementById('dx-acoes-grid');
+            const acoesCount = document.getElementById('dx-acoes-count');
+            if (acoesGrid) {
+                if (acoesCount) acoesCount.textContent = top6.length + (top6.length === 1 ? ' ação' : ' ações');
+                if (!top6.length) {
+                    acoesGrid.innerHTML = `
+                        <div class="dx-action low" style="grid-column:1/-1;text-align:center;cursor:default;">
+                            <h4 style="color:#10b981;">✓ Tudo em ordem</h4>
+                            <p>Nenhuma ação urgente identificada agora. Continue acompanhando metas e fluxo de caixa.</p>
+                        </div>`;
+                } else {
+                    acoesGrid.innerHTML = top6.map(a => `
+                        <div class="dx-action ${a.level}" onclick="ativarAba('${a.href}')">
+                            <span class="tag">${a.tag}</span>
+                            <h4>${a.title}</h4>
+                            <p>${a.desc}</p>
+                            <div class="cta">${a.cta}</div>
                         </div>
-                        <span style="font-size:10px;color:${corSt};background:${corSt}18;padding:2px 7px;border-radius:8px;border:1px solid ${corSt}30;">${v.status}</span>
-                    </div>`; }).join(''); }
+                    `).join('');
+                }
             }
 
-            // ── Insight da IA ──
-            const elIA = document.getElementById('dash-ia-insight');
-            if (elIA) {
-                const insights = [];
-                if (cpl > 5)  insights.push(`<strong>CPL R$ ${cpl.toFixed(2)}</strong> está acima do ideal (≤R$5). Revise o público ou os criativos.`);
-                else if (cpl > 0) insights.push(`CPL de <strong>R$ ${cpl.toFixed(2)}</strong> — dentro do esperado. Bom trabalho!`);
-                if (taxaConv > 0 && taxaConv < 5) insights.push(`Taxa de conversão em <strong>${taxaConv.toFixed(1)}%</strong>. Meta é ≥5% — revise o playbook de abordagem.`);
-                if (totalVenQtd === 0) insights.push('Nenhuma venda registrada no período. Verifique o funil.');
-                else if (crescReceita > 0) insights.push(`Faturamento <strong>↑${crescReceita.toFixed(1)}%</strong> vs período anterior. Continue assim!`);
-                const prodSemEstoque = produtos.filter(p => { const e = _ler('estoque') || {}; const k = Object.keys(e).find(k=>String(k)===String(p.id)); return k ? e[k].quantidade <= 2 : false; });
-                if (prodSemEstoque.length) insights.push(`<strong>${prodSemEstoque.length} produto(s)</strong> com estoque crítico (≤2 un). Repor urgente.`);
-                elIA.innerHTML = insights.length ? insights[0] + (insights.length > 1 ? `<br><br><span style="font-size:11px;color:var(--text-muted);">+${insights.length-1} outros alertas</span>` : '') : 'Tudo certo por aqui! Sem alertas críticos no momento. 🎉';
+            // ═══════════════════════════════════════════════
+            // 13) PROJEÇÕES — DADOS REAIS
+            // ═══════════════════════════════════════════════
+            const projecoes = [];
+
+            // Projeção 1: Vendas próximos 7 dias (média 7d × 7)
+            const hoje7dPassado = new Date(); hoje7dPassado.setDate(hoje7dPassado.getDate() - 7);
+            const vendas7d = vendas.filter(v => v.data && new Date(v.data) >= hoje7dPassado).length;
+            if (vendas7d > 0) {
+                projecoes.push({
+                    t: 'Vendas próximos 7 dias',
+                    s: `Média 7d: ${(vendas7d/7).toFixed(1)} vendas/dia`,
+                    v: '≈ ' + vendas7d,
+                    u: 'vendas',
+                    classe: 'ok'
+                });
             }
 
-            // ── Conquistas ──
-            const elConq = document.getElementById('dash-conquistas');
-            if (elConq) {
-                const badges = [];
-                if (totalVenQtd >= 1)  badges.push({ icon:'🏆', label:'1ª Venda', cor:'#f59e0b' });
-                if (totalVenQtd >= 10) badges.push({ icon:'🔥', label:'10 Vendas', cor:'#f43f5e' });
-                if (cpl > 0 && cpl <= 2) badges.push({ icon:'💎', label:'CPL ideal', cor:'#7c3aed' });
-                if (taxaConv >= 8)      badges.push({ icon:'⚡', label:'Conversão top', cor:'#3b82f6' });
-                if (validacoes.filter(v=>v.status==='validado').length) badges.push({ icon:'✅', label:'Validou produto', cor:'#10b981' });
-                if (!badges.length) badges.push({ icon:'🌱', label:'Começando', cor:'#64748b' });
-                elConq.innerHTML = badges.map(b => `<div style="text-align:center;"><div class="conquista-badge" style="background:${b.cor}20;border:1px solid ${b.cor}30;">${b.icon}</div><div style="font-size:9px;color:var(--text-muted);margin-top:4px;max-width:52px;">${b.label}</div></div>`).join('');
+            // Projeção 2: produto com estoque crítico (top 1 menor dias)
+            const estoqueCritico = [];
+            produtos.forEach(p => {
+                const k = Object.keys(estoqueMap).find(k => String(k) === String(p.id));
+                const qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                if (qtd <= 0) return;
+                const inicio30d = new Date(); inicio30d.setDate(inicio30d.getDate() - 30);
+                const vendasProd = vendas.filter(v => {
+                    if (!v.data || new Date(v.data) < inicio30d) return false;
+                    return v.produtoId == p.id || v.produtoNome === p.nome;
+                });
+                const totalVendido = vendasProd.reduce((s,v) => s + (parseFloat(v.quantidade) || 1), 0);
+                if (totalVendido === 0) return;
+                const dias = Math.floor(qtd / (totalVendido/30));
+                estoqueCritico.push({ nome: p.nome, qtd, dias, vendaDia: (totalVendido/30) });
+            });
+            estoqueCritico.sort((a,b) => a.dias - b.dias);
+            if (estoqueCritico[0]) {
+                const ec = estoqueCritico[0];
+                projecoes.push({
+                    t: `Estoque ${ec.nome}`,
+                    s: `${ec.qtd} unidades · venda ${ec.vendaDia.toFixed(1)}/dia`,
+                    v: String(ec.dias),
+                    u: 'dias',
+                    classe: ec.dias <= 7 ? 'crit' : ec.dias <= 14 ? 'warn' : 'ok'
+                });
             }
 
-            // ── Tarefas do dia ──
-            renderDashTarefas();
+            // Projeção 3: dias até caixa pessoal/operacional ficar baixo
+            // Procurar caixa "pessoal" ou "principal" pelo nome
+            const caixaPessoal = caixas.find(c => {
+                const n = (c.nome || '').toLowerCase();
+                return n.includes('pessoal') || n.includes('principal');
+            }) || caixas[0];
+            if (caixaPessoal) {
+                const sc = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(caixaPessoal.id) : { saldo: 0 };
+                // Gastos diários médios desse caixa (últimos 30d)
+                let saidasCaixa30 = 0;
+                movs.forEach(m => {
+                    if (m.caixaId != caixaPessoal.id) return;
+                    if (new Date(m.data) < inicio30) return;
+                    if (m.tipo === 'saida') saidasCaixa30 += parseFloat(m.valor) || 0;
+                });
+                if (saidasCaixa30 > 0) {
+                    const gastoDia = saidasCaixa30 / 30;
+                    const diasAteZero = Math.floor((sc.saldo || 0) / gastoDia);
+                    if (diasAteZero >= 0 && diasAteZero < 365) {
+                        projecoes.push({
+                            t: `${caixaPessoal.nome} até zerar`,
+                            s: `Gasto médio: ${fmtBR(gastoDia, 0)}/dia`,
+                            v: String(diasAteZero),
+                            u: 'dias',
+                            classe: diasAteZero <= 7 ? 'crit' : diasAteZero <= 30 ? 'warn' : 'ok'
+                        });
+                    }
+                }
+            }
 
-            // ── KPIs laterais ──
-            const elKpisLat = document.getElementById('dash-kpis-lateral');
-            if (elKpisLat) {
-                const kpis = [
-                    { l:'Vendas no período', v:`${totalVenQtd} un`, c:'var(--blue)' },
-                    { l:'Receita total',      v:`R$ ${totalReceita.toFixed(0)}`, c:'var(--text-main)' },
-                    { l:'Pró-labore (30%)',   v:`R$ ${proLabore.toFixed(0)}`, c:'var(--yellow)' },
-                    { l:'Lucro líquido',      v:`R$ ${lucroLiq.toFixed(0)}`, c:'var(--green-light)' },
-                    { l:'CPL médio',          v: cpl > 0 ? `R$ ${cpl.toFixed(2)}` : '—', c: cpl<=2?'var(--green-light)':cpl<=5?'var(--yellow)':'var(--red)' },
-                    { l:'Taxa de conversão',  v: taxaConv > 0 ? `${taxaConv.toFixed(1)}%` : '—', c: taxaConv>=5?'var(--green-light)':'var(--red)' },
-                ];
-                elKpisLat.innerHTML = kpis.map(k => `
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);">
-                        <span style="font-size:12px;color:var(--text-muted);">${k.l}</span>
-                        <span style="font-size:13px;font-weight:700;color:${k.c};font-family:JetBrains Mono,monospace;">${k.v}</span>
-                    </div>`).join('');
+            // Projeção 4: produtos parados (sem venda há 30+ dias)
+            const produtosParados = produtos.filter(p => {
+                const k = Object.keys(estoqueMap).find(k => String(k) === String(p.id));
+                const qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                if (qtd <= 0) return false;
+                const inicio30d = new Date(); inicio30d.setDate(inicio30d.getDate() - 30);
+                const tem = vendas.some(v => {
+                    if (!v.data || new Date(v.data) < inicio30d) return false;
+                    return v.produtoId == p.id || v.produtoNome === p.nome;
+                });
+                return !tem;
+            });
+            if (produtosParados.length > 0) {
+                projecoes.push({
+                    t: produtosParados.length === 1 ? `${produtosParados[0].nome} — parado` : `${produtosParados.length} produtos parados`,
+                    s: 'Sem vendas nos últimos 30 dias',
+                    v: '—',
+                    u: 'parado',
+                    classe: 'crit'
+                });
+            }
+
+            const projList = document.getElementById('dx-proj-list');
+            if (projList) {
+                if (!projecoes.length) {
+                    projList.innerHTML = `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;">Sem projeções relevantes no momento. Mais vendas serão necessárias para gerar previsões.</div>`;
+                } else {
+                    projList.innerHTML = projecoes.map(p => `
+                        <div class="dx-proj-row">
+                            <div class="body"><div class="t">${p.t}</div><div class="s">${p.s}</div></div>
+                            <div class="num"><span class="v ${p.classe}">${p.v}</span><span class="u">${p.u}</span></div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            // ═══════════════════════════════════════════════
+            // 14) TENDÊNCIAS — DADOS REAIS (4 cards no rodapé)
+            // ═══════════════════════════════════════════════
+            // 1) Vendas 7d vs 7d anteriores
+            const hoje7d2 = new Date(); hoje7d2.setDate(hoje7d2.getDate() - 7);
+            const hoje14d = new Date(); hoje14d.setDate(hoje14d.getDate() - 14);
+            const vendas7dAtual = vendas.filter(v => v.data && new Date(v.data) >= hoje7d2);
+            const vendas7dAnt   = vendas.filter(v => {
+                if (!v.data) return false;
+                const d = new Date(v.data);
+                return d >= hoje14d && d < hoje7d2;
+            });
+            const qtdV7d    = vendas7dAtual.reduce((s, v) => s + (parseFloat(v.quantidade) || 1), 0);
+            const qtdV7dAnt = vendas7dAnt.reduce((s, v) => s + (parseFloat(v.quantidade) || 1), 0);
+            const deltaVendas = qtdV7dAnt > 0 ? ((qtdV7d - qtdV7dAnt) / qtdV7dAnt * 100) : 0;
+
+            // 2) Ticket médio últimos 30d vs 30 anteriores
+            const hoje60d = new Date(); hoje60d.setDate(hoje60d.getDate() - 60);
+            const hoje30d = new Date(); hoje30d.setDate(hoje30d.getDate() - 30);
+            let recente30 = 0, qtd30 = 0, anterior30 = 0, qtdAnt30 = 0;
+            vendas.forEach(v => {
+                if (!v.data) return;
+                const d = new Date(v.data);
+                const val = (parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1);
+                const q   = parseFloat(v.quantidade)||1;
+                if (d >= hoje30d) { recente30 += val; qtd30 += q; }
+                else if (d >= hoje60d) { anterior30 += val; qtdAnt30 += q; }
+            });
+            const ticketAtual = qtd30 > 0 ? (recente30 / qtd30) : 0;
+            const ticketAnt   = qtdAnt30 > 0 ? (anterior30 / qtdAnt30) : 0;
+            const deltaTicket = ticketAnt > 0 ? ((ticketAtual - ticketAnt) / ticketAnt * 100) : 0;
+
+            // 3) CPL — já calculado acima (cplMedio, cplMedioAnt, deltaCpl)
+
+            // 4) Margem bruta últimos 30d vs 30 anteriores
+            let lucro30 = 0, lucroAnt30 = 0;
+            vendas.forEach(v => {
+                if (!v.data) return;
+                const d = new Date(v.data);
+                const l = parseFloat(v.lucroTotal) || 0;
+                if (d >= hoje30d) lucro30 += l;
+                else if (d >= hoje60d) lucroAnt30 += l;
+            });
+            const margem30   = recente30 > 0 ? (lucro30 / recente30 * 100) : 0;
+            const margemAnt30= anterior30 > 0 ? (lucroAnt30 / anterior30 * 100) : 0;
+            const deltaMargem= margemAnt30 > 0 ? (margem30 - margemAnt30) : 0; // diff em pontos percentuais
+
+            // Função pra gerar sparkline a partir de dados diários
+            const sparkPath = (valores, colorVar) => {
+                if (!valores.length) return '';
+                const min = Math.min(...valores);
+                const max = Math.max(...valores);
+                const range = max - min || 1;
+                const points = valores.map((v, i) => {
+                    const x = (i / (valores.length - 1)) * 100;
+                    const y = 24 - ((v - min) / range) * 20;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                });
+                return `M${points.join(' L ')}`;
+            };
+
+            // Sparkline de vendas (últimos 7 dias)
+            const vendasPorDia = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                const proxD = new Date(d); proxD.setDate(proxD.getDate() + 1);
+                const ct = vendas.filter(v => {
+                    if (!v.data) return false;
+                    const vd = new Date(v.data);
+                    return vd >= d && vd < proxD;
+                }).reduce((s,v) => s + (parseFloat(v.quantidade) || 1), 0);
+                vendasPorDia.push(ct);
+            }
+            // Sparkline de ticket médio (últimos 7 dias)
+            const ticketPorDia = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                const proxD = new Date(d); proxD.setDate(proxD.getDate() + 1);
+                const vs = vendas.filter(v => {
+                    if (!v.data) return false;
+                    const vd = new Date(v.data);
+                    return vd >= d && vd < proxD;
+                });
+                const fat = vs.reduce((s,v) => s + ((parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1)), 0);
+                const qtd = vs.reduce((s,v) => s + (parseFloat(v.quantidade) || 1), 0);
+                ticketPorDia.push(qtd > 0 ? fat / qtd : 0);
+            }
+            // CPL: usar valores do mês
+            const cplPorDia = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                const proxD = new Date(d); proxD.setDate(proxD.getDate() + 1);
+                let g = 0, l = 0;
+                metricasArr.forEach(m => {
+                    const md = new Date(m.data);
+                    if (md >= d && md < proxD) { g += parseFloat(m.gastos||m.gastoTotal||0); l += parseFloat(m.leads||m.contatos||0); }
+                });
+                cplPorDia.push(l > 0 ? g/l : 0);
+            }
+            // Margem por dia (lucro / receita por dia)
+            const margemPorDia = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+                const proxD = new Date(d); proxD.setDate(proxD.getDate() + 1);
+                const vs = vendas.filter(v => {
+                    if (!v.data) return false;
+                    const vd = new Date(v.data);
+                    return vd >= d && vd < proxD;
+                });
+                const r = vs.reduce((s,v) => s + ((parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1)), 0);
+                const l = vs.reduce((s,v) => s + (parseFloat(v.lucroTotal)||0), 0);
+                margemPorDia.push(r > 0 ? (l/r*100) : 0);
+            }
+
+            const chipUp = (delta) => delta >= 0 ? 'up' : 'down';
+            const chipArrow = (delta) => delta >= 0 ? '▲' : '▼';
+
+            // CPL é inverso (subir = ruim)
+            const trendsGrid = document.getElementById('dx-trends-grid');
+            if (trendsGrid) {
+                trendsGrid.innerHTML = `
+                    <div class="dx-trend">
+                        <div class="l">Vendas 7d</div>
+                        <div class="v">${qtdV7d} <span style="font-size:11px;color:#7a7a96;font-weight:500;">vendas</span></div>
+                        <div class="d ${qtdV7dAnt > 0 ? chipUp(deltaVendas) : 'neutral'}">${qtdV7dAnt > 0 ? chipArrow(deltaVendas) + ' ' + Math.abs(deltaVendas).toFixed(0) + '% vs anterior' : 'sem comparativo'}</div>
+                        <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${sparkPath(vendasPorDia)}" stroke="#10b981" stroke-width="2" fill="none" style="filter:drop-shadow(0 0 4px rgba(16,185,129,0.5));"/></svg></div>
+                    </div>
+                    <div class="dx-trend">
+                        <div class="l">Ticket médio</div>
+                        <div class="v">${ticketAtual > 0 ? '<span class="cur">R$</span>' + ticketAtual.toLocaleString('pt-BR',{maximumFractionDigits:0}) : '—'}</div>
+                        <div class="d ${ticketAnt > 0 ? chipUp(deltaTicket) : 'neutral'}">${ticketAnt > 0 ? chipArrow(deltaTicket) + ' ' + Math.abs(deltaTicket).toFixed(1) + '% vs 30d ant.' : 'sem comparativo'}</div>
+                        <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${sparkPath(ticketPorDia)}" stroke="#3b82f6" stroke-width="2" fill="none" style="filter:drop-shadow(0 0 4px rgba(59,130,246,0.5));"/></svg></div>
+                    </div>
+                    <div class="dx-trend">
+                        <div class="l">CPL médio</div>
+                        <div class="v">${cplMedio > 0 ? '<span class="cur">R$</span>' + cplMedio.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</div>
+                        <div class="d ${cplMedioAnt > 0 ? (deltaCpl > 0 ? 'down' : 'up') : 'neutral'}">${cplMedioAnt > 0 ? chipArrow(deltaCpl) + ' ' + Math.abs(deltaCpl).toFixed(0) + '% 14d' : 'sem comparativo'}</div>
+                        <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${sparkPath(cplPorDia)}" stroke="#f43f5e" stroke-width="2" fill="none" style="filter:drop-shadow(0 0 4px rgba(244,63,94,0.5));"/></svg></div>
+                    </div>
+                    <div class="dx-trend">
+                        <div class="l">Margem bruta</div>
+                        <div class="v">${margem30 > 0 ? margem30.toFixed(1) + '%' : '—'}</div>
+                        <div class="d ${margemAnt30 > 0 ? (deltaMargem >= 0 ? 'up' : 'down') : 'neutral'}">${margemAnt30 > 0 ? (deltaMargem >= 0 ? '▲' : '▼') + ' ' + Math.abs(deltaMargem).toFixed(1) + 'pp vs ant.' : 'sem comparativo'}</div>
+                        <div class="spark"><svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${sparkPath(margemPorDia)}" stroke="#a855f7" stroke-width="2" fill="none" style="filter:drop-shadow(0 0 4px rgba(168,85,247,0.5));"/></svg></div>
+                    </div>`;
             }
         }
 
