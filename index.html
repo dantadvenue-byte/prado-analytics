@@ -7098,6 +7098,27 @@
             const dPath = document.getElementById('dx-pat-dot');  if (dPath) { dPath.setAttribute('cx', 600); dPath.setAttribute('cy', 18); }
 
             // ═══════════════════════════════════════════════
+            // BLOCO COMPARTILHADO — usado em Score, KPIs e Previsão de Saldo
+            // (Calcular cedo pra evitar erros de "before initialization")
+            // ═══════════════════════════════════════════════
+            const inicio30 = new Date(); inicio30.setDate(inicio30.getDate() - 30);
+            const hoje30   = new Date();
+            let entradas30 = 0, saidas30 = 0;
+            movs.forEach(m => {
+                const d = new Date(m.data);
+                if (d < inicio30 || d > hoje30) return;
+                const v = parseFloat(m.valor) || 0;
+                if (m.tipo === 'entrada') entradas30 += v;
+                else if (m.tipo === 'saida') saidas30 += v;
+            });
+            const taxaDiariaLiq = (entradas30 - saidas30) / 30;
+            const saldoAtualTotal = caixas.reduce((s, c) => {
+                const sc = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0 };
+                return s + (sc.saldo || 0);
+            }, 0);
+            const saldoProjetado30d = saldoAtualTotal + (taxaDiariaLiq * 30);
+
+            // ═══════════════════════════════════════════════
             // 3) KPI ROW — Receita / Lucro / CPL (DADOS REAIS)
             // ═══════════════════════════════════════════════
             const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -7359,24 +7380,8 @@
             // ═══════════════════════════════════════════════
             // 5) PREVISÃO DE SALDO — DADOS REAIS
             // ═══════════════════════════════════════════════
-            // Calcula taxa diária média (entradas - saídas) dos últimos 30 dias
-            // e extrapola pros próximos 30 dias.
-            const hoje30 = new Date();
-            const inicio30 = new Date(); inicio30.setDate(inicio30.getDate() - 30);
-            let entradas30 = 0, saidas30 = 0;
-            movs.forEach(m => {
-                const d = new Date(m.data);
-                if (d < inicio30 || d > hoje30) return;
-                const v = parseFloat(m.valor) || 0;
-                if (m.tipo === 'entrada') entradas30 += v;
-                else if (m.tipo === 'saida') saidas30 += v;
-            });
-            const taxaDiariaLiq = (entradas30 - saidas30) / 30; // pode ser negativa
-            const saldoAtualTotal = caixas.reduce((s, c) => {
-                const sc = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0 };
-                return s + (sc.saldo || 0);
-            }, 0);
-            const saldoProjetado30d = saldoAtualTotal + (taxaDiariaLiq * 30);
+            // Usa as variáveis já calculadas no bloco compartilhado:
+            //   inicio30, hoje30, entradas30, saidas30, taxaDiariaLiq, saldoAtualTotal, saldoProjetado30d
 
             // Mostrar valor projetado
             const elPrevBig = document.getElementById('dx-saldo-prev');
