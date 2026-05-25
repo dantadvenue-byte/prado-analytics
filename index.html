@@ -2125,7 +2125,8 @@
                 .dx-kpi .d.up{color:#10b981;}
                 .dx-kpi .d.down{color:#f43f5e;}
                 .dx-kpi.receita{border-color:rgba(59,130,246,0.18);box-shadow:0 0 30px rgba(59,130,246,0.05);}
-                .dx-kpi.lucro{border-color:rgba(16,185,129,0.18);box-shadow:0 0 30px rgba(16,185,129,0.05);}
+                .dx-kpi.lucro{border-color:rgba(16,185,129,0.18);box-shadow:0 0 30px rgba(16,185,129,0.05);transition:transform 0.2s, box-shadow 0.2s;}
+                .dx-kpi.lucro:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(16,185,129,0.15);}
                 .dx-kpi.cpl{border-color:rgba(245,158,11,0.18);}
 
                 /* Donut */
@@ -2423,7 +2424,7 @@
                     <div class="n" id="dx-receita-n"><span class="cur">R$</span>0</div>
                     <div class="d" id="dx-receita-d">—</div>
                 </div>
-                <div class="dx-kpi lucro">
+                <div class="dx-kpi lucro" onclick="abrirDetalheLucro()" style="cursor:pointer;" title="Ver detalhamento do lucro">
                     <div class="lbl">Lucro do Período — <span id="dx-lucro-mes">mês</span> <span id="dx-lucro-chip" class="dx-chip"></span></div>
                     <div class="n" id="dx-lucro-n"><span class="cur">R$</span>0</div>
                     <div class="d" id="dx-lucro-d">—</div>
@@ -7469,6 +7470,177 @@
             });
 
             document.body.appendChild(modal);
+        }
+
+        // ═══════════════════════════════════════════════════
+        // MODAL DETALHE LUCRO — clicar no card abre tabs Produto/Loja/Caixa
+        // ═══════════════════════════════════════════════════
+        function abrirDetalheLucro() {
+            var vendas   = _ler('vendas')   || [];
+            var produtos = _ler('produtos') || [];
+            var lojas    = _ler('lojas')    || [];
+            var caixas   = _ler('fin-caixas') || [];
+
+            // Lucro do mês atual (mesmo cálculo do card)
+            var hoje = new Date();
+            var mesAtualStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+            var vendasDoMes = vendas.filter(function(v){
+                return v.data && v.data.startsWith(mesAtualStr);
+            });
+
+            var fmtBR = function(n, casas){
+                if (casas === undefined) casas = 0;
+                return 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', {minimumFractionDigits:casas, maximumFractionDigits:casas});
+            };
+
+            // ─── Agrupar por PRODUTO ───
+            var porProduto = {};
+            vendasDoMes.forEach(function(v){
+                var key = String(v.produtoId || v.produtoNome || 'desconhecido');
+                if (!porProduto[key]) {
+                    porProduto[key] = { nome: v.produtoNome || 'Produto', qtd: 0, lucro: 0, receita: 0 };
+                }
+                porProduto[key].qtd     += parseFloat(v.quantidade) || 1;
+                porProduto[key].lucro   += parseFloat(v.lucroTotal) || 0;
+                porProduto[key].receita += (parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1);
+            });
+            var arrProduto = Object.values(porProduto).sort(function(a,b){ return b.lucro - a.lucro; });
+
+            // ─── Agrupar por LOJA (via produto.loja) ───
+            var porLoja = {};
+            vendasDoMes.forEach(function(v){
+                var prod = produtos.find(function(p){ return String(p.id) == String(v.produtoId) || p.nome === v.produtoNome; });
+                var lojaId = prod ? prod.loja : null;
+                var lojaObj = lojas.find(function(l){ return String(l.id) == String(lojaId); });
+                var lojaNome = lojaObj ? lojaObj.nome : 'Sem loja';
+                var key = String(lojaId || 'sem-loja');
+                if (!porLoja[key]) {
+                    porLoja[key] = { nome: lojaNome, qtd: 0, lucro: 0, receita: 0, produtos: new Set() };
+                }
+                porLoja[key].qtd     += parseFloat(v.quantidade) || 1;
+                porLoja[key].lucro   += parseFloat(v.lucroTotal) || 0;
+                porLoja[key].receita += (parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1);
+                if (v.produtoNome) porLoja[key].produtos.add(v.produtoNome);
+            });
+            var arrLoja = Object.values(porLoja).map(function(l){ return { nome: l.nome, qtd: l.qtd, lucro: l.lucro, receita: l.receita, nProdutos: l.produtos.size }; }).sort(function(a,b){ return b.lucro - a.lucro; });
+
+            // ─── Agrupar por CAIXA ───
+            var porCaixa = {};
+            vendasDoMes.forEach(function(v){
+                var caixaId = v.caixaId || 'sem-caixa';
+                var caixaObj = caixas.find(function(c){ return String(c.id) == String(caixaId); });
+                var caixaNome = caixaObj ? caixaObj.nome : 'Sem caixa vinculado';
+                var key = String(caixaId);
+                if (!porCaixa[key]) {
+                    porCaixa[key] = { nome: caixaNome, qtd: 0, lucro: 0, receita: 0 };
+                }
+                porCaixa[key].qtd     += parseFloat(v.quantidade) || 1;
+                porCaixa[key].lucro   += parseFloat(v.lucroTotal) || 0;
+                porCaixa[key].receita += (parseFloat(v.precoFinal)||0) * (parseFloat(v.quantidade)||1);
+            });
+            var arrCaixa = Object.values(porCaixa).sort(function(a,b){ return b.lucro - a.lucro; });
+
+            var lucroTotal = vendasDoMes.reduce(function(s,v){ return s + (parseFloat(v.lucroTotal)||0); }, 0);
+            var receitaTotal = vendasDoMes.reduce(function(s,v){ return s + ((parseFloat(v.precoFinal)||0)*(parseFloat(v.quantidade)||1)); }, 0);
+            var margemTotal = receitaTotal > 0 ? (lucroTotal/receitaTotal*100) : 0;
+
+            var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            var nomeMes = meses[hoje.getMonth()];
+
+            // ─── Função pra renderizar linhas ───
+            var rowHTML = function(item, tipo){
+                var pct = lucroTotal > 0 ? (item.lucro/lucroTotal*100).toFixed(1) : 0;
+                var margem = item.receita > 0 ? (item.lucro/item.receita*100).toFixed(1) : 0;
+                var iconCor = tipo === 'produto' ? '#a855f7' : (tipo === 'loja' ? '#3b82f6' : '#10b981');
+                var iconBg  = tipo === 'produto' ? 'rgba(168,85,247,0.12)' : (tipo === 'loja' ? 'rgba(59,130,246,0.12)' : 'rgba(16,185,129,0.12)');
+                var emoji   = tipo === 'produto' ? '📦' : (tipo === 'loja' ? '🏪' : '🏦');
+                var subtxt;
+                if (tipo === 'produto') subtxt = item.qtd + ' un · margem ' + margem + '%';
+                else if (tipo === 'loja') subtxt = item.nProdutos + ' produto' + (item.nProdutos !== 1 ? 's' : '') + ' · ' + item.qtd + ' vendas · margem ' + margem + '%';
+                else subtxt = item.qtd + ' vendas · margem ' + margem + '%';
+
+                return '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">' +
+                    '<div style="width:34px;height:34px;border-radius:9px;background:' + iconBg + ';color:' + iconCor + ';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">' + emoji + '</div>' +
+                    '<div style="min-width:0;">' +
+                        '<div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + item.nome + '</div>' +
+                        '<div style="font-size:11px;color:#7a7a96;font-family:JetBrains Mono,monospace;">' + subtxt + '</div>' +
+                    '</div>' +
+                    '<div style="text-align:right;">' +
+                        '<div style="font-size:14px;font-weight:700;color:#10b981;font-family:JetBrains Mono,monospace;text-shadow:0 0 8px rgba(16,185,129,0.3);">' + fmtBR(item.lucro, 0) + '</div>' +
+                        '<div style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.05em;">' + pct + '% do total</div>' +
+                    '</div>' +
+                '</div>';
+            };
+
+            var emptyHTML = function(txt){
+                return '<div style="text-align:center;color:#7a7a96;font-size:12px;padding:30px 20px;">' + txt + '</div>';
+            };
+
+            // ─── Montar modal ───
+            document.getElementById('modal-detalhe-lucro') && document.getElementById('modal-detalhe-lucro').remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'modal-detalhe-lucro';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(16,185,129,0.25);border-radius:20px;padding:28px;width:100%;max-width:760px;margin:auto;box-shadow:0 0 60px rgba(16,185,129,0.15);backdrop-filter:blur(20px);">' +
+
+                    // Header
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:14px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:6px;">📈 Lucro do período — ' + nomeMes + '</div>' +
+                            '<div style="font-size:36px;font-weight:800;color:#10b981;letter-spacing:-0.02em;line-height:1;text-shadow:0 0 24px rgba(16,185,129,0.3);"><span style="font-size:18px;color:#b4b4cc;font-weight:500;margin-right:6px;vertical-align:top;line-height:1.5;">R$</span>' + lucroTotal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</div>' +
+                            '<div style="font-size:12px;color:#7a7a96;margin-top:6px;">Margem: ' + margemTotal.toFixed(1) + '% · Receita ' + fmtBR(receitaTotal, 0) + ' · ' + vendasDoMes.length + ' vendas</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'modal-detalhe-lucro\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>' +
+                    '</div>' +
+
+                    // Tabs
+                    '<div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:0;">' +
+                        '<button class="dl-tab dl-tab-active" data-tab="produto" onclick="dlMudarTab(\'produto\')" style="background:none;border:none;color:#fff;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border-bottom:2px solid #10b981;">📦 Por Produto <span style="color:#7a7a96;font-weight:500;">(' + arrProduto.length + ')</span></button>' +
+                        '<button class="dl-tab" data-tab="loja" onclick="dlMudarTab(\'loja\')" style="background:none;border:none;color:#7a7a96;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;">🏪 Por Loja <span style="font-weight:500;">(' + arrLoja.length + ')</span></button>' +
+                        '<button class="dl-tab" data-tab="caixa" onclick="dlMudarTab(\'caixa\')" style="background:none;border:none;color:#7a7a96;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;">🏦 Por Caixa <span style="font-weight:500;">(' + arrCaixa.length + ')</span></button>' +
+                    '</div>' +
+
+                    // Conteúdo das tabs
+                    '<div id="dl-tab-produto" style="max-height:420px;overflow-y:auto;padding-right:6px;margin-right:-6px;display:flex;flex-direction:column;gap:8px;">' +
+                        (arrProduto.length ? arrProduto.map(function(p){ return rowHTML(p, 'produto'); }).join('') : emptyHTML('Nenhuma venda no mês ainda')) +
+                    '</div>' +
+                    '<div id="dl-tab-loja" style="max-height:420px;overflow-y:auto;padding-right:6px;margin-right:-6px;display:none;flex-direction:column;gap:8px;">' +
+                        (arrLoja.length ? arrLoja.map(function(l){ return rowHTML(l, 'loja'); }).join('') : emptyHTML('Nenhuma venda no mês ainda')) +
+                    '</div>' +
+                    '<div id="dl-tab-caixa" style="max-height:420px;overflow-y:auto;padding-right:6px;margin-right:-6px;display:none;flex-direction:column;gap:8px;">' +
+                        (arrCaixa.length ? arrCaixa.map(function(c){ return rowHTML(c, 'caixa'); }).join('') : emptyHTML('Nenhuma venda no mês ainda')) +
+                    '</div>' +
+
+                    // Footer
+                    '<div style="text-align:center;color:#4d4d6a;font-size:10px;text-transform:uppercase;letter-spacing:0.15em;margin-top:24px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">' +
+                        'Lucro calculado por venda registrada (sociedade já aplicada)' +
+                    '</div>' +
+
+                '</div>';
+
+            modal.addEventListener('click', function(e){
+                if (e.target === modal) modal.remove();
+            });
+
+            document.body.appendChild(modal);
+        }
+
+        // Trocar tab do modal de lucro
+        function dlMudarTab(tab) {
+            ['produto','loja','caixa'].forEach(function(t){
+                var btn  = document.querySelector('.dl-tab[data-tab="' + t + '"]');
+                var div  = document.getElementById('dl-tab-' + t);
+                if (t === tab) {
+                    if (btn) { btn.classList.add('dl-tab-active'); btn.style.color = '#fff'; btn.style.borderBottomColor = '#10b981'; }
+                    if (div) div.style.display = 'flex';
+                } else {
+                    if (btn) { btn.classList.remove('dl-tab-active'); btn.style.color = '#7a7a96'; btn.style.borderBottomColor = 'transparent'; }
+                    if (div) div.style.display = 'none';
+                }
+            });
         }
 
         function renderDashboard() {
