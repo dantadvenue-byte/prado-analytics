@@ -2078,6 +2078,8 @@
 
                 /* Hero patrimônio */
                 .dx-hero-patrimonio::before{content:"";position:absolute;top:-20%;right:-10%;width:60%;height:140%;background:radial-gradient(circle, rgba(168,85,247,0.18), transparent 60%);pointer-events:none;}
+                .dx-hero-patrimonio{transition:transform 0.2s, box-shadow 0.2s;}
+                .dx-hero-patrimonio:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(168,85,247,0.15);}
                 .dx-hero-num{font-size:52px;font-weight:800;line-height:1;letter-spacing:-0.03em;color:#fff;position:relative;margin:8px 0 12px;}
                 .dx-hero-num .cur{font-size:24px;color:var(--text-dim,#b4b4cc);font-weight:500;margin-right:6px;vertical-align:top;line-height:1.5;}
                 .dx-hero-delta{display:flex;align-items:center;gap:8px;font-size:13px;color:#10b981;font-weight:600;}
@@ -2343,10 +2345,10 @@
             <div class="dx-grid-main">
 
                 <!-- Patrimônio líquido -->
-                <div class="dx-card glow-purple dx-hero-patrimonio">
+                <div class="dx-card glow-purple dx-hero-patrimonio" onclick="abrirDetalhePatrimonio()" style="cursor:pointer;" title="Ver detalhamento do patrimônio">
                     <div class="dx-head">
                         <h3>Patrimônio líquido</h3>
-                        <span id="dx-pat-periodo" class="dx-chip">Este mês</span>
+                        <span id="dx-pat-periodo" class="dx-chip" style="display:inline-flex;align-items:center;gap:5px;">📊 Ver detalhes</span>
                     </div>
                     <div class="dx-hero-num" id="dx-pat-num"><span class="cur">R$</span>0,00</div>
                     <div class="dx-hero-delta" id="dx-pat-delta"><span class="arrow">▲</span><span>—</span></div>
@@ -7268,6 +7270,207 @@
         }
 
         // ===== DASHBOARD =====
+        // ═══════════════════════════════════════════════════
+        // MODAL DETALHE PATRIMÔNIO — clicar no card abre tudo
+        // ═══════════════════════════════════════════════════
+        function abrirDetalhePatrimonio() {
+            var caixas     = _ler('fin-caixas')   || [];
+            var produtos   = _ler('produtos')     || [];
+            var estoqueMap = _ler('estoque')      || {};
+            var obrigacoes = _ler('fin-obrigacoes') || [];
+
+            var fmtBR = function(n, casas){
+                if (casas === undefined) casas = 0;
+                return 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', {minimumFractionDigits:casas, maximumFractionDigits:casas});
+            };
+
+            // ─── Calcular cada caixa ───
+            var caixasDet = [];
+            var totalCaixas = 0;
+            caixas.forEach(function(c){
+                var sc = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0, lucroTotal: 0 };
+                var titular = c.titular || 'solo';
+                var receber = obrigacoes
+                    .filter(function(o){ return o.caixaId == c.id && o.tipo === 'receber' && o.status !== 'quitado'; })
+                    .reduce(function(acc, o){ return acc + Math.max((parseFloat(o.valor)||0) - (parseFloat(o.pago)||0), 0); }, 0);
+                var meuVal = 0, pctLabel = '100% meu';
+                if (titular === 'socio_lucro') {
+                    var lp = Math.min(sc.lucroTotal || 0, Math.max(sc.saldo || 0, 0));
+                    meuVal = lp + receber;
+                    pctLabel = 'sócio só no lucro';
+                } else if (titular === 'compartilhado') {
+                    var meuPct = (c.meuPct != null ? c.meuPct : 100) / 100;
+                    meuVal = (sc.saldo + receber) * meuPct;
+                    pctLabel = (meuPct*100).toFixed(0) + '% meu';
+                } else {
+                    meuVal = sc.saldo + receber;
+                }
+                if (Math.abs(meuVal) > 0.01) {
+                    caixasDet.push({ nome: c.nome, valor: meuVal, saldo: sc.saldo, receber: receber, pctLabel: pctLabel, tipo: c.tipo });
+                    totalCaixas += meuVal;
+                }
+            });
+            caixasDet.sort(function(a,b){ return b.valor - a.valor; });
+
+            // ─── Calcular cada produto em estoque ───
+            var estoqueDet = [];
+            var totalEstoque = 0;
+            produtos.forEach(function(p){
+                var k = Object.keys(estoqueMap).find(function(k){ return String(k) === String(p.id); });
+                var qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                if (qtd <= 0) return;
+                var custoBase  = parseFloat(p.precoCusto || p.custoDireto) || 0;
+                var custosAdic = Object.values(p.custos||{}).reduce(function(s,v){ return s + (parseFloat(v)||0); }, 0);
+                var comissao   = parseFloat(p.comissao) || 0;
+                var custo      = custoBase + custosAdic + comissao;
+                var venda      = parseFloat(p.precoVenda) || 0;
+                var lucro      = venda - custo;
+                var soc        = p.sociedade || 'solo';
+                var meuEstPct, meuLucPct;
+                if (soc === 'solo')              { meuEstPct = 1.0; meuLucPct = 1.0; }
+                else if (soc === 'meio_a_meio')  { meuEstPct = 0.5; meuLucPct = 0.5; }
+                else if (soc === 'socio_lucro')  { meuEstPct = 0.0; meuLucPct = ((p.meuLucroPct != null ? p.meuLucroPct : 100) / 100); }
+                else                             { meuEstPct = ((p.meuEstoquePct != null ? p.meuEstoquePct : 100) / 100); meuLucPct = ((p.meuLucroPct != null ? p.meuLucroPct : 100) / 100); }
+                var meuUnit  = (custo * meuEstPct) + (lucro * meuLucPct);
+                var meuTotal = qtd * meuUnit;
+                if (meuTotal > 0.01) {
+                    var socDescMap = {solo:'100% meu', meio_a_meio:'50/50', socio_lucro:'sócio só no lucro', personalizado:(meuEstPct*100).toFixed(0)+'%/'+(meuLucPct*100).toFixed(0)+'%'};
+                    estoqueDet.push({
+                        nome: p.nome,
+                        qtd: qtd,
+                        meuUnit: meuUnit,
+                        meuTotal: meuTotal,
+                        socDesc: socDescMap[soc] || soc,
+                        custo: custo,
+                        venda: venda
+                    });
+                    totalEstoque += meuTotal;
+                }
+            });
+            estoqueDet.sort(function(a,b){ return b.meuTotal - a.meuTotal; });
+
+            var totalGeral = totalCaixas + totalEstoque;
+            var pctCaixas  = totalGeral > 0 ? (totalCaixas/totalGeral*100) : 0;
+            var pctEstoque = totalGeral > 0 ? (totalEstoque/totalGeral*100) : 0;
+
+            // ─── Montar modal ───
+            document.getElementById('modal-detalhe-patrimonio') && document.getElementById('modal-detalhe-patrimonio').remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'modal-detalhe-patrimonio';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+
+            var rowCaixaHTML = function(c){
+                var emoji = c.tipo === '_pessoal' ? '💜' : (c.tipo === '_reserva' ? '🛡️' : '🏦');
+                var extra = c.receber > 0 ? ' · +' + fmtBR(c.receber, 0) + ' a receber' : '';
+                var pctDoTotal = totalCaixas > 0 ? (c.valor/totalCaixas*100).toFixed(0) : 0;
+                return '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">' +
+                    '<div style="width:34px;height:34px;border-radius:9px;background:rgba(59,130,246,0.12);color:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">' + emoji + '</div>' +
+                    '<div>' +
+                        '<div style="font-size:13px;font-weight:600;color:#fff;">' + c.nome + '</div>' +
+                        '<div style="font-size:11px;color:#7a7a96;font-family:JetBrains Mono,monospace;">' + c.pctLabel + extra + '</div>' +
+                    '</div>' +
+                    '<div style="text-align:right;">' +
+                        '<div style="font-size:14px;font-weight:700;color:#fff;font-family:JetBrains Mono,monospace;">' + fmtBR(c.valor, 0) + '</div>' +
+                        '<div style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.05em;">' + pctDoTotal + '% do caixa</div>' +
+                    '</div>' +
+                '</div>';
+            };
+
+            var rowEstoqueHTML = function(i){
+                var pctDoTotal = totalEstoque > 0 ? (i.meuTotal/totalEstoque*100).toFixed(1) : 0;
+                return '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">' +
+                    '<div style="width:34px;height:34px;border-radius:9px;background:rgba(245,158,11,0.12);color:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📦</div>' +
+                    '<div style="min-width:0;">' +
+                        '<div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + i.nome + '</div>' +
+                        '<div style="font-size:11px;color:#7a7a96;font-family:JetBrains Mono,monospace;">' + i.qtd + ' un · ' + i.socDesc + ' · ' + fmtBR(i.meuUnit, 0) + '/un</div>' +
+                    '</div>' +
+                    '<div style="text-align:right;">' +
+                        '<div style="font-size:14px;font-weight:700;color:#fff;font-family:JetBrains Mono,monospace;">' + fmtBR(i.meuTotal, 0) + '</div>' +
+                        '<div style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.05em;">' + pctDoTotal + '%</div>' +
+                    '</div>' +
+                '</div>';
+            };
+
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(168,85,247,0.25);border-radius:20px;padding:28px;width:100%;max-width:760px;margin:auto;box-shadow:0 0 60px rgba(168,85,247,0.15);backdrop-filter:blur(20px);">' +
+
+                    // Header
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:14px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:6px;">💼 Patrimônio líquido</div>' +
+                            '<div style="font-size:36px;font-weight:800;color:#fff;letter-spacing:-0.02em;line-height:1;"><span style="font-size:18px;color:#b4b4cc;font-weight:500;margin-right:6px;vertical-align:top;line-height:1.5;">R$</span>' + totalGeral.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'modal-detalhe-patrimonio\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">✕</button>' +
+                    '</div>' +
+
+                    // Breakdown caixas vs estoque
+                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">' +
+                        '<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:12px;padding:16px;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                                '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">🏦 Em caixas</div>' +
+                                '<div style="font-size:11px;color:#3b82f6;font-weight:700;font-family:JetBrains Mono,monospace;">' + pctCaixas.toFixed(0) + '%</div>' +
+                            '</div>' +
+                            '<div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + fmtBR(totalCaixas, 0) + '</div>' +
+                            '<div style="font-size:11px;color:#7a7a96;margin-top:3px;">' + caixasDet.length + ' caixa' + (caixasDet.length !== 1 ? 's' : '') + '</div>' +
+                            '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;margin-top:10px;">' +
+                                '<div style="height:100%;background:linear-gradient(90deg,#3b82f6,#06b6d4);width:' + pctCaixas.toFixed(0) + '%;border-radius:99px;box-shadow:0 0 8px rgba(59,130,246,0.4);"></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:16px;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                                '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">📦 Em estoque</div>' +
+                                '<div style="font-size:11px;color:#f59e0b;font-weight:700;font-family:JetBrains Mono,monospace;">' + pctEstoque.toFixed(0) + '%</div>' +
+                            '</div>' +
+                            '<div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + fmtBR(totalEstoque, 0) + '</div>' +
+                            '<div style="font-size:11px;color:#7a7a96;margin-top:3px;">' + estoqueDet.length + ' produto' + (estoqueDet.length !== 1 ? 's' : '') + '</div>' +
+                            '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;margin-top:10px;">' +
+                                '<div style="height:100%;background:linear-gradient(90deg,#f59e0b,#ec4899);width:' + pctEstoque.toFixed(0) + '%;border-radius:99px;box-shadow:0 0 8px rgba(245,158,11,0.4);"></div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Seção CAIXAS
+                    '<div style="margin-bottom:24px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                            '<div style="font-size:13px;font-weight:600;color:#b4b4cc;">🏦 Caixas — onde está o dinheiro</div>' +
+                            '<div style="font-size:11px;color:#7a7a96;font-family:JetBrains Mono,monospace;">' + fmtBR(totalCaixas, 0) + '</div>' +
+                        '</div>' +
+                        '<div style="max-height:280px;overflow-y:auto;padding-right:6px;margin-right:-6px;display:flex;flex-direction:column;gap:8px;">' +
+                            (caixasDet.length
+                                ? caixasDet.map(rowCaixaHTML).join('')
+                                : '<div style="text-align:center;color:#7a7a96;font-size:12px;padding:20px;">Nenhum caixa com saldo positivo</div>') +
+                        '</div>' +
+                    '</div>' +
+
+                    // Seção ESTOQUE
+                    '<div>' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                            '<div style="font-size:13px;font-weight:600;color:#b4b4cc;">📦 Estoque — composição do patrimônio</div>' +
+                            '<div style="font-size:11px;color:#7a7a96;font-family:JetBrains Mono,monospace;">' + fmtBR(totalEstoque, 0) + '</div>' +
+                        '</div>' +
+                        '<div style="max-height:340px;overflow-y:auto;padding-right:6px;margin-right:-6px;display:flex;flex-direction:column;gap:8px;">' +
+                            (estoqueDet.length
+                                ? estoqueDet.map(rowEstoqueHTML).join('')
+                                : '<div style="text-align:center;color:#7a7a96;font-size:12px;padding:20px;">Nenhum produto em estoque</div>') +
+                        '</div>' +
+                    '</div>' +
+
+                    // Footer
+                    '<div style="text-align:center;color:#4d4d6a;font-size:10px;text-transform:uppercase;letter-spacing:0.15em;margin-top:24px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">' +
+                        'Cálculo considera sociedade de cada caixa e produto' +
+                    '</div>' +
+
+                '</div>';
+
+            // Fechar clicando fora
+            modal.addEventListener('click', function(e){
+                if (e.target === modal) modal.remove();
+            });
+
+            document.body.appendChild(modal);
+        }
+
         function renderDashboard() {
             // ═══════════════════════════════════════════════════════
             // NOVO DASHBOARD — Etapa A (visual com dados reais onde possível)
