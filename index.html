@@ -2186,7 +2186,7 @@
                 .dx-prev-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:18px;align-items:center;margin:8px 0 18px;position:relative;}
                 .dx-prev-step{text-align:center;padding:18px 14px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:14px;}
                 .dx-prev-step.now{border-color:rgba(255,255,255,0.12);}
-                .dx-prev-step.add{background:linear-gradient(135deg, rgba(245,158,11,0.10), transparent);border-color:rgba(245,158,11,0.25);}
+                .dx-prev-step.add{background:linear-gradient(135deg, rgba(16,185,129,0.10), transparent);border-color:rgba(16,185,129,0.25);}
                 .dx-prev-step.proj{background:linear-gradient(135deg, rgba(16,185,129,0.10), transparent);border-color:rgba(16,185,129,0.30);box-shadow:0 0 24px rgba(16,185,129,0.10);}
                 .dx-prev-step .l{font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:8px;}
                 .dx-prev-step .v{font-size:26px;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em;}
@@ -2503,9 +2503,9 @@
                         <div class="s">situação atual</div>
                     </div>
                     <div class="dx-prev-arrow">＋</div>
-                    <div class="dx-prev-step add">
-                        <div class="l">Próximas compras</div>
-                        <div class="v" id="dx-prev-add" style="color:#f59e0b;"><span class="cur" style="color:rgba(245,158,11,0.6);">R$</span>0</div>
+                    <div class="dx-prev-step add" id="dx-prev-step-mid">
+                        <div class="l">Lucro projetado</div>
+                        <div class="v" id="dx-prev-add" style="color:#10b981;"><span class="cur" style="color:rgba(16,185,129,0.6);">R$</span>0</div>
                         <div class="s" id="dx-prev-add-s">0 compras programadas</div>
                     </div>
                     <div class="dx-prev-arrow">＝</div>
@@ -2972,10 +2972,15 @@
                         <button id="compra-tab-personalizado" onclick="mudarTipoCompra('personalizado')" class="sub-btn" style="flex:1;">✏️ Personalizado</button>
                     </div>
 
-                    <!-- Caixa + prazo + obs (comum a todos) -->
+                    <!-- Caixa + loja + prazo + obs (comum a todos) -->
                     <div class="form-grid" style="margin-bottom:14px;">
                         <div class="form-group"><label>Caixa para usar *</label>
                             <select id="finCompraCaixa" onchange="calcularProximaCompra()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
+                        </div>
+                        <div class="form-group"><label>Loja de destino</label>
+                            <select id="finCompraLoja" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
+                                <option value="">— sem loja específica —</option>
+                            </select>
                         </div>
                         <div class="form-group"><label>Prazo desejado</label>
                             <input type="date" id="finCompraPrazo">
@@ -8216,15 +8221,16 @@
             setHTML('dx-prev-hoje', `<span class="cur">R$</span>${patrimonioLiq.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
 
             if (comprasProgr.length === 0) {
-                setHTML('dx-prev-add', `<span class="cur" style="color:rgba(245,158,11,0.6);">R$</span>0`);
+                setHTML('dx-prev-add', `<span class="cur" style="color:rgba(16,185,129,0.6);">R$</span>0`);
                 setText('dx-prev-add-s', 'nenhuma compra programada');
                 setHTML('dx-prev-proj', `<span class="cur">R$</span>${patrimonioLiq.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
                 setText('dx-prev-proj-s', 'sem mudança projetada');
                 setHTML('dx-prev-list', `<div style="padding:18px;text-align:center;color:#7a7a96;font-size:12px;">Nenhuma compra programada.<br><br><small>Cadastre em <b>Financeiro → Próximas Compras</b> para ver projeções aqui.</small></div>`);
                 setText('dx-prev-count', '0 itens');
             } else {
-                setHTML('dx-prev-add', `<span class="cur" style="color:rgba(245,158,11,0.6);">R$</span>${totalInvestimento.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
-                setText('dx-prev-add-s', `${comprasProgr.length} compra${comprasProgr.length!==1?'s':''} programada${comprasProgr.length!==1?'s':''}`);
+                // Card do meio agora mostra o GANHO LÍQUIDO (lucro projetado), não o investimento
+                setHTML('dx-prev-add', `<span class="cur" style="color:rgba(16,185,129,0.6);">R$</span>${ganhoLiquido.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
+                setText('dx-prev-add-s', `${comprasProgr.length} compra${comprasProgr.length!==1?'s':''} · investimento ${fmtBR(totalInvestimento, 0).replace('R$ ','R$ ')}`);
                 setHTML('dx-prev-proj', `<span class="cur">R$</span>${patrimProjetado.toLocaleString('pt-BR',{maximumFractionDigits:0})}`);
                 const pctCresc = patrimonioLiq > 0 ? ((ganhoLiquido / patrimonioLiq) * 100) : 0;
                 setText('dx-prev-proj-s', ganhoLiquido > 0
@@ -13024,6 +13030,14 @@
                 if (val) selLoja.value = val;
             }
 
+            // Select de loja na próxima compra
+            const selLojaCompra = document.getElementById('finCompraLoja');
+            if (selLojaCompra) {
+                const val = selLojaCompra.value;
+                selLojaCompra.innerHTML = '<option value="">— sem loja específica —</option>' + lojas.map(l=>`<option value="${l.id}">${l.nome}</option>`).join('');
+                if (val) selLojaCompra.value = val;
+            }
+
             // Select de produto para próximas compras
             const selProd = document.getElementById('finCompraProduto');
             if (selProd) {
@@ -14246,12 +14260,14 @@
             const compras = [...(_ler('fin-compras') || [])];
             const _sociedade  = document.getElementById('finCompraSociedade')?.value || 'solo';
             const _socioPct   = _sociedade === 'socio' ? (parseFloat(document.getElementById('finCompraSocioPct')?.value)||50) : 0;
+            const _lojaId     = document.getElementById('finCompraLoja')?.value || null;
             compras.push({
                 id: Date.now(),
                 itens,
                 produtoNome: itens.map(i=>i.nome).join(', '),
                 produtoId:   itens[0]?.produtoId || null,
                 caixaId,
+                lojaId:      _lojaId,
                 valorTotal,
                 quantidade:  itens.reduce((s,i) => s + i.qtd, 0),
                 prazo:       document.getElementById('finCompraPrazo')?.value || null,
@@ -14269,6 +14285,8 @@
             document.getElementById('compra-itens-container').innerHTML = '';
             document.getElementById('finCompraPrazo').value = '';
             document.getElementById('finCompraObs').value  = '';
+            const selLojaC = document.getElementById('finCompraLoja');
+            if (selLojaC) selLojaC.value = '';
             document.getElementById('fin-compra-preview').style.display = 'none';
             adicionarItemCompra();
             mostrarMensagem('msg-fin-compra','✓ Planejamento salvo! Alerta quando o capital estiver disponível.','success');
@@ -14342,6 +14360,8 @@
             el.innerHTML = _resumoHtml + `<div style="font-size:14px;font-weight:700;color:var(--text-main);margin-bottom:14px;">📋 Compras Planejadas (${comprasAtivas.length} ativas)</div>` +
             compras.map(c => {
                 const caixa   = caixas.find(cx => cx.id == c.caixaId);
+                const lojas   = _ler('lojas') || [];
+                const loja    = lojas.find(l => String(l.id) === String(c.lojaId));
                 const saldo   = calcularSaldoCaixa(c.caixaId).saldoDisponivel;
                 const temCap  = saldo >= c.valorTotal;
                 const pct     = c.valorTotal > 0 ? Math.min((saldo/c.valorTotal)*100, 100) : 0;
@@ -14365,7 +14385,7 @@
                     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;cursor:pointer;" onclick="toggleDetalheCompra(${c.id})">
                         <div style="flex:1;min-width:0;">
                             <div style="font-size:15px;font-weight:700;color:var(--text-main);">${itens.length>1?`${itens.length} produtos`:itens[0]?.nome}</div>
-                            <div style="font-size:12px;color:var(--text-muted);">${caixa?.nome||'?'} · ${c.criadoEm}${c.prazo?' · Prazo: '+c.prazo:''} ${c.sociedade==='socio'?`· 🤝 Sócio ${c.socioPct}%`:''}</div>
+                            <div style="font-size:12px;color:var(--text-muted);">${caixa?.nome||'?'}${loja?' · 🏪 '+loja.nome:''} · ${c.criadoEm}${c.prazo?' · Prazo: '+c.prazo:''} ${c.sociedade==='socio'?`· 🤝 Sócio ${c.socioPct}%`:''}</div>
                             ${c.obs?`<div style="font-size:11px;color:var(--text-dim);">${c.obs}</div>`:''}
                         </div>
                         <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;margin-left:8px;">
