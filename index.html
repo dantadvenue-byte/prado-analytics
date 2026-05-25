@@ -13128,6 +13128,7 @@
                                     <button onclick="abrirMovRapidaPessoal('entrada')" class="btn-success" style="padding:6px 10px;font-size:11px;" title="Entrada">+R$</button>
                                     <button onclick="abrirMovRapidaPessoal('saida')" class="btn-danger" style="padding:6px 10px;font-size:11px;" title="Saída">-R$</button>
                                     <button onclick="sacarPessoal()" style="padding:6px 10px;font-size:11px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);border-radius:6px;cursor:pointer;" title="Gastar">💸</button>
+                                    <button onclick="abrirPainelCaixa(${caixaPessoal.id})" style="padding:6px 10px;font-size:11px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);border-radius:6px;cursor:pointer;" title="Painel completo (entradas, saídas, ajuste)">📊</button>
                                     <button onclick="toggleCaixaDetalhe('${uid_pes}')" style="padding:6px 8px;font-size:11px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer;" id="btn-det-${uid_pes}">▾</button>
                                 </div>
                             </div>
@@ -13167,6 +13168,7 @@
                                 <div style="display:flex;gap:4px;flex-shrink:0;">
                                     <button onclick="aportarCaixaEspecial('reserva')" class="btn-success" style="padding:6px 10px;font-size:11px;" title="Aportar">+R$</button>
                                     <button onclick="saidaFundoReserva()" class="btn-danger" style="padding:6px 10px;font-size:11px;" title="Saída">-R$</button>
+                                    <button onclick="abrirPainelCaixa(${caixaReserva.id})" style="padding:6px 10px;font-size:11px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:var(--green);border-radius:6px;cursor:pointer;" title="Painel completo (entradas, saídas, ajuste)">📊</button>
                                     <button onclick="toggleCaixaDetalhe('${uid_res}')" style="padding:6px 8px;font-size:11px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer;" id="btn-det-${uid_res}">▾</button>
                                 </div>
                             </div>
@@ -20855,23 +20857,27 @@
                 }).join('')
             : '<div style="text-align:center;font-size:12px;color:var(--text-dim);padding:8px 0;">Nenhum empréstimo neste caixa</div>';
 
-            // Movimentações deste caixa
+            // Movimentações deste caixa (todas, com scroll interno na seção)
             var movsCaixa = (_ler('fin-movs')||[]).filter(function(mv){ return mv.caixaId==caixaId; })
-                .sort(function(a,b){ return (b.criadoEm||b.data||'').localeCompare(a.criadoEm||a.data||''); })
-                .slice(0, 40);
-            var secMovs = movsCaixa.length ? movsCaixa.map(function(mv) {
-                var ent  = mv.tipo === 'entrada';
-                var corM = ent ? 'var(--green)' : 'var(--red)';
-                var sinM = ent ? '+' : '-';
-                var dFmt = mv.data ? new Date(mv.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '';
-                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);">' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="font-size:12px;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (mv.descricao||mv.categoria||'Movimentação') + '</div>' +
-                        '<div style="font-size:10px;color:var(--text-dim);">' + dFmt + (mv.categoria?' · '+mv.categoria:'') + '</div>' +
-                    '</div>' +
-                    '<div style="font-size:13px;font-weight:800;color:'+corM+';flex-shrink:0;margin-left:10px;">' + sinM + 'R$ ' + (mv.valor||0).toFixed(0) + '</div>' +
-                '</div>';
-            }).join('') + (movsCaixa.length>=40?'<div style="text-align:center;font-size:10px;color:var(--text-dim);padding:6px 0;">Mostrando últimas 40</div>':'')
+                .sort(function(a,b){ return (b.criadoEm||b.data||'').localeCompare(a.criadoEm||a.data||''); });
+            var totalMovs = movsCaixa.length;
+            var secMovs = movsCaixa.length
+              ? '<div style="max-height:340px;overflow-y:auto;padding-right:6px;margin-right:-6px;">' +
+                  movsCaixa.map(function(mv) {
+                    var ent  = mv.tipo === 'entrada';
+                    var corM = ent ? 'var(--green)' : 'var(--red)';
+                    var sinM = ent ? '+' : '-';
+                    var dFmt = mv.data ? new Date(mv.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '';
+                    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);">' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="font-size:12px;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (mv.descricao||mv.categoria||'Movimentação') + '</div>' +
+                            '<div style="font-size:10px;color:var(--text-dim);">' + dFmt + (mv.categoria?' · '+mv.categoria:'') + '</div>' +
+                        '</div>' +
+                        '<div style="font-size:13px;font-weight:800;color:'+corM+';flex-shrink:0;margin-left:10px;">' + sinM + 'R$ ' + (mv.valor||0).toFixed(0) + '</div>' +
+                    '</div>';
+                }).join('') +
+                '</div>' +
+                (totalMovs > 8 ? '<div style="text-align:center;font-size:10px;color:var(--text-dim);padding:8px 0 0;border-top:1px solid var(--border);margin-top:4px;">↕ Role para ver as ' + totalMovs + ' movimentações</div>' : '')
             : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:8px 0;">Nenhuma movimentação registrada</div>';
 
             document.getElementById('modal-painel-caixa')?.remove();
