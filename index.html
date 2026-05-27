@@ -907,6 +907,11 @@
         .kanban-card.dragging { opacity: 0.4; transform: scale(0.97); }
         .kanban-card:hover { border-color: var(--border-mid); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
 
+        /* Diagnóstico collapsable */
+        details[open] .vp-diag-chevron { transform: rotate(90deg); }
+        details summary::-webkit-details-marker { display: none; }
+        details summary::marker { display: none; }
+
     </style>
 </head>
 <body>
@@ -9065,8 +9070,7 @@
                         // ── HEADER: título + status + ações ──
                         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;margin-top:4px;">' +
                             '<div style="flex:1;min-width:0;">' +
-                                '<div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-0.02em;margin-bottom:3px;">' + (e.titulo || 'Estratégia') + '</div>' +
-                                (e.descricao ? '<div style="font-size:12px;color:var(--text-dim);line-height:1.45;">' + e.descricao + '</div>' : '') +
+                                '<div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-0.02em;">' + (e.titulo || 'Estratégia') + '</div>' +
                             '</div>' +
                             '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
                                 '<select onchange="alterarStatusEstrategia(' + e.id + ',this.value,' + p.id + ')" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:5px 8px;border-radius:8px;font-size:11px;font-family:inherit;font-weight:600;cursor:pointer;">' +
@@ -9077,19 +9081,55 @@
                             '</div>' +
                         '</div>' +
 
-                        // ── HIPÓTESE + META ──
-                        ((e.hipotese || e.meta) ?
-                            '<div style="display:grid;grid-template-columns:' + (e.hipotese && e.meta ? '1fr 1fr' : '1fr') + ';gap:10px;margin-bottom:16px;">' +
-                                (e.hipotese ? '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;border-left:3px solid #f59e0b;">' +
-                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">💡 Hipótese</div>' +
-                                    '<div style="font-size:12px;color:#fff;line-height:1.5;font-weight:500;">' + e.hipotese + '</div>' +
-                                '</div>' : '') +
-                                (e.meta ? '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;border-left:3px solid var(--purple-light);">' +
-                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">🎯 Meta</div>' +
-                                    '<div style="font-size:12px;color:#fff;line-height:1.5;font-weight:500;">' + e.meta + '</div>' +
-                                '</div>' : '') +
+                        // ── DESCRIÇÃO / ESTRATÉGIA EM BLOCO GRANDE ──
+                        (e.descricao ?
+                            '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.05), rgba(99,102,241,0.02));border:1px solid rgba(59,130,246,0.18);border-left:3px solid var(--blue);border-radius:10px;padding:14px;margin-bottom:14px;">' +
+                                '<div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:8px;">📝 Estratégia / Plano</div>' +
+                                '<div style="font-size:13px;color:#fff;line-height:1.6;font-weight:400;white-space:pre-wrap;word-wrap:break-word;">' + e.descricao.replace(/</g,'&lt;') + '</div>' +
                             '</div>'
                         : '') +
+
+                        // ── HIPÓTESE + METAS (múltiplas, sempre visível) ──
+                        (function(){
+                            // Compatibilidade: e.metas é array; e.meta antigo vira primeiro item
+                            var metasList = Array.isArray(e.metas) ? e.metas.slice() : [];
+                            if (!metasList.length && e.meta) metasList = [e.meta];
+
+                            var hipoteseHTML = e.hipotese
+                                ? '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(245,158,11,0.20);border-radius:10px;padding:14px;border-left:3px solid #f59e0b;">' +
+                                    '<div style="font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:6px;">💡 Hipótese</div>' +
+                                    '<div style="font-size:13px;color:#fff;line-height:1.55;font-weight:400;white-space:pre-wrap;word-wrap:break-word;">' + e.hipotese.replace(/</g,'&lt;') + '</div>' +
+                                  '</div>'
+                                : '';
+
+                            var metasHTML = '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(168,85,247,0.20);border-radius:10px;padding:14px;border-left:3px solid var(--purple-light);">' +
+                                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                                    '<div style="font-size:10px;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">🎯 Meta' + (metasList.length > 1 ? 's (' + metasList.length + ')' : '') + '</div>' +
+                                '</div>' +
+                                (metasList.length > 0 ?
+                                    '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">' +
+                                        metasList.map(function(m, idx){
+                                            return '<div style="display:flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:9px 11px;">' +
+                                                '<span style="color:var(--purple-light);font-weight:800;flex-shrink:0;font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.5;">' + (idx + 1) + '.</span>' +
+                                                '<div style="flex:1;font-size:13px;color:#fff;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;">' + m.replace(/</g,'&lt;') + '</div>' +
+                                                '<button onclick="estRemoverMeta(' + e.id + ',' + idx + ',' + p.id + ')" style="background:none;border:none;color:var(--border);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;flex-shrink:0;" title="Remover meta">×</button>' +
+                                            '</div>';
+                                        }).join('') +
+                                    '</div>'
+                                : '') +
+                                // Input pra adicionar meta
+                                '<div style="display:flex;gap:6px;">' +
+                                    '<input type="text" id="est-nova-meta-' + e.id + '" placeholder="+ Adicionar meta..." onkeydown="if(event.key===\'Enter\'){estAdicionarMeta(' + e.id + ',' + p.id + ');}" style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:7px 10px;border-radius:7px;font-family:inherit;font-size:11px;outline:none;">' +
+                                    '<button onclick="estAdicionarMeta(' + e.id + ',' + p.id + ')" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);color:var(--purple-light);padding:7px 14px;border-radius:7px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">Adicionar</button>' +
+                                '</div>' +
+                            '</div>';
+
+                            // Se não tem hipótese, mostra só metas (1 coluna)
+                            return '<div style="display:grid;grid-template-columns:' + (e.hipotese ? '1fr 1fr' : '1fr') + ';gap:10px;margin-bottom:16px;">' +
+                                hipoteseHTML +
+                                metasHTML +
+                            '</div>';
+                        })() +
 
                         // ── CAPITAL ──
                         (nec > 0 ?
@@ -9135,15 +9175,20 @@
                             '</div>' +
                         '</div>' +
 
-                        // ── DIAGNÓSTICO (sempre visível) ──
-                        '<div style="background:linear-gradient(135deg, rgba(99,102,241,0.04), rgba(168,85,247,0.02));border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:14px;">' +
-                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
-                                '<div style="font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;">🔍 Diagnóstico</div>' +
+                        // ── DIAGNÓSTICO (colapsável, fechado por padrão) ──
+                        '<details style="background:linear-gradient(135deg, rgba(99,102,241,0.04), rgba(168,85,247,0.02));border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:0;overflow:hidden;">' +
+                            '<summary style="cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;list-style:none;user-select:none;" onmouseover="this.style.background=\'rgba(99,102,241,0.05)\'" onmouseout="this.style.background=\'transparent\'">' +
+                                '<div style="font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;">' +
+                                    '<span style="display:inline-block;transition:transform 0.2s;font-size:10px;color:var(--text-dim);" class="vp-diag-chevron">▶</span>' +
+                                    '<span>🔍 Diagnóstico</span>' +
+                                    (duracaoTxt ? '<span style="font-size:10px;color:var(--text-dim);font-weight:500;font-family:JetBrains Mono,monospace;">' + duracaoTxt + '</span>' : '') +
+                                '</div>' +
                                 '<div style="font-size:10px;color:' + atingiu.cor + ';background:' + atingiu.bg + ';padding:3px 10px;border-radius:6px;font-weight:700;font-family:JetBrains Mono,monospace;letter-spacing:0.04em;">' + atingiu.label + '</div>' +
-                            '</div>' +
+                            '</summary>' +
+                            '<div style="padding:0 14px 14px;">' +
 
                             // Atingiu objetivo? + datas
-                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;margin-top:4px;">' +
                                 '<div>' +
                                     '<label style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">🎯 Atingiu objetivo?</label>' +
                                     '<select onchange="estSalvarDiag(' + e.id + ',\'diagAtingiu\',this.value,' + p.id + ')" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">' +
@@ -9197,7 +9242,8 @@
                                     '</div>' +
                                 '</div>' +
                             '</div>' +
-                        '</div>' +
+                            '</div>' +
+                        '</details>' +
                     '</div>';
                 };
 
@@ -9280,6 +9326,42 @@
             var e = ests.find(function(x){ return x.id === estId; });
             if (!e || !e.checklist) return;
             e.checklist.splice(idx, 1);
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();
+        }
+
+        // Adicionar meta (suporta múltiplas)
+        async function estAdicionarMeta(estId, projId) {
+            var input = document.getElementById('est-nova-meta-' + estId);
+            if (!input) return;
+            var texto = (input.value || '').trim();
+            if (!texto) { input.focus(); return; }
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e) return;
+            // Migrar e.meta antiga pra e.metas[0] se necessário
+            if (!Array.isArray(e.metas)) {
+                e.metas = e.meta ? [e.meta] : [];
+                delete e.meta;
+            }
+            e.metas.push(texto);
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();
+        }
+
+        // Remover meta por índice
+        async function estRemoverMeta(estId, idx, projId) {
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e) return;
+            // Migrar se necessário
+            if (!Array.isArray(e.metas)) {
+                e.metas = e.meta ? [e.meta] : [];
+                delete e.meta;
+            }
+            if (!e.metas[idx]) return;
+            if (!confirm('Remover esta meta?\n\n"' + e.metas[idx] + '"')) return;
+            e.metas.splice(idx, 1);
             await _salvar('proj-estrategias', ests);
             renderProjetos();
         }
