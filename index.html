@@ -8906,6 +8906,29 @@
                 return;
             }
 
+            // ─── Helper: formatar duração entre 2 datas ISO em "X dias" ou "Xd Yh" ───
+            var formatarDuracao = function(inicioISO, fimISO) {
+                if (!inicioISO || !fimISO) return null;
+                var dini = new Date(inicioISO);
+                var dfim = new Date(fimISO);
+                if (isNaN(dini) || isNaN(dfim)) return null;
+                var msDiff = dfim - dini;
+                if (msDiff < 0) return null;
+                var dias  = Math.floor(msDiff / 86400000);
+                var horas = Math.floor((msDiff % 86400000) / 3600000);
+                if (dias === 0) return horas + 'h';
+                if (horas === 0) return dias + 'd';
+                return dias + 'd ' + horas + 'h';
+            };
+
+            // ─── Helper: data para input[type=date] ───
+            var paraInputDate = function(iso) {
+                if (!iso) return '';
+                var d = new Date(iso);
+                if (isNaN(d)) return iso.slice(0, 10);
+                return d.toISOString().slice(0, 10);
+            };
+
             el.innerHTML = lista.map(function(p) {
                 var lojaObj = lojas.find(function(l){ return String(l.id)===String(p.lojaId); });
                 var ests    = estrategias.filter(function(e){ return e.projetoId===p.id; });
@@ -8917,84 +8940,274 @@
                 var diasPrazo= p.prazo ? Math.ceil((new Date(p.prazo)-new Date())/86400000) : null;
                 var corPrazo = diasPrazo !== null ? (diasPrazo < 0 ? 'var(--red)' : diasPrazo < 7 ? '#ffc107' : 'var(--text-dim)') : 'var(--text-dim)';
 
-                // ── Simulações vinculadas ao projeto (calculado antes do map) ──
+                // ── Simulações vinculadas ao projeto (cards arejados) ──
                 var simsProjRender = (_ler('proj-simulacoes')||[]).filter(function(s){ return s.projetoId===p.id; });
-                var htmlSims = simsProjRender.length ? '<div style="margin-top:8px;border-top:1px solid rgba(16,185,129,0.15);padding-top:8px;">' +
-                    '<div style="font-size:9px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:6px;">📈 Simulações do projeto</div>' +
-                    simsProjRender.map(function(s) {
-                        return '<div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.15);border-radius:8px;padding:8px;margin-bottom:5px;">' +
-                            '<div style="font-size:11px;font-weight:700;color:var(--text-main);margin-bottom:5px;">📊 ' + s.nome + '</div>' +
-                            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:5px;">' +
-                                '<div style="text-align:center;background:var(--bg-surface);border-radius:6px;padding:5px;"><div style="font-size:8px;color:var(--text-dim);">💵 Preço</div><div style="font-size:12px;font-weight:800;color:var(--green);">R$ ' + (s.precoSugerido||0).toFixed(0) + '</div></div>' +
-                                '<div style="text-align:center;background:var(--bg-surface);border-radius:6px;padding:5px;"><div style="font-size:8px;color:var(--text-dim);">📈 Lucro/un</div><div style="font-size:12px;font-weight:800;color:var(--blue);">R$ ' + (s.meuLucroUnit||0).toFixed(0) + '</div></div>' +
-                                '<div style="text-align:center;background:var(--bg-surface);border-radius:6px;padding:5px;"><div style="font-size:8px;color:var(--text-dim);">🎯 Un. p/ meta</div><div style="font-size:12px;font-weight:800;color:var(--purple-light);">' + (s.qtdNecessaria||'—') + '</div></div>' +
-                                '<div style="text-align:center;background:var(--bg-surface);border-radius:6px;padding:5px;"><div style="font-size:8px;color:var(--text-dim);">💼 Capital</div><div style="font-size:12px;font-weight:800;color:#ffc107;">R$ ' + (s.capitalPorGiro||s.capitalNecessario||0).toFixed(0) + '</div>' + (s.capitalPorGiro?'<div style="font-size:8px;color:var(--text-dim);">/giro</div>':'') + '</div>' +
-                                (s.lucroNoMes ? '<div style="text-align:center;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:6px;padding:5px;"><div style="font-size:8px;color:var(--green);">Lucro/mês</div><div style="font-size:12px;font-weight:800;color:var(--green);">R$ ' + s.lucroNoMes.toFixed(0) + '</div></div>' : '') +
-                                (s.proLabTotal ? '<div style="text-align:center;background:rgba(255,193,7,0.07);border:1px solid rgba(255,193,7,0.15);border-radius:6px;padding:5px;"><div style="font-size:8px;color:#ffc107;">Pró-lab</div><div style="font-size:12px;font-weight:800;color:#ffc107;">R$ ' + s.proLabTotal.toFixed(0) + '</div></div>' : '') +
-                            '</div>' +
-                        '</div>';
-                    }).join('') +
-                '</div>' : '';
 
-                var htmlEsts = ests.length ? ests.map(function(e) {
-                    var esSt = _EST_STATUS[e.status] || _EST_STATUS.pendente;
-                    return '<div class="est-card">' +
-                        htmlSims +
-                        '<div style="display:flex;align-items:flex-start;gap:10px;">' +
-                            '<div style="flex:1;min-width:0;">' +
-                                '<div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:4px;">' + e.titulo + '</div>' +
-                                (e.descricao ? '<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">' + e.descricao + '</div>' : '') +
-                                (e.hipotese ? '<div style="font-size:11px;background:rgba(59,130,246,0.07);border-left:2px solid var(--blue);padding:4px 8px;border-radius:0 6px 6px 0;margin-bottom:4px;color:var(--text-muted);">💡 Hipótese: ' + e.hipotese + '</div>' : '') +
-                                (e.resultado && (e.status==='concluida'||e.status==='descartada') ? '<div style="font-size:11px;background:rgba(16,185,129,0.07);border-left:2px solid var(--green);padding:4px 8px;border-radius:0 6px 6px 0;margin-bottom:4px;color:var(--text-muted);">📊 Resultado: ' + e.resultado + '</div>' : '') +
-                                (e.meta ? '<div style="font-size:11px;background:rgba(124,58,237,0.07);border-left:2px solid var(--purple-light);padding:4px 8px;border-radius:0 6px 6px 0;margin-bottom:4px;color:var(--text-muted);">🎯 Meta: ' + e.meta + '</div>' : '') +
-                                (e.capitalNecessario ? (function(){
-                                    var nec   = e.capitalNecessario || 0;
-                                    var disp  = e.capitalDisponivel || 0;
-                                    var delta = disp - nec;
-                                    var sobra = delta >= 0;
-                                    return '<div style="background:var(--bg-hover);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">' +
-                                        '<div><div style="font-size:9px;color:var(--text-dim);">💼 Necessário</div><div style="font-size:12px;font-weight:800;color:#ffc107;">R$ ' + nec.toFixed(0) + '</div></div>' +
-                                        '<div><div style="font-size:9px;color:var(--text-dim);">💰 Disponível</div><div style="font-size:12px;font-weight:800;color:var(--blue);">R$ ' + disp.toFixed(0) + '</div></div>' +
-                                        '<div><div style="font-size:9px;color:var(--text-dim);">' + (sobra?'✅ Sobra':'❌ Falta') + '</div><div style="font-size:12px;font-weight:800;color:' + (sobra?'var(--green)':'var(--red)') + ';">R$ ' + Math.abs(delta).toFixed(0) + '</div></div>' +
-                                    '</div>';
-                                })() : '') +
-                                '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">' +
-                                    '<span style="font-size:10px;font-weight:700;color:' + esSt.cor + ';">' + esSt.label + '</span>' +
-                                    (e.prazo ? '<span style="font-size:10px;color:var(--text-dim);">📅 ' + new Date(e.prazo+'T00:00:00').toLocaleDateString('pt-BR') + '</span>' : '') +
-                                    (e.prioridade === 'alta' ? '<span style="font-size:10px;color:var(--red);font-weight:700;">🔴 Alta prioridade</span>' : '') +
-                                '</div>' +
-                            '</div>' +
-                            '<div style="display:flex;gap:5px;flex-shrink:0;">' +
-                                '<select class="est-status-sel" onchange="alterarStatusEstrategia(' + e.id + ',this.value,' + p.id + ')">' +
-                                    Object.entries(_EST_STATUS).map(function(en){ return '<option value="' + en[0] + '"' + (e.status===en[0]?' selected':'') + '>' + en[1].label + '</option>'; }).join('') +
-                                '</select>' +
-                                '<button onclick="abrirFormEstrategia(' + p.id + ',' + e.id + ')" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:4px 8px;border-radius:6px;cursor:pointer;font-size:11px;">✏️</button>' +
-                                '<button onclick="deletarEstrategia(' + e.id + ',' + p.id + ')" style="background:none;border:1px solid rgba(255,77,77,0.3);color:var(--red);padding:4px 8px;border-radius:6px;cursor:pointer;font-size:11px;">🗑️</button>' +
+                var simCardHTML = function(s) {
+                    var preco       = s.precoSugerido || 0;
+                    var custo       = s.custo || 0;
+                    var margemPct   = custo > 0 ? Math.round((preco - custo) / custo * 100) : 0;
+                    var corMargem   = margemPct >= 100 ? 'var(--green)' : (margemPct >= 30 ? '#ffc107' : 'var(--red)');
+                    var bgMargem    = margemPct >= 100 ? 'rgba(16,185,129,0.10)' : (margemPct >= 30 ? 'rgba(255,193,7,0.10)' : 'rgba(244,63,94,0.10)');
+                    var lucroMes    = s.lucroNoMes || 0;
+                    var giroDias    = s.giroDias || 0;
+                    var girosMes    = s.girosNoMes || 0;
+                    return '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:16px;position:relative;overflow:hidden;backdrop-filter:blur(20px);">' +
+                        // Header
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                            '<div style="font-size:14px;font-weight:700;color:#fff;letter-spacing:-0.01em;">📊 ' + (s.nome || 'Simulação') + '</div>' +
+                            '<div style="display:flex;gap:4px;">' +
+                                '<button onclick="svAbrirParaEditar(' + p.id + ',' + s.id + ')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);color:var(--text-dim);width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;" title="Editar">✏️</button>' +
+                                '<button onclick="svDeletar(' + s.id + ')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);color:var(--text-dim);width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;" title="Excluir">🗑️</button>' +
                             '</div>' +
                         '</div>' +
-                        (e.checklist && e.checklist.length ? (function(){
-                            var total = e.checklist.length;
-                            var feitos = e.checklist.filter(function(c){ return c.feito; }).length;
-                            var pctCL  = Math.round((feitos/total)*100);
-                            return '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:7px;">' +
-                                '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:4px;">' +
-                                    '<span>&#x2705; Checklist</span><span style="font-weight:700;">' + feitos + '/' + total + ' (' + pctCL + '%)</span>' +
+                        // Destaque preço
+                        '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">' +
+                                '<span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Preço de venda</span>' +
+                                '<span style="font-size:10px;color:' + corMargem + ';background:' + bgMargem + ';padding:2px 7px;border-radius:6px;font-weight:700;font-family:JetBrains Mono,monospace;">' + margemPct + '% margem</span>' +
+                            '</div>' +
+                            '<div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.02em;line-height:1;"><span style="font-size:13px;color:var(--text-dim);font-weight:500;margin-right:3px;">R$</span>' + preco.toFixed(0) + '</div>' +
+                        '</div>' +
+                        // KPIs 2x2
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">' +
+                            '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;">' +
+                                '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:3px;">💰 Lucro/un</div>' +
+                                '<div style="font-size:14px;font-weight:800;color:var(--blue);font-family:JetBrains Mono,monospace;">R$ ' + (s.meuLucroUnit||0).toFixed(0) + '</div>' +
+                            '</div>' +
+                            '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;">' +
+                                '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:3px;">🎯 Un. p/ meta</div>' +
+                                '<div style="font-size:14px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;">' + (s.qtdNecessaria||'—') + '</div>' +
+                            '</div>' +
+                            '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;">' +
+                                '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:3px;">💼 Capital' + (s.capitalPorGiro?'/giro':'') + '</div>' +
+                                '<div style="font-size:14px;font-weight:800;color:#ffc107;font-family:JetBrains Mono,monospace;">R$ ' + (s.capitalPorGiro||s.capitalNecessario||0).toFixed(0) + '</div>' +
+                            '</div>' +
+                            '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px;">' +
+                                '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;margin-bottom:3px;">💵 Pró-lab</div>' +
+                                '<div style="font-size:14px;font-weight:800;color:#ffc107;font-family:JetBrains Mono,monospace;">R$ ' + (s.proLabTotal||0).toFixed(0) + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        // Footer
+                        (giroDias > 0 || lucroMes > 0 ?
+                            '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">' +
+                                '<span style="color:var(--text-dim);">' + (giroDias>0?'🔄 <b style="color:#fff;font-weight:700;font-family:JetBrains Mono,monospace;">'+girosMes+'×/mês</b> · '+giroDias+'d giro':'') + '</span>' +
+                                (lucroMes > 0 ? '<span style="color:var(--green);font-weight:700;font-family:JetBrains Mono,monospace;">R$ ' + lucroMes.toFixed(0) + '/mês</span>' : '') +
+                            '</div>'
+                        : '') +
+                        (s.notas ? '<div style="font-size:11px;color:#fff;margin-top:10px;padding:8px;background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.15);border-radius:6px;border-left:2px solid var(--purple-light);">📝 ' + s.notas.replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</div>' : '') +
+                    '</div>';
+                };
+
+                var htmlSims = simsProjRender.length ?
+                    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;font-weight:700;letter-spacing:0.12em;margin:14px 0 10px;display:flex;align-items:center;gap:8px;">' +
+                        '<span>📊 Simulações do Projeto</span>' +
+                        '<span style="font-size:10px;color:var(--border);font-family:JetBrains Mono,monospace;">' + simsProjRender.length + ' produtos</span>' +
+                    '</div>' +
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:18px;">' +
+                        simsProjRender.map(simCardHTML).join('') +
+                    '</div>'
+                : '';
+
+                // ── Card de estratégia (vertical, espaçado) ──
+                var estrategiaCardHTML = function(e) {
+                    var statusClass = e.status || 'pendente';
+                    var corBarra    = statusClass === 'pendente'   ? 'linear-gradient(90deg,#f59e0b,#f97316)'
+                                    : statusClass === 'executando' ? 'linear-gradient(90deg,#3b82f6,#06b6d4)'
+                                    : statusClass === 'concluida'  ? 'linear-gradient(90deg,#10b981,#14b8a6)'
+                                    :                                'linear-gradient(90deg,#f43f5e,#ec4899)';
+                    var borderCor   = statusClass === 'pendente'   ? 'rgba(245,158,11,0.18)'
+                                    : statusClass === 'executando' ? 'rgba(59,130,246,0.20)'
+                                    : statusClass === 'concluida'  ? 'rgba(16,185,129,0.20)'
+                                    :                                'rgba(244,63,94,0.18)';
+
+                    // Capital
+                    var nec   = e.capitalNecessario || 0;
+                    var disp  = e.capitalDisponivel || 0;
+                    var falta = Math.max(0, nec - disp);
+                    var sobra = disp >= nec && nec > 0;
+
+                    // Checklist
+                    var cl = e.checklist || [];
+                    var clTotal  = cl.length;
+                    var clFeitos = cl.filter(function(c){ return c.feito; }).length;
+                    var clPct    = clTotal > 0 ? Math.round((clFeitos/clTotal)*100) : 0;
+                    var clPend   = clTotal - clFeitos;
+
+                    // Diagnóstico — duração
+                    var inicioISO = e.dataInicio || e.criadoEm || null;
+                    var fimISO    = e.dataConclusao || (e.status === 'concluida' ? new Date().toISOString() : null);
+                    var duracaoTxt = formatarDuracao(inicioISO, fimISO);
+                    // Inferir início se for criadoEm BR (dd/MM/yyyy)
+                    if (e.criadoEm && !e.dataInicio) {
+                        // Tentar parsear formato brasileiro
+                        var partes = (e.criadoEm || '').split('/');
+                        if (partes.length === 3) {
+                            var dCriado = new Date(partes[2] + '-' + partes[1] + '-' + partes[0] + 'T00:00:00');
+                            if (!isNaN(dCriado)) {
+                                inicioISO = dCriado.toISOString();
+                                if (fimISO) duracaoTxt = formatarDuracao(inicioISO, fimISO);
+                            }
+                        }
+                    }
+                    var atingiuMap = {
+                        'sim':          { label: '✅ Sim, totalmente',  cor: 'var(--green)', bg: 'rgba(16,185,129,0.10)' },
+                        'parcial':      { label: '⚠️ Parcialmente',     cor: '#ffc107',      bg: 'rgba(255,193,7,0.10)'  },
+                        'nao':          { label: '❌ Não',              cor: 'var(--red)',   bg: 'rgba(244,63,94,0.10)'  },
+                        '':             { label: '— Em avaliação',     cor: 'var(--text-dim)', bg: 'rgba(255,255,255,0.04)' }
+                    };
+                    var atingiu  = atingiuMap[e.diagAtingiu || ''] || atingiuMap[''];
+
+                    return '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid ' + borderCor + ';border-radius:18px;padding:20px;margin-bottom:14px;backdrop-filter:blur(20px);position:relative;overflow:hidden;">' +
+                        // Barra colorida no topo
+                        '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:' + corBarra + ';"></div>' +
+
+                        // ── HEADER: título + status + ações ──
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;margin-top:4px;">' +
+                            '<div style="flex:1;min-width:0;">' +
+                                '<div style="font-size:17px;font-weight:700;color:#fff;letter-spacing:-0.02em;margin-bottom:3px;">' + (e.titulo || 'Estratégia') + '</div>' +
+                                (e.descricao ? '<div style="font-size:12px;color:var(--text-dim);line-height:1.45;">' + e.descricao + '</div>' : '') +
+                            '</div>' +
+                            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+                                '<select onchange="alterarStatusEstrategia(' + e.id + ',this.value,' + p.id + ')" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:5px 8px;border-radius:8px;font-size:11px;font-family:inherit;font-weight:600;cursor:pointer;">' +
+                                    Object.entries(_EST_STATUS).map(function(en){ return '<option value="' + en[0] + '"' + (e.status===en[0]?' selected':'') + '>' + en[1].label + '</option>'; }).join('') +
+                                '</select>' +
+                                '<button onclick="abrirFormEstrategia(' + p.id + ',' + e.id + ')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);color:var(--text-dim);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Editar">✏️</button>' +
+                                '<button onclick="deletarEstrategia(' + e.id + ',' + p.id + ')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(244,63,94,0.20);color:var(--red);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Excluir">🗑️</button>' +
+                            '</div>' +
+                        '</div>' +
+
+                        // ── HIPÓTESE + META ──
+                        ((e.hipotese || e.meta) ?
+                            '<div style="display:grid;grid-template-columns:' + (e.hipotese && e.meta ? '1fr 1fr' : '1fr') + ';gap:10px;margin-bottom:16px;">' +
+                                (e.hipotese ? '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;border-left:3px solid #f59e0b;">' +
+                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">💡 Hipótese</div>' +
+                                    '<div style="font-size:12px;color:#fff;line-height:1.5;font-weight:500;">' + e.hipotese + '</div>' +
+                                '</div>' : '') +
+                                (e.meta ? '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;border-left:3px solid var(--purple-light);">' +
+                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">🎯 Meta</div>' +
+                                    '<div style="font-size:12px;color:#fff;line-height:1.5;font-weight:500;">' + e.meta + '</div>' +
+                                '</div>' : '') +
+                            '</div>'
+                        : '') +
+
+                        // ── CAPITAL ──
+                        (nec > 0 ?
+                            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">' +
+                                '<div style="background:linear-gradient(135deg,rgba(245,158,11,0.06),transparent);border:1px solid rgba(245,158,11,0.18);border-radius:10px;padding:12px;text-align:center;">' +
+                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">💼 Necessário</div>' +
+                                    '<div style="font-size:18px;font-weight:800;color:#ffc107;font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">R$ ' + nec.toFixed(0) + '</div>' +
                                 '</div>' +
-                                '<div style="height:4px;background:var(--bg-surface);border-radius:2px;overflow:hidden;margin-bottom:5px;">' +
-                                    '<div style="height:100%;background:var(--purple-light);width:' + pctCL + '%;border-radius:2px;"></div>' +
+                                '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;">' +
+                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">🪙 Disponível</div>' +
+                                    '<div style="font-size:18px;font-weight:800;color:' + (disp > 0 ? 'var(--green)' : 'var(--text-dim)') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">R$ ' + disp.toFixed(0) + '</div>' +
                                 '</div>' +
-                                e.checklist.map(function(c){
-                                    return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 0;color:' + (c.feito?'var(--text-dim)':'var(--text-main)') + ';' + (c.feito?'text-decoration:line-through;':'') + '">' +
-                                        '<span style="color:' + (c.feito?'var(--green)':'var(--border)') + ';font-size:12px;">' + (c.feito?'&#x2713;':'&#x25CB;') + '</span>' + c.texto +
+                                '<div style="background:linear-gradient(135deg,' + (sobra ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)') + ',transparent);border:1px solid ' + (sobra ? 'rgba(16,185,129,0.22)' : 'rgba(244,63,94,0.22)') + ';border-radius:10px;padding:12px;text-align:center;">' +
+                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">' + (sobra ? '✅ Sobra' : '❌ Falta') + '</div>' +
+                                    '<div style="font-size:18px;font-weight:800;color:' + (sobra ? 'var(--green)' : 'var(--red)') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">R$ ' + Math.abs(disp - nec).toFixed(0) + '</div>' +
+                                '</div>' +
+                            '</div>'
+                        : '') +
+
+                        // ── CHECKLIST (sempre visível com barra de progresso) ──
+                        '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:14px;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
+                                '<div style="font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;">✅ Checklist · execução</div>' +
+                                '<div style="font-size:10px;color:var(--text-dim);font-family:JetBrains Mono,monospace;font-weight:600;"><b style="color:#fff;">' + clFeitos + '</b>/' + clTotal + ' concluídos' + (clPend > 0 ? ' · <b style="color:#f59e0b;">' + clPend + ' pendentes</b>' : (clTotal > 0 ? ' · <b style="color:var(--green);">tudo feito</b>' : '')) + '</div>' +
+                            '</div>' +
+                            (clTotal > 0 ? '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;margin-bottom:12px;">' +
+                                '<div style="height:100%;background:linear-gradient(90deg,#a855f7,#06b6d4);border-radius:99px;box-shadow:0 0 10px rgba(168,85,247,0.4);width:' + clPct + '%;transition:width 0.3s;"></div>' +
+                            '</div>' : '') +
+                            // Itens
+                            (clTotal > 0 ? '<div style="display:flex;flex-direction:column;gap:5px;">' +
+                                cl.map(function(c, idx){
+                                    return '<div onclick="estToggleChecklist(' + e.id + ',' + idx + ',' + p.id + ')" style="display:flex;align-items:center;gap:9px;padding:8px 10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:8px;cursor:pointer;transition:all 0.15s;">' +
+                                        '<div style="width:16px;height:16px;border-radius:4px;border:1.5px solid ' + (c.feito ? 'transparent' : 'rgba(255,255,255,0.2)') + ';' + (c.feito ? 'background:linear-gradient(135deg,#10b981,#14b8a6);box-shadow:0 0 6px rgba(16,185,129,0.3);' : '') + 'flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;">' + (c.feito ? '✓' : '') + '</div>' +
+                                        '<div style="flex:1;font-size:12px;color:' + (c.feito ? 'var(--text-dim)' : '#fff') + ';' + (c.feito ? 'text-decoration:line-through;' : '') + '">' + (c.texto || '') + '</div>' +
+                                        '<button onclick="event.stopPropagation(); estRemoverChecklist(' + e.id + ',' + idx + ',' + p.id + ')" style="background:none;border:none;color:var(--border);cursor:pointer;font-size:14px;padding:2px 6px;line-height:1;" title="Remover">×</button>' +
                                     '</div>';
                                 }).join('') +
-                            '</div>';
-                        })() : '') +
-                        (e.log && e.log.length ? '<div style="margin-top:6px;border-top:1px solid var(--border);padding-top:5px;">' +
-                            e.log.slice(-2).map(function(l){ return '<div style="font-size:10px;color:var(--text-dim);">· ' + l + '</div>'; }).join('') +
-                        '</div>' : '') +
+                            '</div>' : '') +
+                            // Adicionar item
+                            '<div style="display:flex;gap:6px;margin-top:' + (clTotal > 0 ? '10' : '0') + 'px;">' +
+                                '<input type="text" id="est-novo-cl-' + e.id + '" placeholder="+ Adicionar item ao checklist..." onkeydown="if(event.key===\'Enter\'){estAdicionarChecklist(' + e.id + ',' + p.id + ');}" style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:7px 10px;border-radius:7px;font-family:inherit;font-size:11px;outline:none;">' +
+                                '<button onclick="estAdicionarChecklist(' + e.id + ',' + p.id + ')" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);color:var(--purple-light);padding:7px 14px;border-radius:7px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">Adicionar</button>' +
+                            '</div>' +
+                        '</div>' +
+
+                        // ── DIAGNÓSTICO (sempre visível) ──
+                        '<div style="background:linear-gradient(135deg, rgba(99,102,241,0.04), rgba(168,85,247,0.02));border:1px solid rgba(99,102,241,0.15);border-radius:12px;padding:14px;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">' +
+                                '<div style="font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;">🔍 Diagnóstico</div>' +
+                                '<div style="font-size:10px;color:' + atingiu.cor + ';background:' + atingiu.bg + ';padding:3px 10px;border-radius:6px;font-weight:700;font-family:JetBrains Mono,monospace;letter-spacing:0.04em;">' + atingiu.label + '</div>' +
+                            '</div>' +
+
+                            // Atingiu objetivo? + datas
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">🎯 Atingiu objetivo?</label>' +
+                                    '<select onchange="estSalvarDiag(' + e.id + ',\'diagAtingiu\',this.value,' + p.id + ')" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;">' +
+                                        '<option value=""' + (!e.diagAtingiu?' selected':'') + '>— ainda avaliando</option>' +
+                                        '<option value="sim"' + (e.diagAtingiu==='sim'?' selected':'') + '>✅ Sim, totalmente</option>' +
+                                        '<option value="parcial"' + (e.diagAtingiu==='parcial'?' selected':'') + '>⚠️ Parcialmente</option>' +
+                                        '<option value="nao"' + (e.diagAtingiu==='nao'?' selected':'') + '>❌ Não</option>' +
+                                    '</select>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">📅 Início</label>' +
+                                    '<input type="date" value="' + paraInputDate(e.dataInicio || inicioISO) + '" onchange="estSalvarDiagData(' + e.id + ',\'dataInicio\',this.value,' + p.id + ')" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;">' +
+                                '</div>' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">🏁 Conclusão</label>' +
+                                    '<input type="date" value="' + paraInputDate(e.dataConclusao) + '" onchange="estSalvarDiagData(' + e.id + ',\'dataConclusao\',this.value,' + p.id + ')" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;">' +
+                                '</div>' +
+                            '</div>' +
+
+                            // Duração calculada
+                            (duracaoTxt ?
+                                '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">' +
+                                    '<span style="font-size:11px;color:var(--text-dim);">⏱️ Tempo de execução</span>' +
+                                    '<span style="font-size:13px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;">' + duracaoTxt + '</span>' +
+                                '</div>'
+                            : '') +
+
+                            // 3 textareas: certo / errado / próxima
+                            '<div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;">' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">✅ O que deu certo</label>' +
+                                    '<textarea onchange="estSalvarDiag(' + e.id + ',\'diagCerto\',this.value,' + p.id + ')" placeholder="Descreva o que funcionou bem..." style="width:100%;background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.18);color:#fff;padding:8px 10px;border-radius:6px;font-family:inherit;font-size:11px;min-height:50px;resize:vertical;outline:none;">' + (e.diagCerto || '') + '</textarea>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--red);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">❌ O que deu errado</label>' +
+                                    '<textarea onchange="estSalvarDiag(' + e.id + ',\'diagErrado\',this.value,' + p.id + ')" placeholder="Descreva os obstáculos e erros..." style="width:100%;background:rgba(244,63,94,0.04);border:1px solid rgba(244,63,94,0.18);color:#fff;padding:8px 10px;border-radius:6px;font-family:inherit;font-size:11px;min-height:50px;resize:vertical;outline:none;">' + (e.diagErrado || '') + '</textarea>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">🔁 O que fazer diferente na próxima</label>' +
+                                    '<textarea onchange="estSalvarDiag(' + e.id + ',\'diagProxima\',this.value,' + p.id + ')" placeholder="Lições para a próxima estratégia..." style="width:100%;background:rgba(168,85,247,0.04);border:1px solid rgba(168,85,247,0.18);color:#fff;padding:8px 10px;border-radius:6px;font-family:inherit;font-size:11px;min-height:50px;resize:vertical;outline:none;">' + (e.diagProxima || '') + '</textarea>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">💡 Aprendizado-chave (1 linha)</label>' +
+                                    '<input type="text" value="' + (e.diagAprendizado || '').replace(/"/g,'&quot;') + '" onchange="estSalvarDiag(' + e.id + ',\'diagAprendizado\',this.value,' + p.id + ')" placeholder="A grande lição em uma frase..." style="width:100%;background:rgba(251,191,36,0.04);border:1px solid rgba(251,191,36,0.20);color:#fff;padding:8px 10px;border-radius:6px;font-family:inherit;font-size:11px;outline:none;">' +
+                                '</div>' +
+                                '<div>' +
+                                    '<label style="font-size:9px;color:var(--cyan,#06b6d4);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:block;margin-bottom:4px;">🚀 Próxima estratégia sugerida</label>' +
+                                    '<div style="display:flex;gap:6px;">' +
+                                        '<input type="text" value="' + (e.diagProxSugerida || '').replace(/"/g,'&quot;') + '" onchange="estSalvarDiag(' + e.id + ',\'diagProxSugerida\',this.value,' + p.id + ')" placeholder="Nome da próxima estratégia..." style="flex:1;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.20);color:#fff;padding:8px 10px;border-radius:6px;font-family:inherit;font-size:11px;outline:none;">' +
+                                        '<button onclick="estCriarSugerida(' + e.id + ',' + p.id + ')" style="background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.30);color:#06b6d4;padding:6px 12px;border-radius:6px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;" title="Criar nova estratégia com esse nome">+ Criar</button>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
                     '</div>';
-                }).join('') : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:16px 0;">Nenhuma estratégia ainda — crie a primeira!</div>';
+                };
+
+                var htmlEsts = ests.length ?
+                    '<div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;font-weight:700;letter-spacing:0.12em;margin:18px 0 12px;display:flex;align-items:center;gap:8px;">' +
+                        '<span>🎯 Estratégias de Execução</span>' +
+                        '<span style="font-size:10px;color:var(--border);font-family:JetBrains Mono,monospace;">' + ests.length + ' fase' + (ests.length !== 1 ? 's' : '') + '</span>' +
+                    '</div>' +
+                    ests.map(estrategiaCardHTML).join('')
+                : '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:24px 0;">Nenhuma estratégia ainda — crie a primeira!</div>';
 
                 return '<div class="proj-card">' +
                     // Header do projeto
@@ -9024,12 +9237,116 @@
                             '<div style="height:100%;border-radius:3px;background:' + (pct===100?'var(--green)':'var(--purple-light)') + ';width:' + pct + '%;transition:width 0.4s;"></div>' +
                         '</div>' +
                     '</div>' : '') +
+                    // Simulações (cards grandes)
+                    htmlSims +
                     // Estratégias
-                    '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:0.4px;margin-bottom:8px;">Estratégias (' + ests.length + ')</div>' +
                     htmlEsts +
-                    '<button onclick="abrirFormEstrategia(' + p.id + ')" style="width:100%;margin-top:8px;background:rgba(124,58,237,0.06);border:1px dashed rgba(124,58,237,0.3);color:var(--purple-light);padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;">+ Nova Estratégia</button>' +
+                    '<button onclick="abrirFormEstrategia(' + p.id + ')" style="width:100%;margin-top:12px;background:linear-gradient(135deg, rgba(168,85,247,0.12), rgba(99,102,241,0.08));border:1.5px dashed rgba(168,85,247,0.3);color:var(--purple-light);padding:14px;border-radius:14px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;letter-spacing:0.04em;">+ Nova Estratégia</button>' +
                 '</div>';
             }).join('');
+        }
+
+        // ═══════ FUNÇÕES NOVAS PARA O NOVO LAYOUT ═══════
+
+        // Toggle item do checklist (clique no item)
+        async function estToggleChecklist(estId, idx, projId) {
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e || !e.checklist || !e.checklist[idx]) return;
+            e.checklist[idx].feito = !e.checklist[idx].feito;
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();
+        }
+
+        // Adicionar item ao checklist via input inline
+        async function estAdicionarChecklist(estId, projId) {
+            var input = document.getElementById('est-novo-cl-' + estId);
+            if (!input) return;
+            var texto = (input.value || '').trim();
+            if (!texto) { input.focus(); return; }
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e) return;
+            if (!e.checklist) e.checklist = [];
+            e.checklist.push({ texto: texto, feito: false });
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();
+        }
+
+        // Remover item do checklist
+        async function estRemoverChecklist(estId, idx, projId) {
+            if (!confirm('Remover este item do checklist?')) return;
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e || !e.checklist) return;
+            e.checklist.splice(idx, 1);
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();
+        }
+
+        // Salvar campo de diagnóstico (texto)
+        async function estSalvarDiag(estId, campo, valor, projId) {
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e) return;
+            e[campo] = valor;
+            await _salvar('proj-estrategias', ests);
+            // Re-render apenas se for o campo de "atingiu" (muda o chip)
+            if (campo === 'diagAtingiu') renderProjetos();
+        }
+
+        // Salvar data de diagnóstico (converte input date pra ISO)
+        async function estSalvarDiagData(estId, campo, valorDate, projId) {
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e) return;
+            if (!valorDate) {
+                e[campo] = null;
+            } else {
+                e[campo] = new Date(valorDate + 'T12:00:00').toISOString();
+            }
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();  // re-render pra atualizar duração
+        }
+
+        // Criar próxima estratégia sugerida
+        async function estCriarSugerida(estId, projId) {
+            var ests = _ler('proj-estrategias') || [];
+            var e = ests.find(function(x){ return x.id === estId; });
+            if (!e || !e.diagProxSugerida) {
+                alert('Preencha primeiro o nome da próxima estratégia sugerida.');
+                return;
+            }
+            var nova = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                projetoId: projId,
+                titulo: e.diagProxSugerida,
+                descricao: '',
+                hipotese: e.diagAprendizado ? 'Aprendizado da anterior: ' + e.diagAprendizado : '',
+                meta: '',
+                status: 'pendente',
+                checklist: [],
+                criadoEm: new Date().toLocaleDateString('pt-BR'),
+                dataInicio: new Date().toISOString()
+            };
+            ests.push(nova);
+            await _salvar('proj-estrategias', ests);
+            renderProjetos();
+            alert('✅ Estratégia "' + nova.titulo + '" criada!');
+        }
+
+        // Wrapper pra editar simulação (compatibilidade com botão antigo)
+        function svAbrirParaEditar(projId, simId) {
+            if (typeof abrirSimuladorVendasProjeto === 'function') {
+                abrirSimuladorVendasProjeto(projId);
+                setTimeout(function(){
+                    if (typeof svCarregarSimulacao === 'function') {
+                        svCarregarSimulacao(simId);
+                    }
+                }, 200);
+            } else {
+                alert('Abra o simulador no botão 📈 do projeto');
+            }
         }
 
         // ── Formulário: Projeto ──
@@ -9232,10 +9549,15 @@
                 '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">' +
                     '<div class="form-group"><label style="font-size:11px;">Lucro desejado (R$) *</label>' +
                     '<input type="number" id="sv-lucro-desejado" placeholder="5000" oninput="svCalcular()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px;border-radius:8px;font-family:inherit;font-weight:700;"></div>' +
-                    '<div class="form-group"><label style="font-size:11px;">Dias p/ girar 1 un.</label>' +
-                    '<input type="number" id="sv-giro-dias" placeholder="7" min="1" oninput="svCalcular()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px;border-radius:8px;font-family:inherit;"></div>' +
+                    '<div class="form-group"><label style="font-size:11px;">Dias p/ girar estoque</label>' +
+                    '<input type="number" id="sv-giro-dias" placeholder="30" min="1" oninput="svCalcular()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px;border-radius:8px;font-family:inherit;" title="Em quantos dias vc espera vender TODO o estoque (todas as unidades)"></div>' +
                     '<div class="form-group"><label style="font-size:11px;">Meu % do lucro</label>' +
                     '<input type="number" id="sv-meu-pct" value="100" min="1" max="100" oninput="svCalcular()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px;border-radius:8px;font-family:inherit;"></div>' +
+                '</div>' +
+
+                // Notas
+                '<div class="form-group" style="margin-bottom:12px;"><label style="font-size:11px;">📝 Notas (opcional)</label>' +
+                    '<textarea id="sv-notas" placeholder="Anote ideias, riscos, fornecedor, observações..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px;border-radius:8px;font-family:inherit;font-size:12px;min-height:50px;resize:vertical;"></textarea>' +
                 '</div>' +
 
                 // Resultado em tempo real
@@ -9255,9 +9577,21 @@
 
         function svRenderListaSalvas(sims) {
             if (!sims.length) return '<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:12px 0;">Nenhuma simulação salva ainda — preencha e clique em Salvar.</div>';
+            // Somar lucro mensal de todas as simulações
+            var lucroMesSomado    = sims.reduce(function(s, x){ return s + (x.lucroNoMes || 0); }, 0);
+            var capitalTotalSomado= sims.reduce(function(s, x){ return s + (x.capitalNecessario || 0); }, 0);
+            var capitalGiroSomado = sims.reduce(function(s, x){ return s + (x.capitalPorGiro || 0); }, 0);
             return '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:700;margin-bottom:8px;">📋 Simulações salvas (' + sims.length + ')</div>' +
+            // Somatório no topo
+            '<div style="background:linear-gradient(135deg, rgba(16,185,129,0.10), rgba(59,130,246,0.06));border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:12px;margin-bottom:10px;">' +
+                '<div style="font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;margin-bottom:8px;">💰 Somatório das estratégias</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">' +
+                    svKpi('Lucro/mês', 'R$ ' + lucroMesSomado.toFixed(0), 'var(--green)') +
+                    svKpi('Capital total', 'R$ ' + capitalTotalSomado.toFixed(0), '#ffc107') +
+                    (capitalGiroSomado > 0 ? svKpi('Capital/giro', 'R$ ' + capitalGiroSomado.toFixed(0), 'var(--blue)') : svKpi('Estratégias', sims.length + 'x', 'var(--text-main)')) +
+                '</div>' +
+            '</div>' +
             sims.map(function(s) {
-                var corBarra = s.capitalPorGiro ? 'var(--blue)' : 'var(--green)';
                 return '<div style="background:var(--bg-hover);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">' +
                         '<div>' +
@@ -9278,6 +9612,7 @@
                         (s.capitalPorGiro ? svKpi('💰 Capital/giro', 'R$ ' + s.capitalPorGiro.toFixed(0), 'var(--blue)') : '') +
                         (s.lucroNoMes ? svKpi('📈 Lucro/mês', 'R$ ' + s.lucroNoMes.toFixed(0), 'var(--green)') : '') +
                     '</div>' +
+                    (s.notas ? '<div style="font-size:11px;color:var(--text-main);margin-top:8px;padding:8px;background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.15);border-radius:6px;border-left:2px solid var(--purple-light);">📝 ' + s.notas.replace(/\n/g,'<br>') + '</div>' : '') +
                     (s.avisoConc ? '<div style="font-size:10px;color:#ffc107;margin-top:6px;">⚠️ ' + s.avisoConc + '</div>' : '') +
                 '</div>';
             }).join('');
@@ -9342,12 +9677,12 @@
             var proLabTotal      = meuProLabUnit*qtdNecessaria;
 
             // Análise de giro e capital necessário por giro
+            // giroDias agora representa "Dias pra girar TODO o estoque" (todas as qtdNecessaria un.)
             var girosNoMes=null, unidadesPorGiro=null, capitalPorGiro=null, lucroNoMes=null;
             if (giroDias>0) {
                 girosNoMes       = Math.floor(30/giroDias);
-                unidadesPorGiro  = Math.ceil(qtdNecessaria/Math.max(girosNoMes,1));
+                unidadesPorGiro  = qtdNecessaria;       // gira o estoque inteiro a cada giro
                 capitalPorGiro   = custo*unidadesPorGiro;
-                // Lucro real no mês com aquele capital girando
                 lucroNoMes       = meuLucroUnit * unidadesPorGiro * girosNoMes;
             }
 
@@ -9372,14 +9707,14 @@
                 '</div>' +
                 (giroDias>0 ?
                 '<div style="background:var(--bg-hover);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">' +
-                    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;margin-bottom:8px;">🔄 Estratégia de Giro ('+giroDias+'d por unidade)</div>' +
+                    '<div style="font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;margin-bottom:8px;">🔄 Estratégia de Giro ('+giroDias+'d para girar o estoque)</div>' +
                     '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
                         svKpi('Giros/mês', girosNoMes+'x', 'var(--text-main)') +
                         svKpi('Un./giro', unidadesPorGiro+' un', 'var(--blue)') +
                         svKpi('Capital/giro', 'R$ '+capitalPorGiro.toFixed(0), '#ffc107') +
                         svKpi('Lucro/mês real', 'R$ '+lucroNoMes.toFixed(0), 'var(--green)') +
                     '</div>' +
-                    '<div style="font-size:10px;color:var(--text-dim);margin-top:8px;padding:6px;background:var(--bg-surface);border-radius:6px;">Com R$ <strong style="color:#ffc107">'+capitalPorGiro.toFixed(0)+'</strong> investidos por giro a cada '+giroDias+'d, você faz <strong style="color:var(--blue)">'+girosNoMes+'</strong> giro(s)/mês e gera <strong style="color:var(--green)">R$ '+lucroNoMes.toFixed(0)+'</strong> de lucro mensal.</div>' +
+                    '<div style="font-size:10px;color:var(--text-dim);margin-top:8px;padding:6px;background:var(--bg-surface);border-radius:6px;">Girando <strong style="color:var(--blue)">'+unidadesPorGiro+' un</strong> (R$ <strong style="color:#ffc107">'+capitalPorGiro.toFixed(0)+'</strong>) a cada '+giroDias+'d, você faz <strong style="color:var(--blue)">'+girosNoMes+'</strong> giro(s)/mês e gera <strong style="color:var(--green)">R$ '+lucroNoMes.toFixed(0)+'</strong> de lucro mensal.</div>' +
                 '</div>' : '') +
                 '<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,193,7,0.06);border:1px solid rgba(255,193,7,0.15);border-radius:8px;padding:10px;">' +
                     '<div style="font-size:12px;color:#ffc107;font-weight:700;">💰 Pró-labore total</div>' +
@@ -9393,11 +9728,13 @@
             var nome = document.getElementById('sv-nome')?.value.trim();
             if (!nome) { alert('Dê um nome para identificar esta simulação'); document.getElementById('sv-nome')?.focus(); return; }
             var d    = modal._dadosCalc;
+            var notas = document.getElementById('sv-notas')?.value.trim() || '';
             var sims = _ler('proj-simulacoes') || [];
             sims.push({
                 id:              Date.now()+Math.floor(Math.random()*1000),
                 projetoId:       modal._projetoId,
                 nome,
+                notas,
                 custo:           d.custo,
                 precoCustom:     d.precoCustom,
                 concorrente:     d.concorrente,
@@ -9419,8 +9756,9 @@
                 criadoEm:        new Date().toISOString()
             });
             await _salvar('proj-simulacoes', sims);
-            // Limpar nome e recarregar lista
+            // Limpar nome e notas, recarregar lista
             var inp = document.getElementById('sv-nome'); if (inp) inp.value='';
+            var notasEl = document.getElementById('sv-notas'); if (notasEl) notasEl.value='';
             var lista = document.getElementById('sv-lista-salvas');
             if (lista) lista.innerHTML = svRenderListaSalvas(sims.filter(function(s){ return s.projetoId===modal._projetoId; }));
             alert('Simulação "' + nome + '" salva!');
@@ -9439,6 +9777,7 @@
             set('sv-giro-dias',      s.giroDias);
             set('sv-meu-pct',        s.meuPct||100);
             set('sv-preco-custom',   s.precoCustom||'');
+            set('sv-notas',          s.notas||'');
             svCalcular();
             window.scrollTo(0,0);
             document.getElementById('modal-sim-vendas')?.scrollTo(0,0);
