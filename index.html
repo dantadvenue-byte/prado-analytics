@@ -2865,6 +2865,17 @@
                                 <option value="outros">📝 Outros</option>
                             </select>
                         </div>
+                        <div class="form-group" id="finMovTipoSaidaDiv"><label>Tipo de saída</label>
+                            <select id="finMovTipoSaida" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
+                                <option value="custo">💸 Custo (sai do patrimônio)</option>
+                                <option value="investimento">📦 Investimento em mercadoria</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="finMovLojaDiv"><label>Negócio (opcional)</label>
+                            <select id="finMovLoja" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
+                                <option value="">— não atribuído —</option>
+                            </select>
+                        </div>
                         <div class="form-group"><label>Data</label>
                             <input type="date" id="finMovData">
                         </div>
@@ -7801,16 +7812,25 @@
             const movs = _ler('fin-movs') || [];
             const hoje = new Date();
             const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-            let totalEntradas = 0, totalSaidas = 0;
+            let totalEntradas = 0, totalSaidasCusto = 0, totalSaidasInvest = 0;
             movs.forEach(m => {
                 const d = new Date(m.data);
                 if (d < inicioMes) return;
                 const v = parseFloat(m.valor) || 0;
                 if (m.tipo === 'entrada') totalEntradas += v;
-                else if (m.tipo === 'saida') totalSaidas += v;
+                else if (m.tipo === 'saida') {
+                    const ts = m.tipoSaida || 'custo';
+                    if (ts === 'investimento') totalSaidasInvest += v;
+                    else                       totalSaidasCusto  += v;
+                }
             });
+            // totalSaidas legado = só os custos (não conta investimento como despesa)
+            const totalSaidas = totalSaidasCusto;
             setText('dx-entradas', fmtBR(totalEntradas, 2));
             setText('dx-saidas',   fmtBR(totalSaidas, 2));
+            // Card específico de investimento se existir
+            const elInvest = document.getElementById('dx-invest-merc');
+            if (elInvest) elInvest.textContent = 'R$ ' + totalSaidasInvest.toLocaleString('pt-BR',{maximumFractionDigits:0});
 
             // Delta do mês (vs anterior) — placeholder até Etapa B
             const elDelta = document.getElementById('dx-pat-delta');
@@ -13551,6 +13571,14 @@
                 if (val) selLojaCompra.value = val;
             }
 
+            // Select de loja na movimentação (saída)
+            const selLojaMov = document.getElementById('finMovLoja');
+            if (selLojaMov) {
+                const val = selLojaMov.value;
+                selLojaMov.innerHTML = '<option value="">— não atribuído —</option>' + lojas.map(l=>`<option value="${l.id}">${l.nome}</option>`).join('');
+                if (val) selLojaMov.value = val;
+            }
+
             // Select de produto para próximas compras
             const selProd = document.getElementById('finCompraProduto');
             if (selProd) {
@@ -13564,6 +13592,9 @@
             const tipo = document.getElementById('finMovTipo')?.value;
             const divDest = document.getElementById('finMovCaixaDestinoDiv');
             if (divDest) divDest.style.display = tipo === 'transferencia' ? '' : 'none';
+            // Mostra "Tipo de saída" só se for saída
+            const divTipoSaida = document.getElementById('finMovTipoSaidaDiv');
+            if (divTipoSaida) divTipoSaida.style.display = (tipo === 'saida') ? '' : 'none';
         }
 
         // ── CONTAS BANCÁRIAS ──
@@ -14257,11 +14288,19 @@
             const valor = parseFloat(document.getElementById('finMovValor')?.value) || 0;
             if (!caixaId || valor <= 0) { mostrarMensagem('msg-fin-mov','Selecione caixa e informe valor','error'); return; }
 
+            // Categorização de saída
+            const tipoSaida = (tipo === 'saida')
+                ? (document.getElementById('finMovTipoSaida')?.value || 'custo')
+                : null;
+            const lojaId    = document.getElementById('finMovLoja')?.value || null;
+
             const mov = {
                 id: Date.now(),
                 tipo, caixaId, valor,
                 caixaDestinoId: document.getElementById('finMovCaixaDestino')?.value || null,
                 categoria:  document.getElementById('finMovCategoria')?.value,
+                tipoSaida:  tipoSaida,                  // 'custo' | 'investimento' | null (entradas)
+                lojaId:     lojaId,                     // ID da loja vinculada (opcional)
                 data:       document.getElementById('finMovData')?.value,
                 descricao:  document.getElementById('finMovDesc')?.value,
                 criadoEm:   new Date().toISOString()
@@ -14275,6 +14314,7 @@
                 mostrarMensagem('msg-fin-mov','✓ Movimentação registrada!','success');
                 renderHistoricoMovimentacoes();
                 renderContasList();
+                if (typeof renderDashboard === 'function') renderDashboard();
             } catch(e) {
                 mostrarMensagem('msg-fin-mov','❌ Erro ao salvar. Tente novamente.','error');
             }
@@ -14384,6 +14424,7 @@
             if (!el) return;
             const movs     = (_ler('fin-movs') || []);
             const caixas   = (_ler('fin-caixas') || []);
+            const lojas    = (_ler('lojas') || []);
             const filtroCaixa = document.getElementById('finMovFiltrosCaixa')?.value;
             const filtroPer   = document.getElementById('finMovFiltrosPeriodo')?.value;
 
@@ -14405,38 +14446,142 @@
             const tipoColor = { entrada:'var(--green)', saida:'var(--red)', transferencia:'var(--blue)', prolabore:'#ffc107' };
             const catLabel  = { venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', imposto:'🧾 Imposto', outros:'📝 Outros' };
 
-            let totalEnt = filtradas.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+(m.valor||0),0);
-            let totalSai = filtradas.filter(m=>m.tipo==='saida').reduce((s,m)=>s+(m.valor||0),0);
+            // Considera default 'custo' nas saídas antigas
+            const tipoSaidaDe = m => (m.tipo === 'saida' ? (m.tipoSaida || 'custo') : null);
+
+            const totalEnt = filtradas.filter(m => m.tipo === 'entrada').reduce((s, m) => s + (m.valor||0), 0);
+            const saidasCusto = filtradas.filter(m => m.tipo === 'saida' && tipoSaidaDe(m) === 'custo');
+            const saidasInvest= filtradas.filter(m => m.tipo === 'saida' && tipoSaidaDe(m) === 'investimento');
+            const totalSaiCusto = saidasCusto.reduce((s, m) => s + (m.valor||0), 0);
+            const totalSaiInvest= saidasInvest.reduce((s, m) => s + (m.valor||0), 0);
 
             el.innerHTML = `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px;">
                 <div style="background:var(--green-bg);border:1px solid rgba(0,230,118,0.2);border-radius:8px;padding:12px;text-align:center;">
-                    <div style="font-size:10px;color:var(--green);text-transform:uppercase;">Total Entradas</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--green);font-family:JetBrains Mono,monospace;">R$ ${totalEnt.toFixed(2)}</div>
+                    <div style="font-size:10px;color:var(--green);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Entradas</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--green);font-family:JetBrains Mono,monospace;">R$ ${totalEnt.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>
                 </div>
                 <div style="background:rgba(255,77,77,0.06);border:1px solid rgba(255,77,77,0.15);border-radius:8px;padding:12px;text-align:center;">
-                    <div style="font-size:10px;color:var(--red);text-transform:uppercase;">Total Saídas</div>
-                    <div style="font-size:22px;font-weight:700;color:var(--red);font-family:JetBrains Mono,monospace;">R$ ${totalSai.toFixed(2)}</div>
+                    <div style="font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">💸 Saídas (custo)</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--red);font-family:JetBrains Mono,monospace;">R$ ${totalSaiCusto.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>
+                </div>
+                <div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.20);border-radius:8px;padding:12px;text-align:center;">
+                    <div style="font-size:10px;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">📦 Investimento (mercadoria)</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--purple-light);font-family:JetBrains Mono,monospace;">R$ ${totalSaiInvest.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>
                 </div>
             </div>
             ${filtradas.map(m => {
                 const cx = caixas.find(c => c.id == m.caixaId);
                 const cxDest = m.caixaDestinoId ? caixas.find(c => c.id == m.caixaDestinoId) : null;
+                const lojaObj= m.lojaId ? lojas.find(l => String(l.id) === String(m.lojaId)) : null;
                 const cor = tipoColor[m.tipo] || 'var(--text-muted)';
                 const sinal = m.tipo === 'entrada' ? '+' : m.tipo === 'saida' ? '-' : '⇄';
+                // Tag de tipo de saída
+                let tagSaida = '';
+                if (m.tipo === 'saida') {
+                    const ts = tipoSaidaDe(m);
+                    if (ts === 'investimento') {
+                        tagSaida = '<span style="background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.30);color:var(--purple-light);font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;margin-left:6px;text-transform:uppercase;letter-spacing:0.04em;">📦 INVESTIMENTO</span>';
+                    } else {
+                        tagSaida = '<span style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.18);color:var(--red);font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;margin-left:6px;text-transform:uppercase;letter-spacing:0.04em;">💸 CUSTO</span>';
+                    }
+                }
+                const tagLoja = lojaObj ? `<span style="color:var(--blue);font-size:10px;font-weight:600;margin-left:6px;">📍 ${lojaObj.nome}</span>` : '';
                 return `
-                <div style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid ${cor};border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                    <div>
-                        <div style="font-weight:600;color:var(--text-main);">${tipoLabel[m.tipo]||m.tipo} ${catLabel[m.categoria]||''}</div>
+                <div style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid ${cor};border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:10px;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;color:var(--text-main);display:flex;align-items:center;flex-wrap:wrap;">
+                            <span>${tipoLabel[m.tipo]||m.tipo} ${catLabel[m.categoria]||''}</span>${tagSaida}${tagLoja}
+                        </div>
                         <div style="color:var(--text-muted);">${cx?.nome||'?'} ${cxDest?'→ '+cxDest.nome:''} ${m.data?'· '+m.data:''} ${m.autoGerado?'<span style="color:var(--text-dim);font-size:10px;">auto</span>':''}</div>
                         ${m.descricao?`<div style="color:var(--text-dim);font-size:11px;">${m.descricao}</div>`:''}
                     </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <div style="font-size:18px;font-weight:700;color:${cor};font-family:JetBrains Mono,monospace;">${sinal} R$ ${(m.valor||0).toFixed(2)}</div>
+                        ${m.tipo === 'saida' ? `<button onclick="abrirEdicaoMovimentacao(${m.id})" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:4px 9px;font-size:10px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;" title="Editar tipo/loja">✏️</button>` : ''}
                         <button onclick="deletarMovimentacao(${m.id})" class="btn-danger" style="padding:3px 8px;font-size:10px;">🗑️</button>
                     </div>
                 </div>`;
             }).join('')}`;
+        }
+
+        // ─── Editar movimentação (tipo de saída, loja, categoria) ───
+        function abrirEdicaoMovimentacao(id) {
+            var movs = _ler('fin-movs') || [];
+            var m = movs.find(function(x){ return x.id === id; });
+            if (!m) return;
+            var lojas = _ler('lojas') || [];
+            var lojaObj = m.lojaId ? lojas.find(function(l){ return String(l.id) === String(m.lojaId); }) : null;
+            var tsAtual = m.tipoSaida || 'custo';
+
+            // Modal overlay simples reusando padrão do app
+            var areaId = 'mov-edit-modal-area';
+            var prev = document.getElementById(areaId);
+            if (prev) prev.remove();
+            var modal = document.createElement('div');
+            modal.id = areaId;
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(168,85,247,0.25);border-radius:18px;padding:24px;width:100%;max-width:500px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:14px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:4px;">✏️ Editar movimentação</div>' +
+                            '<div style="font-size:16px;font-weight:700;color:#fff;">' + (m.descricao || 'Saída sem descrição') + '</div>' +
+                            '<div style="font-size:12px;color:#b4b4cc;margin-top:2px;font-family:JetBrains Mono,monospace;">R$ ' + (m.valor||0).toFixed(2) + ' · ' + (m.data || '') + '</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'mov-edit-modal-area\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;">' +
+                        '<div class="form-group"><label>Tipo de saída *</label>' +
+                            '<select id="mov-edit-tipoSaida" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                                '<option value="custo"' + (tsAtual === 'custo' ? ' selected' : '') + '>💸 Custo (sai do patrimônio)</option>' +
+                                '<option value="investimento"' + (tsAtual === 'investimento' ? ' selected' : '') + '>📦 Investimento em mercadoria</option>' +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="form-group"><label>Negócio (opcional)</label>' +
+                            '<select id="mov-edit-loja" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                                '<option value="">— não atribuído —</option>' +
+                                lojas.map(function(l){ return '<option value="' + l.id + '"' + (String(m.lojaId) === String(l.id) ? ' selected' : '') + '>' + l.nome + '</option>'; }).join('') +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="form-group"><label>Categoria</label>' +
+                            '<select id="mov-edit-categoria" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                                ['venda','trafego','frete','estoque','operacional','prolabore','imposto','outros'].map(function(c){
+                                    var lbl = {venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', imposto:'🧾 Imposto', outros:'📝 Outros'};
+                                    return '<option value="' + c + '"' + (m.categoria === c ? ' selected' : '') + '>' + lbl[c] + '</option>';
+                                }).join('') +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="form-group"><label>Descrição</label>' +
+                            '<input type="text" id="mov-edit-descricao" value="' + (m.descricao || '').replace(/"/g,'&quot;') + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'mov-edit-modal-area\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="salvarEdicaoMovimentacao(' + id + ')" style="flex:2;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">💾 Salvar alterações</button>' +
+                    '</div>' +
+                '</div>';
+
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+        }
+
+        async function salvarEdicaoMovimentacao(id) {
+            var movs = _ler('fin-movs') || [];
+            var idx = movs.findIndex(function(x){ return x.id === id; });
+            if (idx < 0) return;
+            movs[idx].tipoSaida  = document.getElementById('mov-edit-tipoSaida')?.value || 'custo';
+            movs[idx].lojaId     = document.getElementById('mov-edit-loja')?.value || null;
+            movs[idx].categoria  = document.getElementById('mov-edit-categoria')?.value || movs[idx].categoria;
+            movs[idx].descricao  = document.getElementById('mov-edit-descricao')?.value || '';
+            await _salvar('fin-movs', movs);
+            var modal = document.getElementById('mov-edit-modal-area');
+            if (modal) modal.remove();
+            renderHistoricoMovimentacoes();
+            if (typeof renderDashboard === 'function') renderDashboard();
         }
 
         async function deletarMovimentacao(id) {
