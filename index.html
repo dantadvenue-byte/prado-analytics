@@ -2605,6 +2605,7 @@
                 <button class="sub-btn" data-fin-sub="sub-fin-mov" onclick="mudarSubFin(this)">💸 Movimentações</button>
                 <button class="sub-btn" data-fin-sub="sub-fin-contas-mes" onclick="mudarSubFin(this)">🗓️ Contas do Mês</button>
                 <button class="sub-btn" data-fin-sub="sub-fin-cartoes" onclick="mudarSubFin(this)">💳 Cartões</button>
+                <button class="sub-btn" data-fin-sub="sub-fin-emprestimos" onclick="mudarSubFin(this)">🤝 Empréstimos</button>
                 <button class="sub-btn" data-fin-sub="sub-fin-compras" onclick="mudarSubFin(this)">🛒 Próximas Compras</button>
                 <button class="sub-btn" data-fin-sub="sub-fin-analise" onclick="mudarSubFin(this)">📈 Análise</button>
             </div>
@@ -3180,6 +3181,71 @@
             <div id="cc-modal-area"></div>
             </div>
             <!-- FIM CARTÕES -->
+
+            <!-- ═══════════════════════════════════════════════════
+                 SUB-ABA EMPRÉSTIMOS A CLIENTES
+                 ═══════════════════════════════════════════════════ -->
+            <div id="sub-fin-emprestimos" class="sub-content" style="display:none;">
+                <style>
+                    .emp-status-vigente   { background:rgba(16,185,129,0.10);color:var(--green);border:1px solid rgba(16,185,129,0.30); }
+                    .emp-status-proximo   { background:rgba(255,193,7,0.10);color:#ffc107;border:1px solid rgba(255,193,7,0.30); }
+                    .emp-status-vencido   { background:rgba(244,63,94,0.10);color:var(--red);border:1px solid rgba(244,63,94,0.30); }
+                    .emp-status-pago      { background:rgba(124,58,237,0.10);color:var(--purple-light);border:1px solid rgba(124,58,237,0.30); }
+                    .emp-card             { background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;margin-bottom:14px;backdrop-filter:blur(20px);position:relative;overflow:hidden; }
+                    .emp-card.vigente::before { content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#10b981,#14b8a6); }
+                    .emp-card.proximo::before { content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f59e0b,#f97316); }
+                    .emp-card.vencido::before { content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f43f5e,#ec4899); }
+                    .emp-card.pago::before    { content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7c3aed,#a855f7);opacity:0.6; }
+                    .emp-card.pago            { opacity:0.7; }
+                    .emp-stat-card        { background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;text-align:center; }
+                    .emp-filtro-btn       { background:transparent;border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit; }
+                    .emp-filtro-btn.active{ background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.40);color:var(--purple-light); }
+                    .emp-item-penhor      { background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:9px 11px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;margin-bottom:5px; }
+                </style>
+
+                <!-- Stats no topo (4 cards) -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
+                    <div class="emp-stat-card" style="border-color:rgba(59,130,246,0.20);">
+                        <div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">💼 Total emprestado</div>
+                        <div id="emp-stat-emprestado" style="font-size:22px;font-weight:800;color:var(--blue);font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">R$ 0</div>
+                        <div id="emp-stat-emprestado-n" style="font-size:10px;color:#7a7a96;margin-top:3px;">0 ativos</div>
+                    </div>
+                    <div class="emp-stat-card" style="border-color:rgba(245,158,11,0.20);">
+                        <div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">💰 A receber (com juros)</div>
+                        <div id="emp-stat-receber" style="font-size:22px;font-weight:800;color:#ffc107;font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">R$ 0</div>
+                        <div id="emp-stat-receber-n" style="font-size:10px;color:#7a7a96;margin-top:3px;">— recebido R$ 0</div>
+                    </div>
+                    <div class="emp-stat-card" style="border-color:rgba(16,185,129,0.20);">
+                        <div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">📈 Lucro projetado</div>
+                        <div id="emp-stat-lucro" style="font-size:22px;font-weight:800;color:var(--green);font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">R$ 0</div>
+                        <div id="emp-stat-lucro-n" style="font-size:10px;color:#7a7a96;margin-top:3px;">— margem 0%</div>
+                    </div>
+                    <div class="emp-stat-card" style="border-color:rgba(244,63,94,0.20);">
+                        <div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">⚠️ Vencendo / vencidos</div>
+                        <div id="emp-stat-alerta" style="font-size:22px;font-weight:800;color:var(--red);font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">0</div>
+                        <div id="emp-stat-alerta-n" style="font-size:10px;color:#7a7a96;margin-top:3px;">próximos 7 dias</div>
+                    </div>
+                </div>
+
+                <!-- Toolbar: Novo + Filtros -->
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+                    <button onclick="empAbrirForm()" style="background:linear-gradient(135deg, rgba(168,85,247,0.20), rgba(99,102,241,0.15));border:1px solid rgba(168,85,247,0.40);color:var(--purple-light);padding:9px 16px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;">+ Novo Empréstimo</button>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button class="emp-filtro-btn active" data-filtro="todos"   onclick="empMudarFiltro(this)">Todos</button>
+                        <button class="emp-filtro-btn"        data-filtro="vigente" onclick="empMudarFiltro(this)">🟢 Vigentes</button>
+                        <button class="emp-filtro-btn"        data-filtro="proximo" onclick="empMudarFiltro(this)">🟡 Próximos</button>
+                        <button class="emp-filtro-btn"        data-filtro="vencido" onclick="empMudarFiltro(this)">🔴 Vencidos</button>
+                        <button class="emp-filtro-btn"        data-filtro="pago"    onclick="empMudarFiltro(this)">✅ Pagos</button>
+                    </div>
+                </div>
+
+                <!-- Lista de empréstimos -->
+                <div id="emp-lista"></div>
+
+                <!-- Modal de formulário -->
+                <div id="emp-modal-area"></div>
+            </div>
+            <!-- FIM EMPRÉSTIMOS -->
 
         </div>
         <!-- FIM TAB FINANCEIRO -->
@@ -4580,7 +4646,7 @@
                 'metas-lojas':     {}, 'contas-lojas':    {}, 'objetivos-lojas': {},
                 'validacoes':      [], 'fin-contas':      [], 'fin-caixas': [],
                 'fin-movs':        [], 'fin-compras':     [], 'fin-obrigacoes': [],
-            'fin-cartoes':     [], 'fin-parcelas':    [], 'fin-cc-metas':   [],
+            'fin-cartoes':     [], 'fin-parcelas':    [], 'fin-cc-metas':   [], 'fin-emprestimos': [],
                 'vp-contas':       [], 'vp-wishlist':     [], 'fin-debitos-reserva': [],
                 // Defaults adicionais — sem isso, abas como Desafios/Conhecimento/Vida Pessoal
                 // podem renderizar vazias antes do Supabase responder.
@@ -13414,6 +13480,7 @@
             if (sub === 'sub-fin-contas-mes')  iniciarContasMes();
             if (sub === 'sub-fin-analise')     mudarSubAnalise('visao');
             if (sub === 'sub-fin-cartoes')       iniciarCartoes();
+            if (sub === 'sub-fin-emprestimos')   renderEmprestimos();
         }
 
         function atualizarSelectsObrigacoes() {
@@ -16470,6 +16537,7 @@
             'fin-cartoes':              { tabela: 'fin_cartoes',       tipo: 'array'  },
             'fin-parcelas':             { tabela: 'fin_parcelas',      tipo: 'array'  },
             'fin-cc-metas':             { tabela: 'fin_cc_metas',      tipo: 'array'  },
+            'fin-emprestimos':          { tabela: 'fin_emprestimos',   tipo: 'array'  },
             'projetos':                 { tabela: 'projetos',          tipo: 'array'  },
             'proj-estrategias':         { tabela: 'proj_estrategias',  tipo: 'array'  },
             'proj-simulacoes':           { tabela: 'proj_simulacoes',   tipo: 'array'  },
@@ -21944,6 +22012,732 @@
             atualizarListaVendas();
             atualizarEstoque();
             abrirPainelCaixa(caixaId);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EMPRÉSTIMOS A CLIENTES — sistema completo
+        // ═══════════════════════════════════════════════════════════════
+
+        // Estado do filtro atual
+        var _empFiltroAtual = 'todos';
+
+        // ─── Helpers ───
+        function _empFmtBR(n, casas) {
+            if (casas === undefined) casas = 0;
+            return 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', {minimumFractionDigits:casas, maximumFractionDigits:casas});
+        }
+
+        function _empDiasEntre(d1, d2) {
+            if (!d1 || !d2) return 0;
+            var dA = (d1 instanceof Date) ? d1 : new Date(d1 + (String(d1).length === 10 ? 'T12:00:00' : ''));
+            var dB = (d2 instanceof Date) ? d2 : new Date(d2 + (String(d2).length === 10 ? 'T12:00:00' : ''));
+            return Math.floor((dB - dA) / 86400000);
+        }
+
+        function _empCalcStatus(emp) {
+            if (emp.status === 'pago') return 'pago';
+            var hoje = new Date(); hoje.setHours(0,0,0,0);
+            var venc = new Date(emp.dataVencimento + 'T12:00:00');
+            var diff = _empDiasEntre(hoje, venc);
+            if (diff < 0)  return 'vencido';
+            if (diff <= 7) return 'proximo';
+            return 'vigente';
+        }
+
+        function _empSaldoDevedor(emp) {
+            var totalDevido = (parseFloat(emp.valor)||0) + (parseFloat(emp.jurosTotal)||0);
+            var totalPago   = (emp.pagamentos || []).reduce(function(s,p){ return s + (parseFloat(p.valor)||0); }, 0);
+            return Math.max(0, totalDevido - totalPago);
+        }
+
+        function _empTotalRecebido(emp) {
+            return (emp.pagamentos || []).reduce(function(s,p){ return s + (parseFloat(p.valor)||0); }, 0);
+        }
+
+        // ─── Renderização principal ───
+        function renderEmprestimos() {
+            var emps = _ler('fin-emprestimos') || [];
+
+            // ─── Calcular stats ───
+            var statTotalEmpr   = 0;  // total emprestado (principal) ativo
+            var statTotalReceb  = 0;  // total a receber (com juros) ativo
+            var statRecebido    = 0;  // já recebido (todos)
+            var statLucroProj   = 0;  // lucro projetado ativo (juros - juros pagou)
+            var statAtivos      = 0;
+            var statAlerta      = 0;  // vencendo nos prox 7d + vencidos
+            emps.forEach(function(e){
+                var st = _empCalcStatus(e);
+                e._statusCalc = st;
+                statRecebido += _empTotalRecebido(e);
+                if (st !== 'pago') {
+                    statTotalEmpr  += parseFloat(e.valor)||0;
+                    statTotalReceb += _empSaldoDevedor(e);
+                    statAtivos++;
+                    // Lucro projetado: juros cobrados - juros pagos a quem te emprestou
+                    var jurosPagou = ((parseFloat(e.taxaPegou)||0) / 100) * (parseFloat(e.valor)||0);
+                    var dias       = _empDiasEntre(e.dataEmprestimo, e.dataVencimento);
+                    var meses      = dias / 30;
+                    jurosPagou    *= meses;
+                    statLucroProj += (parseFloat(e.jurosTotal)||0) - jurosPagou;
+                    if (st === 'vencido' || st === 'proximo') statAlerta++;
+                }
+            });
+            var margemMedia = statTotalEmpr > 0 ? (statLucroProj / statTotalEmpr * 100) : 0;
+
+            // ─── Pintar stats ───
+            var setText = function(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; };
+            setText('emp-stat-emprestado',   _empFmtBR(statTotalEmpr, 0));
+            setText('emp-stat-emprestado-n', statAtivos + ' ' + (statAtivos===1?'ativo':'ativos'));
+            setText('emp-stat-receber',      _empFmtBR(statTotalReceb, 0));
+            setText('emp-stat-receber-n',    'recebido ' + _empFmtBR(statRecebido, 0));
+            setText('emp-stat-lucro',        _empFmtBR(statLucroProj, 0));
+            setText('emp-stat-lucro-n',      'margem ' + margemMedia.toFixed(1) + '%');
+            setText('emp-stat-alerta',       statAlerta);
+            setText('emp-stat-alerta-n',     statAlerta === 0 ? 'tudo em dia 🎉' : 'próximos 7 dias + vencidos');
+
+            // ─── Filtrar ───
+            var listaFiltrada = emps;
+            if (_empFiltroAtual !== 'todos') {
+                listaFiltrada = emps.filter(function(e){ return e._statusCalc === _empFiltroAtual; });
+            }
+            // Ordenar: ativos primeiro (por vencimento), pagos no fim
+            listaFiltrada.sort(function(a,b){
+                var aPago = a._statusCalc === 'pago';
+                var bPago = b._statusCalc === 'pago';
+                if (aPago && !bPago) return 1;
+                if (!aPago && bPago) return -1;
+                return (a.dataVencimento || '').localeCompare(b.dataVencimento || '');
+            });
+
+            // ─── Renderizar lista ───
+            var listaEl = document.getElementById('emp-lista');
+            if (!listaEl) return;
+
+            if (!listaFiltrada.length) {
+                listaEl.innerHTML = '<div style="text-align:center;padding:50px 20px;color:#7a7a96;">' +
+                    '<div style="font-size:42px;margin-bottom:10px;">🤝</div>' +
+                    '<div style="font-size:14px;font-weight:600;color:#b4b4cc;margin-bottom:6px;">' +
+                        (emps.length === 0 ? 'Nenhum empréstimo cadastrado' : 'Nenhum empréstimo neste filtro') +
+                    '</div>' +
+                    (emps.length === 0 ? '<div style="font-size:12px;margin-bottom:16px;">Crie seu primeiro empréstimo no botão acima.</div>' : '') +
+                '</div>';
+                return;
+            }
+
+            listaEl.innerHTML = listaFiltrada.map(function(e){
+                var st = e._statusCalc;
+                var stLabel = st === 'vigente' ? '🟢 Vigente' :
+                              st === 'proximo' ? '🟡 Vence em breve' :
+                              st === 'vencido' ? '🔴 Vencido' :
+                                                 '✅ Pago';
+
+                var hoje = new Date(); hoje.setHours(0,0,0,0);
+                var diasParaVencer = _empDiasEntre(hoje, new Date(e.dataVencimento + 'T12:00:00'));
+                var diasTxt;
+                if (st === 'pago') diasTxt = 'quitado';
+                else if (diasParaVencer < 0) diasTxt = Math.abs(diasParaVencer) + 'd atrasado';
+                else if (diasParaVencer === 0) diasTxt = 'vence hoje';
+                else diasTxt = 'faltam ' + diasParaVencer + 'd';
+
+                var valor       = parseFloat(e.valor) || 0;
+                var jurosTotal  = parseFloat(e.jurosTotal) || 0;
+                var totalDevido = valor + jurosTotal;
+                var totalPago   = _empTotalRecebido(e);
+                var saldoDevedor= Math.max(0, totalDevido - totalPago);
+                var pctPago     = totalDevido > 0 ? (totalPago/totalDevido*100) : 0;
+
+                var itens = e.itens || [];
+                var totalGarantia = itens.reduce(function(s,it){ return s + (parseFloat(it.valor)||0); }, 0);
+
+                // Datas formatadas BR
+                var dEmpStr = e.dataEmprestimo ? new Date(e.dataEmprestimo+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+                var dVencStr= e.dataVencimento ? new Date(e.dataVencimento+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+                // Telefone → WhatsApp
+                var btnWA = '';
+                if (e.telefone) {
+                    var fone = String(e.telefone).replace(/\D/g,'');
+                    var fonePrefix = fone.length === 11 || fone.length === 10 ? '55' + fone : fone;
+                    var msg = encodeURIComponent('Oi ' + e.cliente + ', tudo bem? Passando pra avisar sobre seu empréstimo de R$ ' + valor.toFixed(2) + ' que ' + (diasParaVencer < 0 ? 'venceu há ' + Math.abs(diasParaVencer) + ' dias' : (diasParaVencer === 0 ? 'vence hoje' : 'vence em ' + diasParaVencer + ' dias')) + '. Saldo devedor: R$ ' + saldoDevedor.toFixed(2));
+                    btnWA = '<a href="https://wa.me/' + fonePrefix + '?text=' + msg + '" target="_blank" style="background:rgba(37,211,102,0.12);border:1px solid rgba(37,211,102,0.3);color:#25d366;padding:5px 9px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Cobrar via WhatsApp">💬 WhatsApp</a>';
+                }
+
+                return '<div class="emp-card ' + st + '">' +
+                    // ── Header
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;margin-top:4px;flex-wrap:wrap;">' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">' +
+                                '<span style="font-size:16px;font-weight:800;color:#fff;letter-spacing:-0.01em;">' + (e.cliente || 'Cliente') + '</span>' +
+                                '<span class="emp-status-' + st + '" style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;font-family:JetBrains Mono,monospace;text-transform:uppercase;letter-spacing:0.05em;">' + stLabel + '</span>' +
+                            '</div>' +
+                            '<div style="font-size:11px;color:#b4b4cc;font-family:JetBrains Mono,monospace;">' +
+                                '📅 ' + dEmpStr + ' → ' + dVencStr + ' · ' + diasTxt +
+                                (e.telefone ? ' · 📱 ' + e.telefone : '') +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;">' +
+                            btnWA +
+                            (st !== 'pago' ? '<button onclick="empAbrirRecebimento(' + e.id + ')" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:var(--green);padding:5px 11px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;">💰 Receber</button>' : '') +
+                            (st !== 'pago' ? '<button onclick="empAbrirRolagem(' + e.id + ')" style="background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);padding:5px 9px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;" title="Rolar empréstimo">🔄</button>' : '') +
+                            '<button onclick="empAbrirForm(' + e.id + ')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;">✏️</button>' +
+                            '<button onclick="empDeletar(' + e.id + ')" style="background:rgba(255,255,255,0.04);border:1px solid rgba(244,63,94,0.25);color:var(--red);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:11px;display:inline-flex;align-items:center;justify-content:center;">🗑️</button>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // ── KPIs (4 boxes)
+                    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px;">' +
+                        '<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:9px 11px;">' +
+                            '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:3px;">💼 Principal</div>' +
+                            '<div style="font-size:16px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;">' + _empFmtBR(valor, 0) + '</div>' +
+                        '</div>' +
+                        '<div style="background:rgba(255,193,7,0.05);border:1px solid rgba(255,193,7,0.18);border-radius:9px;padding:9px 11px;">' +
+                            '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:3px;">📈 Juros (' + (parseFloat(e.taxaCobra)||0).toFixed(1) + '%)</div>' +
+                            '<div style="font-size:16px;font-weight:800;color:#ffc107;font-family:JetBrains Mono,monospace;">' + _empFmtBR(jurosTotal, 0) + '</div>' +
+                        '</div>' +
+                        '<div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.18);border-radius:9px;padding:9px 11px;">' +
+                            '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:3px;">💰 ' + (st === 'pago' ? 'Recebido' : 'A receber') + '</div>' +
+                            '<div style="font-size:16px;font-weight:800;color:var(--green);font-family:JetBrains Mono,monospace;">' + _empFmtBR(st === 'pago' ? totalPago : saldoDevedor, 0) + '</div>' +
+                        '</div>' +
+                        '<div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.18);border-radius:9px;padding:9px 11px;">' +
+                            '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:3px;">🏦 Garantia</div>' +
+                            '<div style="font-size:16px;font-weight:800;color:var(--blue);font-family:JetBrains Mono,monospace;">' + _empFmtBR(totalGarantia, 0) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // ── Barra de progresso de pagamento
+                    (totalPago > 0 || st === 'pago' ?
+                        '<div style="margin-bottom:12px;">' +
+                            '<div style="display:flex;justify-content:space-between;font-size:10px;color:#7a7a96;margin-bottom:4px;">' +
+                                '<span>Pago: ' + _empFmtBR(totalPago, 0) + ' / ' + _empFmtBR(totalDevido, 0) + '</span>' +
+                                '<span style="font-weight:700;color:' + (pctPago >= 100 ? 'var(--green)' : '#fff') + ';font-family:JetBrains Mono,monospace;">' + pctPago.toFixed(0) + '%</span>' +
+                            '</div>' +
+                            '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
+                                '<div style="height:100%;background:linear-gradient(90deg,#10b981,#14b8a6);border-radius:99px;width:' + Math.min(100, pctPago) + '%;box-shadow:0 0 8px rgba(16,185,129,0.3);transition:width 0.3s;"></div>' +
+                            '</div>' +
+                        '</div>'
+                    : '') +
+
+                    // ── Taxas (detalhes)
+                    (parseFloat(e.taxaPegou) > 0 ?
+                        '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:8px;padding:8px 11px;margin-bottom:10px;font-size:11px;color:#b4b4cc;">' +
+                            '💸 Você pegou esse dinheiro a <b style="color:#fff;">' + parseFloat(e.taxaPegou).toFixed(1) + '%/mês</b> e empresta a <b style="color:#fff;">' + parseFloat(e.taxaCobra||0).toFixed(1) + '%/mês</b> · spread <b style="color:var(--green);">' + (parseFloat(e.taxaCobra||0) - parseFloat(e.taxaPegou)).toFixed(1) + '%</b>' +
+                        '</div>'
+                    : '') +
+
+                    // ── Itens penhorados
+                    (itens.length ?
+                        '<details style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;margin-bottom:8px;overflow:hidden;">' +
+                            '<summary style="cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;list-style:none;user-select:none;font-size:11px;font-weight:600;color:#fff;">' +
+                                '<span style="display:flex;align-items:center;gap:6px;"><span class="emp-chevron" style="display:inline-block;transition:transform 0.2s;font-size:9px;color:#7a7a96;">▶</span>📦 ' + itens.length + ' ' + (itens.length===1?'item penhorado':'itens penhorados') + '</span>' +
+                                '<span style="font-size:10px;color:#7a7a96;font-family:JetBrains Mono,monospace;">' + _empFmtBR(totalGarantia, 0) + '</span>' +
+                            '</summary>' +
+                            '<div style="padding:0 12px 12px;">' +
+                                itens.map(function(it){
+                                    return '<div class="emp-item-penhor">' +
+                                        '<span style="color:#fff;">📦 ' + (it.nome||'') + '</span>' +
+                                        '<span style="color:#b4b4cc;font-family:JetBrains Mono,monospace;font-weight:700;">' + _empFmtBR(parseFloat(it.valor)||0, 0) + '</span>' +
+                                    '</div>';
+                                }).join('') +
+                            '</div>' +
+                        '</details>'
+                    : '') +
+
+                    // ── Histórico de pagamentos
+                    ((e.pagamentos||[]).length ?
+                        '<details style="background:rgba(16,185,129,0.03);border:1px solid rgba(16,185,129,0.10);border-radius:10px;margin-bottom:8px;overflow:hidden;">' +
+                            '<summary style="cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;list-style:none;user-select:none;font-size:11px;font-weight:600;color:#fff;">' +
+                                '<span style="display:flex;align-items:center;gap:6px;"><span class="emp-chevron" style="display:inline-block;transition:transform 0.2s;font-size:9px;color:#7a7a96;">▶</span>💰 ' + e.pagamentos.length + ' ' + (e.pagamentos.length===1?'pagamento':'pagamentos') + '</span>' +
+                                '<span style="font-size:10px;color:var(--green);font-family:JetBrains Mono,monospace;font-weight:700;">' + _empFmtBR(totalPago, 0) + '</span>' +
+                            '</summary>' +
+                            '<div style="padding:0 12px 12px;">' +
+                                e.pagamentos.slice().reverse().map(function(p, idx){
+                                    var dPag = p.data ? new Date(p.data+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+                                    var realIdx = e.pagamentos.length - 1 - idx;
+                                    return '<div class="emp-item-penhor">' +
+                                        '<span style="color:#fff;">✅ ' + dPag + (p.obs ? ' · <span style="color:#b4b4cc;">' + p.obs + '</span>' : '') + '</span>' +
+                                        '<span style="display:flex;align-items:center;gap:8px;">' +
+                                            '<span style="color:var(--green);font-family:JetBrains Mono,monospace;font-weight:700;">' + _empFmtBR(parseFloat(p.valor)||0, 0) + '</span>' +
+                                            '<button onclick="empRemoverPagamento(' + e.id + ',' + realIdx + ')" style="background:none;border:none;color:var(--border);cursor:pointer;font-size:13px;padding:0 4px;" title="Remover pagamento">×</button>' +
+                                        '</span>' +
+                                    '</div>';
+                                }).join('') +
+                            '</div>' +
+                        '</details>'
+                    : '') +
+
+                    // ── Observação
+                    (e.obs ? '<div style="font-size:11px;color:#fff;padding:8px 11px;background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.15);border-radius:6px;border-left:2px solid var(--purple-light);">📝 ' + e.obs + '</div>' : '') +
+                '</div>';
+            }).join('');
+        }
+
+        // ─── Mudar filtro ───
+        function empMudarFiltro(btn) {
+            document.querySelectorAll('.emp-filtro-btn').forEach(function(b){ b.classList.remove('active'); });
+            btn.classList.add('active');
+            _empFiltroAtual = btn.dataset.filtro;
+            renderEmprestimos();
+        }
+
+        // ─── Abrir formulário (criar ou editar) ───
+        function empAbrirForm(id) {
+            id = id || null;
+            var emps = _ler('fin-emprestimos') || [];
+            var emp  = id ? emps.find(function(x){ return x.id === id; }) : null;
+            var editando = !!emp;
+
+            var hoje = new Date();
+            var defaultEmp = hoje.toISOString().slice(0,10);
+            var d30 = new Date(hoje.getTime() + 30*86400000);
+            var defaultVenc = d30.toISOString().slice(0,10);
+
+            var area = document.getElementById('emp-modal-area');
+            if (!area) return;
+
+            var itens = emp ? (emp.itens || []) : [];
+            var itensHTML = itens.length
+                ? itens.map(function(it, idx){
+                    return '<div class="emp-form-item" style="display:grid;grid-template-columns:1fr 130px auto;gap:8px;margin-bottom:6px;">' +
+                        '<input type="text" placeholder="Ex: iPhone 14" value="' + (it.nome||'').replace(/"/g,'&quot;') + '" data-it-nome style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:inherit;font-size:12px;">' +
+                        '<input type="number" placeholder="Valor R$" value="' + (it.valor||'') + '" data-it-valor min="0" step="0.01" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:inherit;font-size:12px;">' +
+                        '<button type="button" onclick="this.parentElement.remove(); empAtualizarTotalGarantia();" style="background:rgba(244,63,94,0.10);border:1px solid rgba(244,63,94,0.25);color:var(--red);width:34px;border-radius:7px;cursor:pointer;font-size:12px;">×</button>' +
+                    '</div>';
+                }).join('')
+                : '';
+
+            area.innerHTML =
+                '<div id="emp-modal-overlay" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;" onclick="if(event.target===this)empFecharModal()">' +
+                    '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(168,85,247,0.25);border-radius:18px;padding:24px;width:100%;max-width:680px;margin:auto;box-shadow:0 0 60px rgba(168,85,247,0.15);">' +
+
+                        // Header
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:14px;">' +
+                            '<div>' +
+                                '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:4px;">🤝 ' + (editando ? 'Editar' : 'Novo') + ' empréstimo</div>' +
+                                '<div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + (editando ? emp.cliente : 'Cadastro de empréstimo') + '</div>' +
+                            '</div>' +
+                            '<button onclick="empFecharModal()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                        '</div>' +
+
+                        // Cliente + Telefone
+                        '<div style="display:grid;grid-template-columns:1fr 200px;gap:10px;margin-bottom:12px;">' +
+                            '<div class="form-group"><label>Cliente *</label>' +
+                                '<input type="text" id="emp-cliente" placeholder="Ex: João Silva" value="' + (emp ? (emp.cliente||'').replace(/"/g,'&quot;') : '') + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>📱 Telefone (opcional)</label>' +
+                                '<input type="tel" id="emp-telefone" placeholder="(93) 99999-9999" value="' + (emp ? (emp.telefone||'').replace(/"/g,'&quot;') : '') + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                        '</div>' +
+
+                        // Valor + Taxas + Juros total
+                        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">' +
+                            '<div class="form-group"><label>💼 Valor emprestado (R$) *</label>' +
+                                '<input type="number" id="emp-valor" min="0" step="0.01" value="' + (emp ? emp.valor : '') + '" oninput="empCalcAuto()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-weight:700;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>💸 Taxa que peguei (%/mês)</label>' +
+                                '<input type="number" id="emp-taxa-pegou" min="0" step="0.1" placeholder="0 (próprio)" value="' + (emp && emp.taxaPegou ? emp.taxaPegou : '') + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>📈 Taxa que cobro (%/mês)</label>' +
+                                '<input type="number" id="emp-taxa-cobra" min="0" step="0.1" value="' + (emp && emp.taxaCobra ? emp.taxaCobra : '') + '" oninput="empCalcAuto()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                        '</div>' +
+
+                        // Datas
+                        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">' +
+                            '<div class="form-group"><label>📅 Data do empréstimo *</label>' +
+                                '<input type="date" id="emp-data-emp" value="' + (emp ? (emp.dataEmprestimo||defaultEmp) : defaultEmp) + '" oninput="empCalcAuto()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>🏁 Data de vencimento *</label>' +
+                                '<input type="date" id="emp-data-venc" value="' + (emp ? (emp.dataVencimento||defaultVenc) : defaultVenc) + '" oninput="empCalcAuto()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>💵 Juros total cobrado (R$) *</label>' +
+                                '<input type="number" id="emp-juros-total" min="0" step="0.01" value="' + (emp ? emp.jurosTotal : '') + '" placeholder="Calculado automático" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-weight:700;color:#ffc107;">' +
+                            '</div>' +
+                        '</div>' +
+
+                        // Helper: preview do cálculo
+                        '<div id="emp-preview" style="background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.15);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:#b4b4cc;display:none;">' +
+                            '<div id="emp-preview-txt"></div>' +
+                            '<button type="button" onclick="empUsarSugestao()" style="margin-top:6px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);color:var(--purple-light);padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">🧮 Usar sugestão</button>' +
+                        '</div>' +
+
+                        // Itens penhorados
+                        '<div class="form-group" style="margin-bottom:12px;">' +
+                            '<label style="display:flex;justify-content:space-between;align-items:center;">' +
+                                '<span>📦 Itens penhorados</span>' +
+                                '<span id="emp-garantia-total" style="font-size:11px;color:var(--blue);font-family:JetBrains Mono,monospace;font-weight:700;">Total: R$ 0</span>' +
+                            '</label>' +
+                            '<div id="emp-itens-container" style="margin-top:6px;">' + itensHTML + '</div>' +
+                            '<button type="button" onclick="empAdicionarItem()" style="margin-top:4px;background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.25);color:var(--blue);padding:6px 12px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;">+ Adicionar item</button>' +
+                        '</div>' +
+
+                        // Observação
+                        '<div class="form-group" style="margin-bottom:16px;"><label>📝 Observação (opcional)</label>' +
+                            '<textarea id="emp-obs" placeholder="Anote contexto, contato, etc..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-size:12px;min-height:50px;resize:vertical;">' + (emp ? (emp.obs||'') : '') + '</textarea>' +
+                        '</div>' +
+
+                        // Botões
+                        '<div style="display:flex;gap:8px;">' +
+                            '<button onclick="empFecharModal()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                            '<button onclick="empSalvar(' + (id || 'null') + ')" style="flex:2;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">💾 ' + (editando ? 'Salvar alterações' : 'Cadastrar empréstimo') + '</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+
+            // Adicionar 1 item vazio se for novo
+            if (!editando && itens.length === 0) {
+                setTimeout(empAdicionarItem, 50);
+            }
+            // Recalcular preview e total garantia ao abrir
+            setTimeout(function(){ empCalcAuto(); empAtualizarTotalGarantia(); }, 100);
+        }
+
+        function empFecharModal() {
+            var area = document.getElementById('emp-modal-area');
+            if (area) area.innerHTML = '';
+        }
+
+        function empAdicionarItem() {
+            var cont = document.getElementById('emp-itens-container');
+            if (!cont) return;
+            var div = document.createElement('div');
+            div.className = 'emp-form-item';
+            div.style.cssText = 'display:grid;grid-template-columns:1fr 130px auto;gap:8px;margin-bottom:6px;';
+            div.innerHTML =
+                '<input type="text" placeholder="Ex: iPhone 14" data-it-nome style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:inherit;font-size:12px;">' +
+                '<input type="number" placeholder="Valor R$" data-it-valor min="0" step="0.01" oninput="empAtualizarTotalGarantia()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:inherit;font-size:12px;">' +
+                '<button type="button" onclick="this.parentElement.remove(); empAtualizarTotalGarantia();" style="background:rgba(244,63,94,0.10);border:1px solid rgba(244,63,94,0.25);color:var(--red);width:34px;border-radius:7px;cursor:pointer;font-size:12px;">×</button>';
+            cont.appendChild(div);
+            div.querySelector('[data-it-nome]').focus();
+        }
+
+        function empAtualizarTotalGarantia() {
+            var inputs = document.querySelectorAll('#emp-itens-container [data-it-valor]');
+            var total = 0;
+            inputs.forEach(function(i){ total += parseFloat(i.value)||0; });
+            var el = document.getElementById('emp-garantia-total');
+            if (el) el.textContent = 'Total: ' + _empFmtBR(total, 0);
+        }
+
+        // Calcular sugestão de juros + atualizar preview
+        function empCalcAuto() {
+            var v       = parseFloat(document.getElementById('emp-valor')?.value) || 0;
+            var taxa    = parseFloat(document.getElementById('emp-taxa-cobra')?.value) || 0;
+            var taxaPg  = parseFloat(document.getElementById('emp-taxa-pegou')?.value) || 0;
+            var dEmp    = document.getElementById('emp-data-emp')?.value;
+            var dVenc   = document.getElementById('emp-data-venc')?.value;
+            var preview = document.getElementById('emp-preview');
+            if (!preview) return;
+
+            if (v > 0 && taxa > 0 && dEmp && dVenc) {
+                var dias  = _empDiasEntre(dEmp, dVenc);
+                var meses = dias / 30;
+                var jurosSugerido = v * (taxa/100) * meses;
+                var jurosPagou    = v * (taxaPg/100) * meses;
+                var lucroEstim    = jurosSugerido - jurosPagou;
+                var totalReceb    = v + jurosSugerido;
+
+                document.getElementById('emp-preview-txt').innerHTML =
+                    '🧮 <b>Sugestão de juros:</b> R$ ' + jurosSugerido.toFixed(2) + ' ' +
+                    '<span style="color:#7a7a96;">(' + dias + ' dias = ' + meses.toFixed(1) + ' meses × ' + taxa.toFixed(1) + '%/mês)</span><br>' +
+                    '<span style="color:#b4b4cc;">→ Cliente paga total <b style="color:#fff;">R$ ' + totalReceb.toFixed(2) + '</b>' +
+                    (taxaPg > 0 ? ' · você paga juros R$ ' + jurosPagou.toFixed(2) + ' · <b style="color:var(--green);">lucro R$ ' + lucroEstim.toFixed(2) + '</b>' : ' · <b style="color:var(--green);">lucro R$ ' + lucroEstim.toFixed(2) + '</b>') +
+                    '</span>';
+                preview.style.display = 'block';
+                preview.dataset.jurosSugerido = jurosSugerido.toFixed(2);
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        function empUsarSugestao() {
+            var preview = document.getElementById('emp-preview');
+            if (!preview || !preview.dataset.jurosSugerido) return;
+            document.getElementById('emp-juros-total').value = preview.dataset.jurosSugerido;
+        }
+
+        // Salvar (criar ou editar)
+        async function empSalvar(id) {
+            var cliente = document.getElementById('emp-cliente')?.value.trim();
+            var valor   = parseFloat(document.getElementById('emp-valor')?.value) || 0;
+            var taxaPegou = parseFloat(document.getElementById('emp-taxa-pegou')?.value) || 0;
+            var taxaCobra = parseFloat(document.getElementById('emp-taxa-cobra')?.value) || 0;
+            var jurosTotal= parseFloat(document.getElementById('emp-juros-total')?.value) || 0;
+            var dataEmp = document.getElementById('emp-data-emp')?.value;
+            var dataVenc= document.getElementById('emp-data-venc')?.value;
+            var telefone = document.getElementById('emp-telefone')?.value.trim() || '';
+            var obs      = document.getElementById('emp-obs')?.value.trim() || '';
+
+            if (!cliente) { alert('Informe o nome do cliente'); document.getElementById('emp-cliente')?.focus(); return; }
+            if (valor <= 0) { alert('Valor emprestado deve ser maior que zero'); return; }
+            if (jurosTotal < 0) { alert('Juros total não pode ser negativo'); return; }
+            if (!dataEmp || !dataVenc) { alert('Preencha as datas'); return; }
+            if (dataVenc < dataEmp) { alert('Data de vencimento não pode ser anterior à data do empréstimo'); return; }
+
+            // Itens penhorados
+            var itens = [];
+            document.querySelectorAll('#emp-itens-container .emp-form-item').forEach(function(div){
+                var nome  = (div.querySelector('[data-it-nome]')?.value || '').trim();
+                var vIt   = parseFloat(div.querySelector('[data-it-valor]')?.value) || 0;
+                if (nome || vIt > 0) {
+                    itens.push({ nome: nome || 'Item sem nome', valor: vIt });
+                }
+            });
+
+            var emps = _ler('fin-emprestimos') || [];
+
+            if (id) {
+                // Editando
+                var idx = emps.findIndex(function(x){ return x.id === id; });
+                if (idx < 0) { alert('Empréstimo não encontrado'); return; }
+                var antigo = emps[idx];
+                emps[idx] = Object.assign({}, antigo, {
+                    cliente: cliente,
+                    telefone: telefone,
+                    valor: valor,
+                    taxaPegou: taxaPegou,
+                    taxaCobra: taxaCobra,
+                    jurosTotal: jurosTotal,
+                    dataEmprestimo: dataEmp,
+                    dataVencimento: dataVenc,
+                    itens: itens,
+                    obs: obs,
+                    atualizadoEm: new Date().toISOString()
+                });
+            } else {
+                // Criando
+                emps.push({
+                    id: Date.now() + Math.floor(Math.random()*1000),
+                    cliente: cliente,
+                    telefone: telefone,
+                    valor: valor,
+                    taxaPegou: taxaPegou,
+                    taxaCobra: taxaCobra,
+                    jurosTotal: jurosTotal,
+                    dataEmprestimo: dataEmp,
+                    dataVencimento: dataVenc,
+                    itens: itens,
+                    obs: obs,
+                    pagamentos: [],
+                    status: 'vigente',
+                    criadoEm: new Date().toISOString()
+                });
+            }
+
+            await _salvar('fin-emprestimos', emps);
+            empFecharModal();
+            renderEmprestimos();
+        }
+
+        // Deletar
+        async function empDeletar(id) {
+            var emps = _ler('fin-emprestimos') || [];
+            var emp  = emps.find(function(x){ return x.id === id; });
+            if (!emp) return;
+            if (!confirm('Excluir o empréstimo de "' + emp.cliente + '"?\n\nEssa ação não pode ser desfeita.')) return;
+            emps = emps.filter(function(x){ return x.id !== id; });
+            await _salvar('fin-emprestimos', emps);
+            renderEmprestimos();
+        }
+
+        // ─── Receber pagamento (parcial ou total) ───
+        function empAbrirRecebimento(id) {
+            var emps = _ler('fin-emprestimos') || [];
+            var emp  = emps.find(function(x){ return x.id === id; });
+            if (!emp) return;
+            var saldoDevedor = _empSaldoDevedor(emp);
+            var hoje = new Date().toISOString().slice(0,10);
+
+            var area = document.getElementById('emp-modal-area');
+            area.innerHTML =
+                '<div id="emp-modal-overlay" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;" onclick="if(event.target===this)empFecharModal()">' +
+                    '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(16,185,129,0.30);border-radius:18px;padding:24px;width:100%;max-width:480px;margin:auto;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:14px;">' +
+                            '<div>' +
+                                '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:4px;">💰 Receber pagamento</div>' +
+                                '<div style="font-size:18px;font-weight:800;color:#fff;">' + emp.cliente + '</div>' +
+                                '<div style="font-size:11px;color:#b4b4cc;margin-top:2px;">Saldo devedor: <b style="color:var(--green);font-family:JetBrains Mono,monospace;">' + _empFmtBR(saldoDevedor, 0) + '</b></div>' +
+                            '</div>' +
+                            '<button onclick="empFecharModal()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                        '</div>' +
+
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">' +
+                            '<div class="form-group"><label>Valor recebido (R$) *</label>' +
+                                '<input type="number" id="emp-pag-valor" min="0.01" max="' + saldoDevedor.toFixed(2) + '" step="0.01" value="' + saldoDevedor.toFixed(2) + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-weight:700;color:var(--green);">' +
+                            '</div>' +
+                            '<div class="form-group"><label>Data do pagamento *</label>' +
+                                '<input type="date" id="emp-pag-data" value="' + hoje + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                        '</div>' +
+
+                        '<div class="form-group" style="margin-bottom:16px;"><label>Observação (opcional)</label>' +
+                            '<input type="text" id="emp-pag-obs" placeholder="Ex: pagamento parcial · só juros · etc" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                        '</div>' +
+
+                        // Atalhos
+                        '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">' +
+                            '<button type="button" onclick="document.getElementById(\'emp-pag-valor\').value=' + saldoDevedor.toFixed(2) + '" style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.25);color:var(--green);padding:6px 11px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;">💯 Pagar tudo (' + _empFmtBR(saldoDevedor, 0) + ')</button>' +
+                            (parseFloat(emp.jurosTotal) > 0 ? '<button type="button" onclick="document.getElementById(\'emp-pag-valor\').value=' + (parseFloat(emp.jurosTotal)||0).toFixed(2) + '" style="background:rgba(255,193,7,0.10);border:1px solid rgba(255,193,7,0.25);color:#ffc107;padding:6px 11px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;">📈 Só juros (' + _empFmtBR(emp.jurosTotal, 0) + ')</button>' : '') +
+                        '</div>' +
+
+                        '<div style="display:flex;gap:8px;">' +
+                            '<button onclick="empFecharModal()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                            '<button onclick="empConfirmarPagamento(' + id + ')" style="flex:2;background:linear-gradient(135deg,#10b981,#14b8a6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">✅ Confirmar recebimento</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+        }
+
+        async function empConfirmarPagamento(id) {
+            var valor = parseFloat(document.getElementById('emp-pag-valor')?.value) || 0;
+            var data  = document.getElementById('emp-pag-data')?.value;
+            var obs   = (document.getElementById('emp-pag-obs')?.value || '').trim();
+            if (valor <= 0) { alert('Informe um valor maior que zero'); return; }
+            if (!data) { alert('Informe a data do pagamento'); return; }
+
+            var emps = _ler('fin-emprestimos') || [];
+            var idx  = emps.findIndex(function(x){ return x.id === id; });
+            if (idx < 0) return;
+            var emp = emps[idx];
+            if (!emp.pagamentos) emp.pagamentos = [];
+            emp.pagamentos.push({
+                valor: valor,
+                data: data,
+                obs: obs,
+                registradoEm: new Date().toISOString()
+            });
+
+            // Se quitou tudo, marcar como pago
+            var saldo = _empSaldoDevedor(emp);
+            if (saldo <= 0.01) {
+                emp.status = 'pago';
+                emp.dataPagamentoFinal = data;
+            }
+
+            await _salvar('fin-emprestimos', emps);
+            empFecharModal();
+            renderEmprestimos();
+        }
+
+        async function empRemoverPagamento(id, idx) {
+            if (!confirm('Remover este pagamento?')) return;
+            var emps = _ler('fin-emprestimos') || [];
+            var emp  = emps.find(function(x){ return x.id === id; });
+            if (!emp || !emp.pagamentos) return;
+            emp.pagamentos.splice(idx, 1);
+            // Se voltou a ter saldo devedor, sair do status pago
+            if (emp.status === 'pago' && _empSaldoDevedor(emp) > 0.01) {
+                emp.status = 'vigente';
+                delete emp.dataPagamentoFinal;
+            }
+            await _salvar('fin-emprestimos', emps);
+            renderEmprestimos();
+        }
+
+        // ─── Rolar empréstimo (renovação) ───
+        function empAbrirRolagem(id) {
+            var emps = _ler('fin-emprestimos') || [];
+            var emp  = emps.find(function(x){ return x.id === id; });
+            if (!emp) return;
+            var hoje  = new Date().toISOString().slice(0,10);
+            var d30   = new Date(Date.now() + 30*86400000).toISOString().slice(0,10);
+            var jurosOriginal = parseFloat(emp.jurosTotal) || 0;
+
+            var area = document.getElementById('emp-modal-area');
+            area.innerHTML =
+                '<div id="emp-modal-overlay" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;" onclick="if(event.target===this)empFecharModal()">' +
+                    '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(124,58,237,0.30);border-radius:18px;padding:24px;width:100%;max-width:520px;margin:auto;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:14px;">' +
+                            '<div>' +
+                                '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:4px;">🔄 Rolar empréstimo</div>' +
+                                '<div style="font-size:18px;font-weight:800;color:#fff;">' + emp.cliente + '</div>' +
+                                '<div style="font-size:11px;color:#b4b4cc;margin-top:2px;">Cliente paga juros (R$ ' + jurosOriginal.toFixed(2) + ') e renova o principal por mais um período.</div>' +
+                            '</div>' +
+                            '<button onclick="empFecharModal()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                        '</div>' +
+
+                        // Explicação visual
+                        '<div style="background:rgba(168,85,247,0.05);border:1px solid rgba(168,85,247,0.15);border-radius:10px;padding:12px;margin-bottom:14px;font-size:11px;color:#b4b4cc;line-height:1.55;">' +
+                            '<b style="color:#fff;">Como funciona:</b><br>' +
+                            '1. Marcamos o empréstimo atual como <b style="color:var(--green);">PAGO</b> (cliente quitou)<br>' +
+                            '2. Criamos um <b style="color:var(--purple-light);">novo empréstimo</b> com o mesmo principal (R$ ' + parseFloat(emp.valor).toFixed(2) + ')<br>' +
+                            '3. Os juros do anterior ficam contabilizados como recebidos' +
+                        '</div>' +
+
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
+                            '<div class="form-group"><label>Data da rolagem *</label>' +
+                                '<input type="date" id="emp-rol-data" value="' + hoje + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>Novo vencimento *</label>' +
+                                '<input type="date" id="emp-rol-venc" value="' + d30 + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                        '</div>' +
+
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">' +
+                            '<div class="form-group"><label>📈 Nova taxa (%/mês)</label>' +
+                                '<input type="number" id="emp-rol-taxa" min="0" step="0.1" value="' + (emp.taxaCobra||0) + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>💵 Novo juros total (R$)</label>' +
+                                '<input type="number" id="emp-rol-juros" min="0" step="0.01" value="' + jurosOriginal.toFixed(2) + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-weight:700;color:#ffc107;">' +
+                            '</div>' +
+                        '</div>' +
+
+                        '<div style="display:flex;gap:8px;">' +
+                            '<button onclick="empFecharModal()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                            '<button onclick="empConfirmarRolagem(' + id + ')" style="flex:2;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">🔄 Confirmar rolagem</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+        }
+
+        async function empConfirmarRolagem(id) {
+            var dataRol  = document.getElementById('emp-rol-data')?.value;
+            var dataVenc = document.getElementById('emp-rol-venc')?.value;
+            var novaTaxa = parseFloat(document.getElementById('emp-rol-taxa')?.value) || 0;
+            var novoJuros= parseFloat(document.getElementById('emp-rol-juros')?.value) || 0;
+
+            if (!dataRol || !dataVenc) { alert('Preencha as datas'); return; }
+            if (dataVenc <= dataRol) { alert('Vencimento deve ser após a data da rolagem'); return; }
+
+            var emps = _ler('fin-emprestimos') || [];
+            var idx  = emps.findIndex(function(x){ return x.id === id; });
+            if (idx < 0) return;
+            var antigo = emps[idx];
+
+            // 1. Quitar o antigo: adicionar pagamento que cobre o saldo
+            var saldoDev = _empSaldoDevedor(antigo);
+            if (!antigo.pagamentos) antigo.pagamentos = [];
+            antigo.pagamentos.push({
+                valor: saldoDev,
+                data: dataRol,
+                obs: '🔄 Rolagem (renovou em ' + dataVenc + ')',
+                registradoEm: new Date().toISOString()
+            });
+            antigo.status = 'pago';
+            antigo.dataPagamentoFinal = dataRol;
+
+            // 2. Criar novo empréstimo
+            emps.push({
+                id: Date.now() + Math.floor(Math.random()*1000),
+                cliente: antigo.cliente,
+                telefone: antigo.telefone || '',
+                valor: parseFloat(antigo.valor) || 0,
+                taxaPegou: parseFloat(antigo.taxaPegou) || 0,
+                taxaCobra: novaTaxa,
+                jurosTotal: novoJuros,
+                dataEmprestimo: dataRol,
+                dataVencimento: dataVenc,
+                itens: (antigo.itens || []).slice(),
+                obs: (antigo.obs || '') + (antigo.obs ? '\n' : '') + '🔄 Rolagem do empréstimo #' + antigo.id,
+                pagamentos: [],
+                status: 'vigente',
+                rolagemDe: antigo.id,
+                criadoEm: new Date().toISOString()
+            });
+
+            await _salvar('fin-emprestimos', emps);
+            empFecharModal();
+            renderEmprestimos();
+            alert('✅ Rolagem concluída! Empréstimo anterior marcado como pago e novo criado.');
         }
 
         // ═══════════════════════════════════════════════════════
