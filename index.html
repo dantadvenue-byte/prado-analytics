@@ -2806,6 +2806,7 @@
 
                     <button class="btn-primary" onclick="salvarObrigacaoMulti()" style="margin-top:12px;">💾 Salvar</button>
                     <div id="msg-ob" style="margin-top:8px;"></div>
+                    <div id="msg-obrigacao" style="margin-top:8px;"></div>
                 </div>
 
                 <!-- Filtros e lista -->
@@ -13245,10 +13246,15 @@
 
         async function salvarObrigacao() {
             const descricao = document.getElementById('obDescricao')?.value.trim();
+            const nome      = document.getElementById('obNome')?.value.trim();
             const valor     = parseFloat(document.getElementById('obValor')?.value) || 0;
             const venc      = document.getElementById('obVencimento')?.value;
-            if (!descricao || valor <= 0 || !venc) {
-                mostrarMensagem('msg-ob','Preencha descrição, valor e vencimento','error'); return;
+            // Descrição OU nome é obrigatório (não precisa dos dois)
+            const identificacao = descricao || nome;
+            if (!identificacao || valor <= 0 || !venc) {
+                mostrarMensagem('msg-ob','Preencha nome (ou descrição), valor e vencimento','error');
+                mostrarMensagem('msg-obrigacao','Preencha nome (ou descrição), valor e vencimento','error');
+                return;
             }
 
             const obs = [...(_ler('fin-obrigacoes') || [])];
@@ -13258,8 +13264,8 @@
                 id:           Date.now(),
                 tipo:         document.getElementById('obTipo')?.value,
                 pessoaTipo:   document.getElementById('obPessoaTipo')?.value,
-                nome:         document.getElementById('obNome')?.value.trim(),
-                descricao,
+                nome:         nome,
+                descricao:    descricao || nome,  // usa nome se descricao vazia
                 categoria:    _cat,
                 valor,
                 pago:         parseFloat(document.getElementById('obPago')?.value) || 0,
@@ -13276,9 +13282,10 @@
 
             // Limpar
             ['obDescricao','obNome','obDocumento','obValor','obObs'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-            document.getElementById('obPago').value = '0';
-            document.getElementById('ob-preview').style.display = 'none';
+            const elPago = document.getElementById('obPago'); if (elPago) elPago.value = '0';
+            const elPrev = document.getElementById('ob-preview'); if (elPrev) elPrev.style.display = 'none';
             mostrarMensagem('msg-ob','✓ Obrigação salva!','success');
+            mostrarMensagem('msg-obrigacao','✓ Obrigação salva!','success');
             renderObrigacoes();
         }
 
@@ -24214,9 +24221,12 @@
             const divisao = _coletarDivisaoCaixas();
             const valor   = parseFloat(document.getElementById('obValor')?.value) || 0;
             const desc    = document.getElementById('obDescricao')?.value?.trim() || '';
+            const nome    = document.getElementById('obNome')?.value?.trim() || '';
+            // Aceita Nome OU Descrição
+            const identificacao = desc || nome;
 
-            if (!desc || valor <= 0) {
-                mostrarMensagem('msg-obrigacao', 'Preencha descrição e valor', 'error');
+            if (!identificacao || valor <= 0) {
+                mostrarMensagem('msg-obrigacao', 'Preencha nome (ou descrição) e valor', 'error');
                 return;
             }
 
@@ -24254,8 +24264,8 @@
                     id:          Date.now() + i,
                     tipo:        document.getElementById('obTipo')?.value || 'pagar',
                     pessoaTipo:  document.getElementById('obPessoaTipo')?.value || 'juridica',
-                    nome:        document.getElementById('obNome')?.value?.trim() || '',
-                    descricao:   `${desc}${divisao.length > 1 ? ` (${d.pct}% — ${nomeCaixa})` : ''}`,
+                    nome:        nome,
+                    descricao:   `${identificacao}${divisao.length > 1 ? ` (${d.pct}% — ${nomeCaixa})` : ''}`,
                     categoria:   document.getElementById('obCategoria')?.value || 'outros',
                     valor:       valorCaixa,
                     pago:        0,
@@ -24267,7 +24277,7 @@
                     parcelaAtual:null, parcelaTotal:null, valorParcela:null,
                     status:      'pendente',
                     criadoEm:    new Date().toLocaleDateString('pt-BR'),
-                    _divisaoGrupo: desc, // para agrupar na visualização
+                    _divisaoGrupo: identificacao, // para agrupar na visualização
                 });
             });
 
