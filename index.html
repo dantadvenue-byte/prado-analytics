@@ -2946,36 +2946,28 @@
 
 
 
-            <!-- ROCE -->
+            <!-- ROCE — REDESIGN COMPLETO -->
             <div id="analise-roce" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
                     <div>
-                        <div style="font-size:18px;font-weight:800;color:var(--text-main);">📈 ROCE por Negócio</div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Return on Capital Employed — Retorno sobre o Capital Empregado</div>
+                        <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.01em;">📊 Análise por Negócio</div>
+                        <div style="font-size:12px;color:#b4b4cc;margin-top:3px;">Faturamento, despesas, lucro e ROCE de cada operação</div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;">
-                        <select id="rocePeriodo" onchange="renderROCE()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;">
-                            <option value="30">Últimos 30 dias</option>
-                            <option value="90" selected>Últimos 90 dias</option>
-                            <option value="180">Últimos 6 meses</option>
-                            <option value="365">Último ano</option>
-                            <option value="999">Todo período</option>
-                        </select>
-                        <button onclick="renderROCE()" class="btn-secondary" style="font-size:12px;padding:8px 14px;">↻ Atualizar</button>
+                        <select id="roceMes" onchange="renderROCE()" style="background:var(--bg-surface);border:1px solid var(--border);color:#fff;padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;"></select>
                     </div>
                 </div>
 
-                <!-- Cards de ranking -->
-                <div id="roce-ranking" style="margin-bottom:24px;"></div>
+                <!-- 4 stats totais no topo -->
+                <div id="roce-totais" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;"></div>
 
-                <!-- Drilldown detalhe de um negócio -->
+                <!-- Cards por loja rankeados -->
+                <div id="roce-ranking"></div>
+
+                <!-- Container legado (não usado, mantido pra compat) -->
                 <div id="roce-detalhe" style="display:none;"></div>
-
-                <!-- Tabela comparativa -->
-                <div id="roce-tabela" style="margin-bottom:24px;"></div>
-
-                <!-- Recomendação de alocação -->
-                <div id="roce-recomendacao"></div>
+                <div id="roce-tabela" style="display:none;"></div>
+                <div id="roce-recomendacao" style="display:none;"></div>
             </div>
             </div>
             <!-- FIM sub-fin-analise -->
@@ -19263,7 +19255,7 @@
             });
         }
 
-        function renderROCE() {
+        function renderROCE_legado() {
             const dias   = parseInt(document.getElementById('rocePeriodo')?.value || 90);
             const dados  = calcularROCENegocios(dias);
 
@@ -19600,6 +19592,450 @@
                     }).join('')}
                 </div>` : `<div style="font-size:13px;color:var(--green);padding:8px;">✅ Todos os negócios estão com ROCE razoável. Continue monitorando mensalmente.</div>`}
             </div>`;
+        }
+        // ═══════════════════════════════════════════════════════════
+        // ANÁLISE POR NEGÓCIO (ex-ROCE) — redesign completo
+        // Faturamento, CMV, Lucro bruto, Despesas, Lucro líquido, ROCE
+        // Estoque no início do mês reconstruído do histórico
+        // ═══════════════════════════════════════════════════════════
+
+        // Popular seletor de mês (últimos 12 meses)
+        function _rocePopularSeletor() {
+            var sel = document.getElementById('roceMes');
+            if (!sel || sel.options.length > 0) return;
+            var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            var hoje = new Date();
+            var opts = [];
+            for (var i = 0; i < 12; i++) {
+                var d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+                var mesIdx = d.getMonth();
+                var ano    = d.getFullYear();
+                var key    = ano + '-' + String(mesIdx + 1).padStart(2, '0');
+                var label  = meses[mesIdx] + ' ' + ano;
+                if (i === 0) label += ' (mês atual)';
+                opts.push('<option value="' + key + '">' + label + '</option>');
+            }
+            sel.innerHTML = opts.join('');
+        }
+
+        // Calcular limites (primeiro/último dia) do mês YYYY-MM
+        function _roceLimitesMes(chave) {
+            var partes = chave.split('-');
+            var ano = parseInt(partes[0]);
+            var mes = parseInt(partes[1]) - 1;
+            var ini = new Date(ano, mes, 1);
+            var fim = new Date(ano, mes + 1, 0, 23, 59, 59);
+            return { ini: ini, fim: fim };
+        }
+
+        // Reconstruir estoque de cada produto na data X (do início do dia)
+        // Percorre movs históricas de compras (finCompras concluídas) e vendas
+        // até a data limite. Retorna map produtoId -> qtd em D.
+        function _roceEstoqueEmData(dataLimite) {
+            var produtos    = _ler('produtos') || [];
+            var vendas      = _ler('vendas') || [];
+            var estoqueMap  = _ler('estoque') || {};
+            var compras     = _ler('fin-compras') || [];
+
+            // Base = estoque ATUAL. Vou "voltar no tempo": adicionar de volta vendas depois de dataLimite, remover compras concluídas depois de dataLimite
+            var qtdMap = {};
+            produtos.forEach(function(p){
+                var k = Object.keys(estoqueMap).find(function(kk){ return String(kk) === String(p.id); });
+                qtdMap[String(p.id)] = k ? (estoqueMap[k].quantidade || 0) : 0;
+            });
+
+            // Reverter vendas: se uma venda foi feita DEPOIS de dataLimite, na data limite a mercadoria ainda estava em estoque
+            vendas.forEach(function(v){
+                if (!v.data) return;
+                var dVend = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
+                if (dVend > dataLimite) {
+                    var pid = String(v.produtoId || '');
+                    if (pid) {
+                        qtdMap[pid] = (qtdMap[pid] || 0) + (parseFloat(v.quantidade) || 1);
+                    }
+                }
+            });
+
+            // Reverter compras concluídas: se uma compra foi "recebida" DEPOIS de dataLimite, na data limite ainda não estava em estoque
+            compras.forEach(function(c){
+                if (c.status !== 'concluida' && c.status !== 'realizada') return;
+                var dConc = c.dataRealizada || c.dataConclusao || c.prazo;
+                if (!dConc) return;
+                var dC = new Date(dConc + (String(dConc).length === 10 ? 'T12:00:00' : ''));
+                if (dC > dataLimite) {
+                    (c.itens || []).forEach(function(it){
+                        var pid = String(it.produtoId || '');
+                        if (pid && qtdMap[pid] != null) {
+                            qtdMap[pid] = qtdMap[pid] - (parseFloat(it.qtd) || 0);
+                        }
+                    });
+                }
+            });
+
+            return qtdMap;
+        }
+
+        // Calcular valor do estoque de UMA LOJA em uma dada data (usando reconstrução)
+        function _roceValorEstoqueLojaEmData(lojaId, dataLimite) {
+            var produtos = _ler('produtos') || [];
+            var qtdMap   = _roceEstoqueEmData(dataLimite);
+            var total    = 0;
+            produtos.forEach(function(p){
+                if (String(p.loja) !== String(lojaId)) return;
+                var qtd = qtdMap[String(p.id)] || 0;
+                if (qtd <= 0) return;
+                var custoBase  = parseFloat(p.precoCusto || p.custoDireto) || 0;
+                var custosAdic = Object.values(p.custos || {}).reduce(function(s,v){ return s + (parseFloat(v)||0); }, 0);
+                var custo = custoBase + custosAdic;
+                // Considerar % meu (sociedade) — mais realista pra ROCE
+                var meuEstPct = 1;
+                var soc = p.sociedade || 'solo';
+                if (soc === 'meio_a_meio') meuEstPct = 0.5;
+                else if (soc === 'socio_lucro') meuEstPct = 0;
+                else if (soc === 'personalizado') meuEstPct = (p.meuEstoquePct != null ? p.meuEstoquePct : 100) / 100;
+                total += qtd * custo * meuEstPct;
+            });
+            return total;
+        }
+
+        // Calcular saldo de UMA LOJA em uma dada data (caixas dessa loja)
+        function _roceSaldoCaixasLojaEmData(lojaId, dataLimite) {
+            var caixas = _ler('fin-caixas') || [];
+            var caixasLoja = caixas.filter(function(c){ return String(c.lojaId) === String(lojaId); });
+            if (!caixasLoja.length) return 0;
+
+            var movs = _ler('fin-movs') || [];
+            var obrig = _ler('fin-obrigacoes') || [];
+            var vendas = _ler('vendas') || [];
+
+            var saldoTotal = 0;
+            caixasLoja.forEach(function(c){
+                // Estratégia: começa com saldo inicial + soma movs/vendas/obrig até dataLimite
+                var s = parseFloat(c.saldoInicial) || 0;
+
+                // Movimentações
+                movs.forEach(function(m){
+                    if (String(m.caixaId) !== String(c.id) && String(m.caixaDestinoId) !== String(c.id)) return;
+                    var dm = new Date(m.data + (String(m.data||'').length === 10 ? 'T12:00:00' : ''));
+                    if (dm > dataLimite) return;
+                    var v = parseFloat(m.valor) || 0;
+                    if (String(m.caixaId) === String(c.id)) {
+                        if (m.tipo === 'entrada') s += v;
+                        else if (m.tipo === 'saida') s -= v;
+                        else if (m.tipo === 'transferencia') s -= v;
+                    }
+                    if (String(m.caixaDestinoId) === String(c.id) && m.tipo === 'transferencia') s += v;
+                });
+
+                // Vendas → entradas
+                vendas.forEach(function(vend){
+                    if (String(vend.caixaId) !== String(c.id)) return;
+                    var dv = new Date(vend.data + (String(vend.data||'').length === 10 ? 'T12:00:00' : ''));
+                    if (dv > dataLimite) return;
+                    var vf = (parseFloat(vend.precoFinal)||0) * (parseFloat(vend.quantidade)||1);
+                    s += vf;
+                });
+
+                // Obrigações pagas → saídas
+                obrig.forEach(function(o){
+                    if (String(o.caixaId) !== String(c.id)) return;
+                    var vPago = parseFloat(o.pago) || 0;
+                    if (vPago <= 0) return;
+                    var dp = new Date((o.dataUltimoPag || o.vencimento) + (String(o.dataUltimoPag||o.vencimento||'').length === 10 ? 'T12:00:00' : ''));
+                    if (dp > dataLimite) return;
+                    if (o.tipo === 'pagar') s -= vPago;
+                    else if (o.tipo === 'receber') s += vPago;
+                });
+
+                saldoTotal += s;
+            });
+            return Math.max(0, saldoTotal);  // não deixar negativo
+        }
+
+        // Fallback rápido: capital atual (estoque + caixas)
+        function _roceCapitalAtualLoja(lojaId) {
+            var produtos    = _ler('produtos') || [];
+            var estoqueMap  = _ler('estoque') || {};
+            var estoqueVal = 0;
+            produtos.forEach(function(p){
+                if (String(p.loja) !== String(lojaId)) return;
+                var k = Object.keys(estoqueMap).find(function(kk){ return String(kk) === String(p.id); });
+                var qtd = k ? (estoqueMap[k].quantidade || 0) : 0;
+                if (qtd <= 0) return;
+                var custoBase  = parseFloat(p.precoCusto || p.custoDireto) || 0;
+                var custosAdic = Object.values(p.custos || {}).reduce(function(s,v){ return s + (parseFloat(v)||0); }, 0);
+                var meuEstPct = 1;
+                var soc = p.sociedade || 'solo';
+                if (soc === 'meio_a_meio') meuEstPct = 0.5;
+                else if (soc === 'socio_lucro') meuEstPct = 0;
+                else if (soc === 'personalizado') meuEstPct = (p.meuEstoquePct != null ? p.meuEstoquePct : 100) / 100;
+                estoqueVal += qtd * (custoBase + custosAdic) * meuEstPct;
+            });
+
+            // Saldo dos caixas dessa loja (funções globais existentes)
+            var caixas = _ler('fin-caixas') || [];
+            var caixasLoja = caixas.filter(function(c){ return String(c.lojaId) === String(lojaId); });
+            var saldoCaixas = 0;
+            caixasLoja.forEach(function(c){
+                var sc = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0 };
+                saldoCaixas += Math.max(0, sc.saldo || 0);
+            });
+
+            return estoqueVal + saldoCaixas;
+        }
+
+        // Calcular dados COMPLETOS de uma loja para o mês
+        function _roceCalcularLoja(loja, mesKey) {
+            var lim = _roceLimitesMes(mesKey);
+            var vendas = _ler('vendas') || [];
+            var movs   = _ler('fin-movs') || [];
+            var produtos = _ler('produtos') || [];
+
+            // ─── Vendas do mês da loja ───
+            var vendasLoja = vendas.filter(function(v){
+                var prod = produtos.find(function(p){ return String(p.id) === String(v.produtoId); });
+                if (!prod || String(prod.loja) !== String(loja.id)) return false;
+                if (!v.data) return false;
+                var d = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
+                return d >= lim.ini && d <= lim.fim;
+            });
+
+            // Faturamento e CMV
+            var faturamento = 0, cmv = 0, qtdVendas = 0;
+            vendasLoja.forEach(function(v){
+                var qtd = parseFloat(v.quantidade) || 1;
+                faturamento += (parseFloat(v.precoFinal) || 0) * qtd;
+                qtdVendas += qtd;
+                // CMV: custo do produto vendido
+                var prod = produtos.find(function(p){ return String(p.id) === String(v.produtoId); });
+                if (prod) {
+                    var cBase  = parseFloat(prod.precoCusto || prod.custoDireto) || 0;
+                    var cAdic  = Object.values(prod.custos || {}).reduce(function(s,x){ return s + (parseFloat(x)||0); }, 0);
+                    cmv += qtd * (cBase + cAdic);
+                }
+            });
+
+            var lucroBruto = faturamento - cmv;
+
+            // ─── Despesas operacionais da loja no mês ───
+            // tipoSaida='custo' + lojaId=loja OU (categoria=trafego/frete/operacional/prolabore/imposto/outros)
+            // Investimento em mercadoria NUNCA entra em despesa
+            var despesas = 0;
+            var investMerc = 0;
+            movs.forEach(function(m){
+                if (m.tipo !== 'saida') return;
+                if (!m.data) return;
+                var d = new Date(m.data + (String(m.data).length === 10 ? 'T12:00:00' : ''));
+                if (d < lim.ini || d > lim.fim) return;
+                if (String(m.lojaId) !== String(loja.id)) return;
+                var v = parseFloat(m.valor) || 0;
+                var ts = m.tipoSaida || 'custo';
+                if (ts === 'investimento') investMerc += v;
+                else                       despesas += v;
+            });
+
+            var lucroLiq = lucroBruto - despesas;
+
+            // ─── Capital no início do mês e capital atual ───
+            var estIni  = _roceValorEstoqueLojaEmData(loja.id, lim.ini);
+            var caixaIni= _roceSaldoCaixasLojaEmData(loja.id, lim.ini);
+            var capIni  = estIni + caixaIni;
+            var capAtual= _roceCapitalAtualLoja(loja.id);
+
+            var roceIni   = capIni > 0 ? (lucroLiq / capIni * 100) : null;
+            var roceAtual = capAtual > 0 ? (lucroLiq / capAtual * 100) : null;
+
+            return {
+                lojaId: loja.id,
+                lojaNome: loja.nome,
+                lojaLocal: loja.local || loja.cidade || '',
+                faturamento: faturamento,
+                cmv: cmv,
+                lucroBruto: lucroBruto,
+                despesas: despesas,
+                investMerc: investMerc,
+                lucroLiq: lucroLiq,
+                margemLiq: faturamento > 0 ? (lucroLiq / faturamento * 100) : 0,
+                capIni: capIni,
+                capAtual: capAtual,
+                roceIni: roceIni,
+                roceAtual: roceAtual,
+                qtdVendas: qtdVendas,
+                temDadosSuficientes: (faturamento > 0 || despesas > 0 || capAtual > 0)
+            };
+        }
+
+        function _roceFmtBR(n, casas) {
+            if (casas === undefined) casas = 0;
+            return 'R$ ' + (Number(n)||0).toLocaleString('pt-BR', {minimumFractionDigits:casas, maximumFractionDigits:casas});
+        }
+
+        function _roceCorROCE(pct) {
+            if (pct === null || pct === undefined) return { cor: '#7a7a96', chip: '— sem dados' };
+            if (pct >= 15) return { cor: 'var(--green)', chip: '🟢 Excelente' };
+            if (pct >= 5)  return { cor: '#ffc107',      chip: '🟡 Regular' };
+            if (pct >= 0)  return { cor: '#f97316',      chip: '🟠 Fraco' };
+            return { cor: 'var(--red)', chip: '🔴 Prejuízo' };
+        }
+
+        // ─── Renderização principal ───
+        function renderROCE() {
+            _rocePopularSeletor();
+            var sel = document.getElementById('roceMes');
+            var mesKey = sel?.value;
+            if (!mesKey) return;
+
+            var lojas = _ler('lojas') || [];
+            if (!lojas.length) {
+                var elRank = document.getElementById('roce-ranking');
+                if (elRank) elRank.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#7a7a96;font-size:13px;">Nenhuma loja cadastrada.</div>';
+                return;
+            }
+
+            // Calcular pra todas as lojas
+            var resultados = lojas.map(function(l){ return _roceCalcularLoja(l, mesKey); });
+
+            // Filtrar sem dados
+            var comDados = resultados.filter(function(r){ return r.temDadosSuficientes; });
+            var semDados = resultados.filter(function(r){ return !r.temDadosSuficientes; });
+
+            // Ordenar por ROCE inicial (fallback ROCE atual, fallback lucroLiq)
+            comDados.sort(function(a, b){
+                var ra = a.roceIni != null ? a.roceIni : (a.roceAtual != null ? a.roceAtual : -Infinity);
+                var rb = b.roceIni != null ? b.roceIni : (b.roceAtual != null ? b.roceAtual : -Infinity);
+                return rb - ra;
+            });
+
+            // ─── Totais no topo ───
+            var totFat=0, totInv=0, totDesp=0, totLucro=0;
+            resultados.forEach(function(r){
+                totFat  += r.faturamento;
+                totInv  += r.investMerc;
+                totDesp += r.despesas;
+                totLucro+= r.lucroLiq;
+            });
+            var margemGlobal = totFat > 0 ? (totLucro / totFat * 100) : 0;
+
+            var totaisHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(59,130,246,0.20);border-radius:14px;padding:14px;text-align:center;">' +
+                    '<div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">💰 Faturamento</div>' +
+                    '<div style="font-size:22px;font-weight:800;color:var(--blue);font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">' + _roceFmtBR(totFat, 0) + '</div>' +
+                '</div>' +
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(124,58,237,0.20);border-radius:14px;padding:14px;text-align:center;">' +
+                    '<div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">📦 Investimento em mercadoria</div>' +
+                    '<div style="font-size:22px;font-weight:800;color:var(--purple-light);font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">' + _roceFmtBR(totInv, 0) + '</div>' +
+                '</div>' +
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(244,63,94,0.20);border-radius:14px;padding:14px;text-align:center;">' +
+                    '<div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">💸 Despesas operacionais</div>' +
+                    '<div style="font-size:22px;font-weight:800;color:var(--red);font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">' + _roceFmtBR(totDesp, 0) + '</div>' +
+                '</div>' +
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(16,185,129,0.20);border-radius:14px;padding:14px;text-align:center;">' +
+                    '<div style="font-size:10px;color:#b4b4cc;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:5px;">📈 Lucro líquido</div>' +
+                    '<div style="font-size:22px;font-weight:800;color:' + (totLucro >= 0 ? 'var(--green)' : 'var(--red)') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">' + _roceFmtBR(totLucro, 0) + '</div>' +
+                    '<div style="font-size:10px;color:#7a7a96;margin-top:3px;">margem ' + margemGlobal.toFixed(1) + '%</div>' +
+                '</div>';
+
+            document.getElementById('roce-totais').innerHTML = totaisHTML;
+
+            // ─── Cards rankeados ───
+            var rankHTML = '';
+            if (!comDados.length) {
+                rankHTML = '<div style="text-align:center;padding:50px 20px;color:#7a7a96;">' +
+                    '<div style="font-size:38px;margin-bottom:8px;">📊</div>' +
+                    '<div style="font-size:14px;font-weight:600;color:#b4b4cc;margin-bottom:4px;">Nenhum negócio com dados no período</div>' +
+                    '<div style="font-size:12px;">Selecione outro mês ou registre vendas/despesas</div>' +
+                '</div>';
+            } else {
+                var medais = ['🏆','🥈','🥉'];
+                rankHTML = comDados.map(function(r, idx){
+                    var pos = idx < 3 ? medais[idx] : '#' + (idx+1);
+                    var corIni  = _roceCorROCE(r.roceIni);
+                    var corAtual= _roceCorROCE(r.roceAtual);
+                    var lucroCor= r.lucroLiq >= 0 ? 'var(--green)' : 'var(--red)';
+
+                    // Alertas visuais
+                    var avisos = [];
+                    if (r.capIni <= 0 && r.capAtual > 0) avisos.push('⚠️ Sem capital reconstruído no início (negócio recente ou dados históricos limitados)');
+                    if (r.faturamento === 0 && r.despesas > 0) avisos.push('⚠️ Só teve despesas neste mês, sem vendas registradas');
+
+                    return '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.10);border-radius:16px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden;">' +
+                        // Barra colorida no topo por ROCE
+                        '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,' + corIni.cor + ',' + corAtual.cor + ');opacity:0.6;"></div>' +
+
+                        // Header
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;margin-top:4px;">' +
+                            '<div>' +
+                                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:3px;flex-wrap:wrap;">' +
+                                    '<span style="font-size:18px;font-weight:800;color:#fff;">' + pos + ' ' + r.lojaNome + '</span>' +
+                                    (r.lojaLocal ? '<span style="font-size:11px;color:#b4b4cc;">📍 ' + r.lojaLocal + '</span>' : '') +
+                                '</div>' +
+                                '<div style="font-size:11px;color:#b4b4cc;">' + r.qtdVendas + ' ' + (r.qtdVendas === 1 ? 'venda' : 'vendas') + ' · margem líq ' + r.margemLiq.toFixed(1) + '%</div>' +
+                            '</div>' +
+                            '<div style="display:flex;gap:8px;">' +
+                                '<div style="text-align:right;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;">' +
+                                    '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:2px;">ROCE (início mês)</div>' +
+                                    '<div style="font-size:20px;font-weight:800;color:' + corIni.cor + ';font-family:JetBrains Mono,monospace;line-height:1;">' + (r.roceIni != null ? r.roceIni.toFixed(1) + '%' : '—') + '</div>' +
+                                    '<div style="font-size:9px;color:' + corIni.cor + ';margin-top:3px;font-weight:600;">' + corIni.chip + '</div>' +
+                                '</div>' +
+                                '<div style="text-align:right;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;">' +
+                                    '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:2px;">ROCE (atual)</div>' +
+                                    '<div style="font-size:20px;font-weight:800;color:' + corAtual.cor + ';font-family:JetBrains Mono,monospace;line-height:1;">' + (r.roceAtual != null ? r.roceAtual.toFixed(1) + '%' : '—') + '</div>' +
+                                    '<div style="font-size:9px;color:' + corAtual.cor + ';margin-top:3px;font-weight:600;">' + corAtual.chip + '</div>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+
+                        // Detalhamento em grid
+                        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">' +
+                            '<div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.15);border-radius:8px;padding:9px 11px;">' +
+                                '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:3px;">💰 Faturamento</div>' +
+                                '<div style="font-size:15px;font-weight:800;color:var(--blue);font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.faturamento, 0) + '</div>' +
+                            '</div>' +
+                            '<div style="background:rgba(255,193,7,0.04);border:1px solid rgba(255,193,7,0.15);border-radius:8px;padding:9px 11px;">' +
+                                '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:3px;">📦 CMV</div>' +
+                                '<div style="font-size:15px;font-weight:800;color:#ffc107;font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.cmv, 0) + '</div>' +
+                            '</div>' +
+                            '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:9px 11px;">' +
+                                '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:3px;">📈 Lucro bruto</div>' +
+                                '<div style="font-size:15px;font-weight:800;color:' + (r.lucroBruto >= 0 ? '#fff' : 'var(--red)') + ';font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.lucroBruto, 0) + '</div>' +
+                            '</div>' +
+                            '<div style="background:rgba(244,63,94,0.05);border:1px solid rgba(244,63,94,0.15);border-radius:8px;padding:9px 11px;">' +
+                                '<div style="font-size:9px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:3px;">💸 Despesas</div>' +
+                                '<div style="font-size:15px;font-weight:800;color:var(--red);font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.despesas, 0) + '</div>' +
+                            '</div>' +
+                            '<div style="background:' + (r.lucroLiq >= 0 ? 'rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.20)' : 'rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.25)') + ';border-radius:8px;padding:9px 11px;">' +
+                                '<div style="font-size:9px;color:' + lucroCor + ';text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:3px;">💎 Lucro líquido</div>' +
+                                '<div style="font-size:15px;font-weight:800;color:' + lucroCor + ';font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.lucroLiq, 0) + '</div>' +
+                            '</div>' +
+                        '</div>' +
+
+                        // Capital
+                        '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:11px;color:#b4b4cc;">' +
+                            '<div>💼 Capital no início do mês: <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.capIni, 0) + '</b></div>' +
+                            '<div>💼 Capital atual: <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + _roceFmtBR(r.capAtual, 0) + '</b></div>' +
+                        '</div>' +
+
+                        // Avisos
+                        (avisos.length ? '<div style="margin-top:10px;">' +
+                            avisos.map(function(a){ return '<div style="font-size:10px;color:#ffc107;background:rgba(255,193,7,0.06);border:1px solid rgba(255,193,7,0.20);border-radius:6px;padding:6px 10px;margin-top:4px;">' + a + '</div>'; }).join('') +
+                        '</div>' : '') +
+                    '</div>';
+                }).join('');
+            }
+
+            // Negócios sem dados no período (colapsado)
+            if (semDados.length) {
+                rankHTML += '<details style="margin-top:14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;">' +
+                    '<summary style="cursor:pointer;font-size:12px;color:#b4b4cc;font-weight:600;list-style:none;">' +
+                        '📁 ' + semDados.length + ' negócio' + (semDados.length !== 1 ? 's' : '') + ' sem dados neste período' +
+                    '</summary>' +
+                    '<div style="margin-top:10px;font-size:11px;color:#7a7a96;">' +
+                        semDados.map(function(r){ return '<div style="padding:5px 0;">• ' + r.lojaNome + '</div>'; }).join('') +
+                    '</div>' +
+                '</details>';
+            }
+
+            document.getElementById('roce-ranking').innerHTML = rankHTML;
         }
 
         function _fmt(v) {
