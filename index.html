@@ -2946,28 +2946,40 @@
 
 
 
-            <!-- ROCE — REDESIGN COMPLETO -->
+            <!-- ROCE -->
             <div id="analise-roce" style="display:none;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
                     <div>
-                        <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.01em;">📊 Análise por Negócio</div>
-                        <div style="font-size:12px;color:#b4b4cc;margin-top:3px;">Faturamento, despesas, lucro e ROCE de cada operação</div>
+                        <div style="font-size:20px;font-weight:800;color:var(--text-main);letter-spacing:-0.01em;">📊 Análise por Negócio</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Return on Capital Employed — Retorno sobre o Capital Empregado</div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;">
-                        <select id="roceMes" onchange="renderROCE()" style="background:var(--bg-surface);border:1px solid var(--border);color:#fff;padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;"></select>
+                        <select id="rocePeriodo" onchange="renderROCE()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;">
+                            <option value="30">Últimos 30 dias</option>
+                            <option value="90" selected>Últimos 90 dias</option>
+                            <option value="180">Últimos 6 meses</option>
+                            <option value="365">Último ano</option>
+                            <option value="999">Todo período</option>
+                        </select>
+                        <button onclick="renderROCE()" class="btn-secondary" style="font-size:12px;padding:8px 14px;">↻ Atualizar</button>
                     </div>
                 </div>
 
-                <!-- 4 stats totais no topo -->
-                <div id="roce-totais" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;"></div>
+                <!-- Cards de ranking (5 KPIs cada) -->
+                <div id="roce-ranking" style="margin-bottom:24px;"></div>
 
-                <!-- Cards por loja rankeados -->
-                <div id="roce-ranking"></div>
-
-                <!-- Container legado (não usado, mantido pra compat) -->
+                <!-- Drilldown detalhe de um negócio -->
                 <div id="roce-detalhe" style="display:none;"></div>
-                <div id="roce-tabela" style="display:none;"></div>
-                <div id="roce-recomendacao" style="display:none;"></div>
+
+                <!-- Tabela comparativa -->
+                <div id="roce-tabela" style="margin-bottom:24px;"></div>
+
+                <!-- Recomendação de alocação -->
+                <div id="roce-recomendacao"></div>
+
+                <!-- Container legado (não usado) -->
+                <div id="roce-totais" style="display:none;"></div>
+                <select id="roceMes" style="display:none;"></select>
             </div>
             </div>
             <!-- FIM sub-fin-analise -->
@@ -19255,7 +19267,7 @@
             });
         }
 
-        function renderROCE_legado() {
+        function renderROCE() {
             const dias   = parseInt(document.getElementById('rocePeriodo')?.value || 90);
             const dados  = calcularROCENegocios(dias);
 
@@ -19294,7 +19306,7 @@
             if (!el) return;
             const melhor = dados[0]?.roce;
 
-            el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">' +
+            el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;">' +
             dados.map((d, i) => {
                 const roceStr  = d.roce !== null ? d.roce.toFixed(1) + '%' : '—';
                 const label    = _labelROCE(d.roce);
@@ -19305,13 +19317,24 @@
                     : '';
                 const tendCor  = tendencia === '↑' ? 'var(--green)' : tendencia === '↓' ? 'var(--red)' : 'var(--text-dim)';
 
+                // Ranking com medalhas + posição
+                const rankIcon = i === 0 ? '🏆' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+                const rankNum  = '#' + (i+1);
+                const rankStr  = rankIcon ? rankIcon + ' ' + rankNum + ' ' : rankNum + ' ';
+
+                // Cor do lucro líq
+                const lucroCor = d.ebit >= 0 ? 'var(--green)' : 'var(--red)';
+                const lucroSinal = d.ebit >= 0 ? '+' : '';
+
                 return `<div class="form-section" style="padding:16px;cursor:pointer;transition:border-color 0.2s;" onclick="verDetalheROCE('${d.lid}')" onmouseover="this.style.borderColor='var(--purple)'" onmouseout="this.style.borderColor='var(--border)'">
                     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
-                        <div>
-                            <div style="font-size:13px;font-weight:700;color:var(--text-main);">${i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}${d.loja.nome}</div>
-                            ${d.loja.cidade ? `<div style="font-size:11px;color:var(--text-dim);">${d.loja.cidade}</div>` : ''}
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:13px;font-weight:700;color:var(--text-main);">${rankStr}${d.loja.nome}</div>
+                            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">
+                                ${d.loja.cidade ? d.loja.cidade + ' · ' : ''}${d.qtdVendas} ${d.qtdVendas === 1 ? 'venda' : 'vendas'}
+                            </div>
                         </div>
-                        <div style="text-align:right;">
+                        <div style="text-align:right;flex-shrink:0;">
                             <div style="font-size:26px;font-weight:900;color:${cor};line-height:1;">${roceStr}</div>
                             <div style="font-size:11px;font-weight:700;color:${label.cor};">${label.txt} ${tendencia ? `<span style="color:${tendCor};font-size:14px;">${tendencia}</span>` : ''}</div>
                         </div>
@@ -19319,18 +19342,30 @@
                     <div style="background:var(--bg-hover);border-radius:4px;height:6px;margin-bottom:12px;">
                         <div style="width:${barW}%;background:${cor};height:100%;border-radius:4px;transition:width 0.5s;"></div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">
-                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px;">
-                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;">Receita</div>
-                            <div style="font-size:12px;font-weight:700;color:var(--text-main);">R$ ${_fmt(d.receitaBruta)}</div>
+                    <!-- Linha 1: 3 KPIs (Faturamento / CMV / Lucro bruto) -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin-bottom:6px;">
+                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px 5px;">
+                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;">💰 Faturamento</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--text-main);margin-top:2px;">R$ ${_fmt(d.receitaBruta)}</div>
                         </div>
-                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px;">
-                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;">EBIT</div>
-                            <div style="font-size:12px;font-weight:700;color:${d.ebit >= 0 ? 'var(--green)' : 'var(--red)'};">R$ ${_fmt(d.ebit)}</div>
+                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px 5px;">
+                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;">📦 CMV</div>
+                            <div style="font-size:12px;font-weight:700;color:#ffc107;margin-top:2px;">R$ ${_fmt(d.custoProdutos)}</div>
                         </div>
-                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px;">
-                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;">Capital</div>
-                            <div style="font-size:12px;font-weight:700;color:var(--text-main);">R$ ${_fmt(d.capitalEmpregado)}</div>
+                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px 5px;">
+                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;">📈 L. bruto</div>
+                            <div style="font-size:12px;font-weight:700;color:${d.lucroVendas >= 0 ? 'var(--green)' : 'var(--red)'};margin-top:2px;">R$ ${_fmt(d.lucroVendas)}</div>
+                        </div>
+                    </div>
+                    <!-- Linha 2: 2 KPIs (Despesas + Lucro líq destacado) -->
+                    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:6px;text-align:center;">
+                        <div style="background:var(--bg-surface);border-radius:8px;padding:7px 5px;">
+                            <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;">💸 Despesas</div>
+                            <div style="font-size:12px;font-weight:700;color:var(--red);margin-top:2px;">R$ ${_fmt(d.despesasOp)}</div>
+                        </div>
+                        <div style="background:${d.ebit >= 0 ? 'rgba(0,230,118,0.06)' : 'rgba(255,77,77,0.06)'};border:1px solid ${d.ebit >= 0 ? 'rgba(0,230,118,0.25)' : 'rgba(255,77,77,0.25)'};border-radius:8px;padding:7px 8px;">
+                            <div style="font-size:9px;color:${lucroCor};text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">💎 Lucro líquido</div>
+                            <div style="font-size:14px;font-weight:900;color:${lucroCor};margin-top:2px;">${lucroSinal}R$ ${_fmt(d.ebit)}</div>
                         </div>
                     </div>
                     <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--purple-light);">👆 Clique para ver detalhes</div>
@@ -19879,7 +19914,7 @@
         }
 
         // ─── Renderização principal ───
-        function renderROCE() {
+        function renderROCE_elegante() {
             _rocePopularSeletor();
             var sel = document.getElementById('roceMes');
             var mesKey = sel?.value;
