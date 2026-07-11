@@ -2862,6 +2862,7 @@
                                 <option value="estoque">📦 Compra de estoque</option>
                                 <option value="operacional">⚙️ Operacional</option>
                                 <option value="prolabore">👤 Pró-labore</option>
+                                <option value="retirada_lucro">💵 Retirada de lucro (pro centralizador)</option>
                                 <option value="imposto">🧾 Imposto</option>
                                 <option value="outros">📝 Outros</option>
                             </select>
@@ -2953,7 +2954,10 @@
                         <div style="font-size:20px;font-weight:800;color:var(--text-main);letter-spacing:-0.01em;">📊 Análise por Negócio</div>
                         <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Return on Capital Employed — Retorno sobre o Capital Empregado</div>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <select id="roceMesFiltro" onchange="renderROCE()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;">
+                            <option value="">— por período —</option>
+                        </select>
                         <select id="rocePeriodo" onchange="renderROCE()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;">
                             <option value="30">Últimos 30 dias</option>
                             <option value="90" selected>Últimos 90 dias</option>
@@ -14455,7 +14459,7 @@
 
             const tipoLabel = { entrada:'📥 Entrada', saida:'📤 Saída', transferencia:'🔄 Transferência', prolabore:'💰 Pró-labore' };
             const tipoColor = { entrada:'var(--green)', saida:'var(--red)', transferencia:'var(--blue)', prolabore:'#ffc107' };
-            const catLabel  = { venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', imposto:'🧾 Imposto', outros:'📝 Outros' };
+            const catLabel  = { venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', retirada_lucro:'💵 Retirada', imposto:'🧾 Imposto', outros:'📝 Outros' };
 
             // Considera default 'custo' nas saídas antigas
             const tipoSaidaDe = m => (m.tipo === 'saida' ? (m.tipoSaida || 'custo') : null);
@@ -14559,8 +14563,8 @@
                         '</div>' +
                         '<div class="form-group"><label>Categoria</label>' +
                             '<select id="mov-edit-categoria" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
-                                ['venda','trafego','frete','estoque','operacional','prolabore','imposto','outros'].map(function(c){
-                                    var lbl = {venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', imposto:'🧾 Imposto', outros:'📝 Outros'};
+                                ['venda','trafego','frete','estoque','operacional','prolabore','retirada_lucro','imposto','outros'].map(function(c){
+                                    var lbl = {venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', retirada_lucro:'💵 Retirada de lucro', imposto:'🧾 Imposto', outros:'📝 Outros'};
                                     return '<option value="' + c + '"' + (m.categoria === c ? ' selected' : '') + '>' + lbl[c] + '</option>';
                                 }).join('') +
                             '</select>' +
@@ -19118,9 +19122,17 @@
         // Capital Empregado = Estoque (custo) + Capital injetado cadastrado
         // ═══════════════════════════════════════════════════
 
-        function calcularROCENegocios(diasFiltro) {
+        function calcularROCENegocios(diasFiltro, mesKey) {
             const hoje      = new Date(); hoje.setHours(23,59,59,999);
-            const corte     = new Date(); corte.setDate(corte.getDate() - diasFiltro);
+            let corte;
+            // Se veio mesKey (YYYY-MM), usa limites do m\u00eas
+            if (mesKey && /^\d{4}-\d{2}$/.test(mesKey)) {
+                const [ano, mes] = mesKey.split('-').map(Number);
+                corte = new Date(ano, mes - 1, 1, 0, 0, 0, 0);
+                hoje.setTime(new Date(ano, mes, 0, 23, 59, 59, 999).getTime());
+            } else {
+                corte = new Date(); corte.setDate(corte.getDate() - diasFiltro);
+            }
             const lojas     = _ler('lojas')      || [];
             const produtos  = _ler('produtos')   || [];
             const vendas    = _ler('vendas')      || [];
@@ -19171,29 +19183,47 @@
                 const custoProdutos   = vendasLoja.reduce((s, v) => s + (v.custoUnitario * v.quantidade || 0), 0);
                 const lucroVendas     = vendasLoja.reduce((s, v) => s + (v.lucroTotal || 0), 0);
 
-                // ── DESPESAS OPERACIONAIS (movs de saída dos caixas da loja no período) ──
+                // ── DESPESAS OPERACIONAIS ──
+                // Regra: só sa\u00edda categorizada como 'custo' (n\u00e3o investimento em mercadoria)
+                // + vinculada a esta loja (via m.lojaId OU via caixa exclusivo da loja)
                 const caixasLoja = caixaPorLoja[lid] || [];
                 const caixaIds   = new Set(caixasLoja.map(c => String(c.id)));
                 let despesasOp   = 0;
-                let receitasExtra = 0;
                 const despesasPorCategoria = {};
                 movs.forEach(m => {
-                    if (!caixaIds.has(String(m.caixaId))) return;
+                    if (m.tipo !== 'saida') return;
                     const dm = new Date(m.data || m.criadoEm);
                     if (dm < corte || dm > hoje) return;
-                    // Ignorar entradas de venda (já contadas acima) e transferências
-                    if (m.categoria === 'venda' || m.categoria === 'transferencia') return;
-                    if (m.tipo === 'saida') {
-                        despesasOp += m.valor || 0;
-                        const cat = m.categoria || m.descricao?.split(' ')[0] || 'Outros';
-                        despesasPorCategoria[cat] = (despesasPorCategoria[cat] || 0) + (m.valor || 0);
-                    } else if (m.tipo === 'entrada' && m.categoria !== 'prolabore_recebido') {
-                        receitasExtra += m.valor || 0;
-                    }
-                });
+                    // NUNCA contar investimento em mercadoria como despesa
+                    if ((m.tipoSaida || 'custo') === 'investimento') return;
+                    // Excluir categorias que N\u00c3O s\u00e3o despesa operacional
+                    // - venda / transferencia: n\u00e3o s\u00e3o despesas
+                    // - retirada / prolabore / lucro / centralizador: dinheiro seu, s\u00f3 sai do caixa
+                    const catNaoDespesa = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador'];
+                    if (catNaoDespesa.includes(m.categoria)) return;
+                    // Descri\u00e7\u00f5es que indicam retirada (heur\u00edstica p/ dados antigos sem categoria)
+                    const descLower = (m.descricao || '').toLowerCase();
+                    if (descLower.includes('centralizador') || descLower.includes('lucro ') || descLower.startsWith('lucro') || descLower.includes('retirada')) return;
 
-                // ── EBIT (lucro operacional) ──
-                const ebit = lucroVendas - despesasOp + receitasExtra;
+                    // Vincular \u00e0 loja: m.lojaId explicito OU caixa da loja
+                    const temLojaVinculada = m.lojaId != null && m.lojaId !== '';
+                    if (temLojaVinculada) {
+                        if (String(m.lojaId) !== lid) return; // \u00e9 de outra loja
+                    } else {
+                        // Sem lojaId: s\u00f3 conta se o caixa for exclusivo desta loja
+                        if (!caixaIds.has(String(m.caixaId))) return;
+                    }
+
+                    despesasOp += m.valor || 0;
+                    const cat = m.categoria || m.descricao?.split(' ')[0] || 'Outros';
+                    despesasPorCategoria[cat] = (despesasPorCategoria[cat] || 0) + (m.valor || 0);
+                });
+                // Receitas extras: modelo canonico n\u00e3o soma nada al\u00e9m de vendas
+                const receitasExtra = 0;
+
+                // ── EBIT / Lucro l\u00edquido operacional ──
+                // Modelo canonico: s\u00f3 vendas menos custo dos vendidos menos despesas
+                const ebit = lucroVendas - despesasOp;
 
                 // ── CAPITAL EMPREGADO ──
                 // 1. Estoque atual (quantidade × custo)
@@ -19268,8 +19298,24 @@
         }
 
         function renderROCE() {
+            // Popular seletor de m\u00eas (\u00faltimos 12 meses) uma vez
+            const selMes = document.getElementById('roceMesFiltro');
+            if (selMes && selMes.options.length <= 1) {
+                const nomes = ['Janeiro','Fevereiro','Mar\u00e7o','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                const hj = new Date();
+                let opts = '<option value="">— por per\u00edodo —</option>';
+                for (let i = 0; i < 12; i++) {
+                    const d = new Date(hj.getFullYear(), hj.getMonth() - i, 1);
+                    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+                    const lbl = nomes[d.getMonth()] + ' ' + d.getFullYear() + (i===0 ? ' (m\u00eas atual)' : '');
+                    opts += '<option value="' + key + '">' + lbl + '</option>';
+                }
+                selMes.innerHTML = opts;
+            }
+
+            const mesKey = document.getElementById('roceMesFiltro')?.value || '';
             const dias   = parseInt(document.getElementById('rocePeriodo')?.value || 90);
-            const dados  = calcularROCENegocios(dias);
+            const dados  = calcularROCENegocios(dias, mesKey);
 
             if (!dados.length) {
                 ['roce-ranking','roce-tabela','roce-recomendacao'].forEach(id => {
@@ -19375,7 +19421,8 @@
 
         function verDetalheROCE(lid) {
             const dias  = parseInt(document.getElementById('rocePeriodo')?.value || 90);
-            const dados = calcularROCENegocios(dias);
+            const mesKey = document.getElementById('roceMesFiltro')?.value || '';
+            const dados = calcularROCENegocios(dias, mesKey);
             const d     = dados.find(x => x.lid === lid);
             if (!d) return;
 
