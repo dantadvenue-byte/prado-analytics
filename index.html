@@ -2638,7 +2638,7 @@
                             <button onclick="toggleFormFin('form-nova-conta')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;">✕</button>
                         </div>
                         <div class="form-group" style="margin-bottom:12px;"><label>Nome do Banco *</label>
-                            <input type="text" id="finContaNome" placeholder="Ex: Sicredi, Nubank, Bradesco">
+                            <input type="text" id="finContaNome" placeholder="Ex: Sicredi, Nubank, Bradesco" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">
                         </div>
                         <div class="form-group" style="margin-bottom:12px;"><label>Tipo</label>
                             <select id="finContaTipo" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
@@ -2649,7 +2649,7 @@
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom:12px;"><label>Saldo Inicial (R$)</label>
-                            <input type="number" id="finContaSaldo" placeholder="0" step="0.01">
+                            <input type="number" id="finContaSaldo" placeholder="0" step="0.01" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">
                         </div>
                         <button class="btn-primary" onclick="salvarContaBancaria()">➕ Adicionar Conta</button>
                         <div id="msg-fin-conta" style="margin-top:8px;"></div>
@@ -13562,12 +13562,41 @@
                 const isContaSel   = id === 'finCaixaConta';
                 const isFiltroDRE  = id === 'finMovFiltrosCaixa' || id === 'finDreCaixa';
                 const isCompra     = id === 'finCompraCaixa';
-                // Filtros, DRE e compras mostram todos; outros selects operacionais só negócio
-                const lista = (isFiltroDRE || isCompra) ? caixasTodos : (isContaSel ? contas : caixasNegocio);
-                el.innerHTML = isContaSel
-                    ? '<option value="">-- Selecione --</option>' + lista.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')
-                    : '<option value="">-- Selecione um caixa --</option>' + lista.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
-                if (val) el.value = val;
+                if (isContaSel) {
+                    // Dropdown de "Conta vinculada" no cadastro de caixa
+                    // Inclui contas cadastradas + contas "fantasma" (contaId em caixas mas sem registro)
+                    const contasComContaId = [...new Set(caixas.map(c => c.contaId).filter(cid => cid))];
+                    const contasCadastradas = contas.map(c => String(c.id));
+                    const contasFantasma = contasComContaId
+                        .filter(cid => !contasCadastradas.includes(String(cid)))
+                        .map(cid => ({ id: cid, nome: 'Conta #' + cid + ' (não cadastrada)' }));
+                    const listaContas = [...contas, ...contasFantasma];
+                    if (listaContas.length === 0) {
+                        el.innerHTML = '<option value="">-- Nenhuma conta cadastrada --</option>' +
+                                       '<option value="__nova__">➕ Criar conta bancária primeiro</option>';
+                    } else {
+                        el.innerHTML = '<option value="">-- Selecione a conta --</option>' +
+                                       listaContas.map(c => `<option value="${c.id}">${c.nome || ('Conta #' + c.id)}</option>`).join('') +
+                                       '<option value="__nova__">➕ Criar nova conta bancária</option>';
+                    }
+                    if (val) el.value = val;
+                    // Handler pra abrir form de conta se escolher "__nova__"
+                    if (!el._novaContaHandler) {
+                        el.addEventListener('change', function(e){
+                            if (e.target.value === '__nova__') {
+                                e.target.value = '';
+                                toggleFormFin('form-nova-conta');
+                                setTimeout(function(){ document.getElementById('finContaNome')?.focus(); }, 100);
+                            }
+                        });
+                        el._novaContaHandler = true;
+                    }
+                } else {
+                    // Filtros, DRE e compras mostram todos; outros selects operacionais só negócio
+                    const lista = (isFiltroDRE || isCompra) ? caixasTodos : caixasNegocio;
+                    el.innerHTML = '<option value="">-- Selecione um caixa --</option>' + lista.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('');
+                    if (val) el.value = val;
+                }
             });
 
             // Select de loja no caixa
