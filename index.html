@@ -1914,7 +1914,10 @@
         <!-- TAB: VENDAS -->
         <div id="vendas" class="tab-content">
             <div class="form-section">
-                <div class="form-title">💰 Registrar Venda</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+                    <div class="form-title" style="margin:0;">💰 Registrar Venda</div>
+                    <button onclick="abrirModalVendaLivre()" style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(20,184,166,0.10));border:1px solid rgba(16,185,129,0.35);color:var(--green);padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">⚡ Venda Livre</button>
+                </div>
                 <div class="warning-message">⚡ Uma ação só: registra a venda, dá baixa no estoque e lança no financeiro automaticamente.</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -2835,7 +2838,10 @@
             <!-- MOVIMENTAÇÕES -->
             <div id="sub-fin-mov" class="sub-content" style="display:none;">
                 <div class="form-section">
-                    <div class="form-title">💸 Nova Movimentação</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+                        <div class="form-title" style="margin:0;">💸 Nova Movimentação</div>
+                        <button onclick="abrirModalVendaLivre()" style="background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(20,184,166,0.10));border:1px solid rgba(16,185,129,0.35);color:var(--green);padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">⚡ Venda Livre</button>
+                    </div>
                     <div class="form-grid">
                         <div class="form-group"><label>Tipo *</label>
                             <select id="finMovTipo" onchange="atualizarCamposMovimentacao()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
@@ -6919,6 +6925,172 @@
                 opt.textContent = `${nome} (${dados.quantidade} em estoque)`;
                 select.appendChild(opt);
             });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VENDA LIVRE — venda simplificada sem vínculo com produto do estoque
+        // ═══════════════════════════════════════════════════════════════
+
+        function abrirModalVendaLivre() {
+            var caixas = (_ler('fin-caixas') || []).filter(function(c){ return c.tipo !== '_pessoal' && c.tipo !== '_reserva'; });
+            if (!caixas.length) {
+                alert('⚠️ Cadastre pelo menos um caixa antes.\n\nVá em Financeiro → Contas e Caixas.');
+                return;
+            }
+            var hoje = new Date().toISOString().slice(0,10);
+
+            // Remover modal existente
+            var prev = document.getElementById('venda-livre-modal');
+            if (prev) prev.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'venda-livre-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(16,185,129,0.25);border-radius:18px;padding:24px;width:100%;max-width:520px;margin:auto;box-shadow:0 0 60px rgba(16,185,129,0.15);">' +
+                    // Header
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:14px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;margin-bottom:4px;">⚡ VENDA LIVRE</div>' +
+                            '<div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.02em;">Registrar venda avulsa</div>' +
+                            '<div style="font-size:12px;color:#b4b4cc;margin-top:2px;">Sem vínculo com estoque (consultorias, serviços, produtos externos)</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'venda-livre-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    // Nome/descrição
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Descrição *</label>' +
+                        '<input type="text" id="vl-nome" placeholder="Ex: Consultoria SEO, Venda avulsa Starlink..." style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
+
+                    // Preço, custo, data
+                    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">' +
+                        '<div class="form-group"><label>💰 Preço (R$) *</label>' +
+                            '<input type="number" id="vl-preco" min="0.01" step="0.01" oninput="_vlAtualizarLucro()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;font-weight:700;">' +
+                        '</div>' +
+                        '<div class="form-group"><label>📦 Custo (R$)</label>' +
+                            '<input type="number" id="vl-custo" min="0" step="0.01" placeholder="0" oninput="_vlAtualizarLucro()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                        '</div>' +
+                        '<div class="form-group"><label>📅 Data</label>' +
+                            '<input type="date" id="vl-data" value="' + hoje + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Caixa
+                    '<div class="form-group" style="margin-bottom:12px;"><label>🏦 Caixa *</label>' +
+                        '<select id="vl-caixa" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                            caixas.map(function(c){ return '<option value="' + c.id + '">' + c.nome + '</option>'; }).join('') +
+                        '</select>' +
+                    '</div>' +
+
+                    // Preview do lucro
+                    '<div id="vl-preview" style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#b4b4cc;display:none;">' +
+                        '<div id="vl-preview-txt"></div>' +
+                    '</div>' +
+
+                    // Botões
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'venda-livre-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="salvarVendaLivre()" style="flex:2;background:linear-gradient(135deg,#10b981,#14b8a6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">⚡ Registrar venda</button>' +
+                    '</div>' +
+                '</div>';
+
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+            setTimeout(function(){ document.getElementById('vl-nome')?.focus(); }, 100);
+        }
+
+        function _vlAtualizarLucro() {
+            var preco = parseFloat(document.getElementById('vl-preco')?.value) || 0;
+            var custo = parseFloat(document.getElementById('vl-custo')?.value) || 0;
+            var preview = document.getElementById('vl-preview');
+            var previewTxt = document.getElementById('vl-preview-txt');
+            if (!preview || !previewTxt) return;
+            if (preco > 0) {
+                var lucro = preco - custo;
+                var margem = preco > 0 ? (lucro / preco * 100) : 0;
+                var corLucro = lucro >= 0 ? 'var(--green)' : 'var(--red)';
+                previewTxt.innerHTML = '💎 <b style="color:#fff;">Lucro:</b> <b style="color:' + corLucro + ';font-family:JetBrains Mono,monospace;">R$ ' + lucro.toFixed(2) + '</b> · margem ' + margem.toFixed(1) + '%';
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        async function salvarVendaLivre() {
+            var nome    = document.getElementById('vl-nome')?.value.trim();
+            var preco   = parseFloat(document.getElementById('vl-preco')?.value) || 0;
+            var custo   = parseFloat(document.getElementById('vl-custo')?.value) || 0;
+            var data    = document.getElementById('vl-data')?.value;
+            var caixaId = document.getElementById('vl-caixa')?.value;
+
+            if (!nome) { alert('Informe uma descrição'); return; }
+            if (preco <= 0) { alert('Preço deve ser maior que zero'); return; }
+            if (!data) { alert('Informe a data'); return; }
+            if (!caixaId) { alert('Selecione o caixa'); return; }
+
+            var lucro = preco - custo;
+
+            // 1. Criar venda
+            var vendas = _ler('vendas') || [];
+            var vendaId = Date.now() + Math.floor(Math.random() * 1000);
+            vendas.push({
+                id: vendaId,
+                data: data,
+                produto: nome,
+                produtoNome: nome,
+                produtoId: null,        // sem produto vinculado
+                quantidade: 1,
+                precoFinal: preco,
+                precoOriginal: preco,
+                desconto: 0,
+                comissao: 0,
+                custoUnitario: custo,
+                lucroUnitario: lucro,
+                lucroTotal: lucro,
+                caixaId: caixaId,
+                origem: 'livre',        // 🔑 marca como venda livre
+                criadoEm: new Date().toISOString()
+            });
+
+            // 2. Criar entrada no caixa (movimentação)
+            var movs = _ler('fin-movs') || [];
+            movs.push({
+                id: Date.now() + 1 + Math.floor(Math.random() * 1000),
+                tipo: 'entrada',
+                caixaId: caixaId,
+                valor: preco,
+                categoria: 'venda',
+                data: data,
+                descricao: '⚡ Venda livre: ' + nome,
+                autoGerado: true,
+                origem: 'venda_livre',   // pra identificar
+                vendaId: vendaId,
+                criadoEm: new Date().toISOString()
+            });
+
+            try {
+                await Promise.all([
+                    _salvar('vendas', vendas),
+                    _salvar('fin-movs', movs)
+                ]);
+                document.getElementById('venda-livre-modal')?.remove();
+                // Refresh onde estiver
+                if (typeof renderHistoricoMovimentacoes === 'function') renderHistoricoMovimentacoes();
+                if (typeof renderContasList === 'function') renderContasList();
+                if (typeof renderDashboard === 'function') renderDashboard();
+                if (typeof renderROCE === 'function' && document.getElementById('analise-roce')?.style.display !== 'none') renderROCE();
+                // Feedback
+                var toast = document.createElement('div');
+                toast.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:10000;background:linear-gradient(135deg,#10b981,#14b8a6);color:#fff;padding:14px 22px;border-radius:10px;font-family:inherit;font-weight:700;box-shadow:0 4px 20px rgba(16,185,129,0.3);';
+                toast.textContent = '⚡ Venda livre registrada! Lucro: R$ ' + lucro.toFixed(2);
+                document.body.appendChild(toast);
+                setTimeout(function(){ toast.remove(); }, 3500);
+            } catch(e) {
+                alert('❌ Erro ao salvar: ' + e.message);
+                console.error(e);
+            }
         }
 
         async function registrarVenda() {
@@ -13919,6 +14091,7 @@
                         '<button onclick="abrirMovRapida('+cx.id+',\x27entrada\x27)" class="btn-success" style="padding:6px 10px;font-size:11px;" title="Entrada">+R$</button>' +
                         '<button onclick="abrirMovRapida('+cx.id+',\x27saida\x27)" class="btn-danger" style="padding:6px 10px;font-size:11px;" title="Saída">-R$</button>' +
                         '<button onclick="abrirVendaRapidaCaixa('+cx.id+')" style="padding:6px 10px;font-size:11px;background:linear-gradient(135deg,rgba(16,185,129,0.8),rgba(59,130,246,0.8));border:1px solid rgba(16,185,129,0.5);color:#fff;border-radius:6px;cursor:pointer;" title="Venda">🛒</button>' +
+                        '<button onclick="abrirModalVendaLivre();setTimeout(function(){var s=document.getElementById(\x27vl-caixa\x27);if(s)s.value=\x27'+cx.id+'\x27;},150);" style="padding:6px 10px;font-size:11px;background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);color:var(--green);border-radius:6px;cursor:pointer;" title="Venda livre (sem estoque)">⚡</button>' +
                         '<button onclick="abrirPainelCaixa('+cx.id+')" style="padding:6px 10px;font-size:11px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);color:var(--purple-light);border-radius:6px;cursor:pointer;" title="Painel completo">📊</button>' +
                         '<button onclick="toggleCaixaDetalhe(\x27'+uid+'\x27)" style="padding:6px 8px;font-size:11px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;cursor:pointer;" title="Ver detalhes" id="btn-det-'+cx.id+'">▾</button>' +
                     '</div>' +
@@ -14531,11 +14704,12 @@
                     }
                 }
                 const tagLoja = lojaObj ? `<span style="color:var(--blue);font-size:10px;font-weight:600;margin-left:6px;">📍 ${lojaObj.nome}</span>` : '';
+                const tagVL = m.origem === 'venda_livre' ? '<span style="background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.30);color:var(--green);font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;margin-left:6px;text-transform:uppercase;letter-spacing:0.04em;">⚡ VENDA LIVRE</span>' : '';
                 return `
                 <div style="background:var(--bg-surface);border:1px solid var(--border);border-left:3px solid ${cor};border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:10px;">
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:600;color:var(--text-main);display:flex;align-items:center;flex-wrap:wrap;">
-                            <span>${tipoLabel[m.tipo]||m.tipo} ${catLabel[m.categoria]||''}</span>${tagSaida}${tagLoja}
+                            <span>${tipoLabel[m.tipo]||m.tipo} ${catLabel[m.categoria]||''}</span>${tagSaida}${tagLoja}${tagVL}
                         </div>
                         <div style="color:var(--text-muted);">${cx?.nome||'?'} ${cxDest?'→ '+cxDest.nome:''} ${m.data?'· '+m.data:''} ${m.autoGerado?'<span style="color:var(--text-dim);font-size:10px;">auto</span>':''}</div>
                         ${m.descricao?`<div style="color:var(--text-dim);font-size:11px;">${m.descricao}</div>`:''}
