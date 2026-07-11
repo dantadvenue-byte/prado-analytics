@@ -17599,29 +17599,40 @@
         }
 
         function _metasContarVendasLoja(lojaId, dataRef) {
+            // Mantida para compatibilidade — retorna só qtd
+            return _metasCalcularProgresso(lojaId, dataRef).qtd;
+        }
+
+        function _metasCalcularProgresso(lojaId, dataRef) {
             var d = dataRef || new Date();
             var ini = new Date(d.getFullYear(), d.getMonth(), 1);
             var fim = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
             var vendas = _ler('vendas') || [];
             var produtos = _ler('produtos') || [];
-            var count = 0;
+            var caixas = _ler('fin-caixas') || [];
+            var qtd = 0, faturamento = 0, lucroBruto = 0;
             vendas.forEach(function(v){
                 if (!v.data) return;
                 var dv = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
                 if (dv < ini || dv > fim) return;
-                // Match por produto.loja (vendas normais)
+                var pertence = false;
                 if (v.produtoId) {
                     var p = produtos.find(function(pp){ return String(pp.id) === String(v.produtoId); });
-                    if (p && String(p.loja || p.lojaId) === String(lojaId)) count += (parseFloat(v.quantidade) || 1);
+                    if (p && String(p.loja || p.lojaId) === String(lojaId)) pertence = true;
                 }
-                // Match por caixa.lojaId (vendas livres)
                 if (v.origem === 'livre' && v.caixaId) {
-                    var caixas = _ler('fin-caixas') || [];
                     var cx = caixas.find(function(c){ return String(c.id) === String(v.caixaId); });
-                    if (cx && String(cx.lojaId) === String(lojaId)) count += (parseFloat(v.quantidade) || 1);
+                    if (cx && String(cx.lojaId) === String(lojaId)) pertence = true;
                 }
+                if (!pertence) return;
+                var q     = parseFloat(v.quantidade) || 1;
+                var preco = parseFloat(v.precoFinal) || 0;
+                var custo = parseFloat(v.custoUnitario) || 0;
+                qtd         += q;
+                faturamento += preco * q;
+                lucroBruto  += (preco - custo) * q;
             });
-            return count;
+            return { qtd: qtd, faturamento: faturamento, lucroBruto: lucroBruto };
         }
 
         function _metasRitmo(vendido, meta, dataRef) {
@@ -17695,17 +17706,18 @@
             lojas.forEach(function(loja){
                 var lid = String(loja.id);
                 var metaObj  = metas[lid] || {};
-                // Compatível com formato antigo (.unidades) e novo (.meta)
-                var metaVal  = parseInt(metaObj.unidades || metaObj.meta) || 0;
-                var vendido  = _metasContarVendasLoja(lid);
-                var ritmo    = _metasRitmo(vendido, metaVal);
+                // 3 metas: qtd, faturamento, lucro bruto
+                var metaQtd   = parseInt(metaObj.unidades || metaObj.meta) || 0;
+                var metaFat   = parseFloat(metaObj.faturamento) || 0;
+                var metaLucro = parseFloat(metaObj.lucro) || 0;
+                var prog      = _metasCalcularProgresso(lid);
+                var ritmoQtd   = _metasRitmo(prog.qtd, metaQtd);
+                var ritmoFat   = _metasRitmo(prog.faturamento, metaFat);
+                var ritmoLucro = _metasRitmo(prog.lucroBruto, metaLucro);
                 var acoesLoja = acoes[lid] || [];
                 var contAc   = _metasContarAcoes(lid);
                 var corAcoes = _metasCorAcoes(contAc.pct);
-
-                // Barra progresso da meta
-                var pctBarra = metaVal > 0 ? Math.min(100, (vendido / metaVal) * 100) : 0;
-                var corBarra = ritmo ? ritmo.cor : '#7a7a96';
+                var temAlgumaMeta = metaQtd > 0 || metaFat > 0 || metaLucro > 0;
 
                 html +=
                     '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 18px;">' +
@@ -17717,29 +17729,50 @@
                             '</div>' +
                         '</div>' +
 
-                        // Meta
+                        // Bloco das 3 metas
                         '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:11px 12px;margin-bottom:12px;">' +
-                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">' +
-                                '<label style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">🎯 Meta mensal (vendas)</label>' +
-                                '<input type="number" min="0" step="1" value="' + (metaVal || '') + '" placeholder="0" ' +
-                                    'onchange="metasSalvarMeta(\'' + lid + '\', this.value)" ' +
-                                    'style="width:70px;background:var(--bg-surface);border:1px solid var(--border);color:#fff;padding:5px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;text-align:right;">' +
-                            '</div>' +
-                            (metaVal > 0 && ritmo ? (
-                                '<div style="display:flex;justify-content:space-between;font-size:10px;color:#b4b4cc;margin-bottom:4px;">' +
-                                    '<span>Realizado: <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + vendido + '</b></span>' +
-                                    '<span>Ritmo esperado: <b style="color:#7a7a96;font-family:JetBrains Mono,monospace;">' + ritmo.esperado + '</b></span>' +
-                                '</div>' +
-                                '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
-                                    '<div style="height:100%;background:' + corBarra + ';border-radius:99px;width:' + pctBarra + '%;box-shadow:0 0 6px ' + corBarra + ';"></div>' +
-                                '</div>' +
-                                '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:10px;">' +
-                                    '<span style="color:' + ritmo.cor + ';font-weight:700;">' + ritmo.icone + ' ' + ritmo.status + '</span>' +
-                                    '<span style="color:#7a7a96;font-family:JetBrains Mono,monospace;">' + ritmo.pct.toFixed(0) + '%</span>' +
-                                '</div>'
-                            ) : (
-                                metaVal > 0 ? '<div style="font-size:10px;color:#7a7a96;">Nenhuma venda ainda este mês.</div>' : '<div style="font-size:10px;color:#7a7a96;">Defina uma meta pra ver progresso.</div>'
-                            )) +
+                            '<div style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:10px;">🎯 Metas mensais</div>' +
+
+                            // Meta QTD
+                            _metaLinha({
+                                icone: '🔢',
+                                label: 'Quantidade',
+                                unidade: 'un',
+                                valorReal: prog.qtd,
+                                meta: metaQtd,
+                                campo: 'unidades',
+                                lid: lid,
+                                ritmo: ritmoQtd,
+                                isMoeda: false
+                            }) +
+
+                            // Meta FAT
+                            _metaLinha({
+                                icone: '💰',
+                                label: 'Faturamento',
+                                unidade: 'R$',
+                                valorReal: prog.faturamento,
+                                meta: metaFat,
+                                campo: 'faturamento',
+                                lid: lid,
+                                ritmo: ritmoFat,
+                                isMoeda: true
+                            }) +
+
+                            // Meta LUCRO
+                            _metaLinha({
+                                icone: '💎',
+                                label: 'Lucro bruto',
+                                unidade: 'R$',
+                                valorReal: prog.lucroBruto,
+                                meta: metaLucro,
+                                campo: 'lucro',
+                                lid: lid,
+                                ritmo: ritmoLucro,
+                                isMoeda: true
+                            }) +
+
+                            (!temAlgumaMeta ? '<div style="font-size:10px;color:#7a7a96;text-align:center;margin-top:6px;">Defina uma ou mais metas nos campos acima.</div>' : '') +
                         '</div>' +
 
                         // Ações
@@ -17772,6 +17805,38 @@
             el.innerHTML = html;
         }
 
+        // Renderiza uma linha de meta (usado internamente por renderGsMetas)
+        function _metaLinha(cfg) {
+            var pct = cfg.meta > 0 ? Math.min(100, (cfg.valorReal / cfg.meta) * 100) : 0;
+            var corBarra = cfg.ritmo ? cfg.ritmo.cor : '#7a7a96';
+            var fmtReal = cfg.isMoeda
+                ? 'R$ ' + Math.round(cfg.valorReal).toLocaleString('pt-BR')
+                : String(cfg.valorReal);
+            var placeholderInput = cfg.isMoeda ? '0' : '0';
+            var passoInput = cfg.isMoeda ? '100' : '1';
+
+            var html = '<div style="margin-bottom:10px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:5px;">' +
+                    '<label style="font-size:10px;color:#b4b4cc;font-weight:600;flex:1;">' + cfg.icone + ' ' + cfg.label + '</label>' +
+                    '<input type="number" min="0" step="' + passoInput + '" value="' + (cfg.meta || '') + '" placeholder="' + placeholderInput + '" ' +
+                        'onchange="metasSalvarCampo(\'' + cfg.lid + '\', \'' + cfg.campo + '\', this.value)" ' +
+                        'style="width:110px;background:var(--bg-surface);border:1px solid var(--border);color:#fff;padding:4px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;text-align:right;">' +
+                '</div>';
+
+            if (cfg.meta > 0) {
+                html +=
+                    '<div style="display:flex;justify-content:space-between;font-size:10px;color:#b4b4cc;margin-bottom:3px;">' +
+                        '<span>Realizado: <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + fmtReal + '</b></span>' +
+                        (cfg.ritmo ? '<span style="color:' + cfg.ritmo.cor + ';font-weight:700;">' + cfg.ritmo.icone + ' ' + cfg.ritmo.pct.toFixed(0) + '%</span>' : '<span style="color:#7a7a96;">—</span>') +
+                    '</div>' +
+                    '<div style="height:4px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
+                        '<div style="height:100%;background:' + corBarra + ';border-radius:99px;width:' + pct + '%;box-shadow:0 0 4px ' + corBarra + ';transition:width 0.3s;"></div>' +
+                    '</div>';
+            }
+            html += '</div>';
+            return html;
+        }
+
         async function metasSalvarMeta(lojaId, valor) {
             var metas = _ler('metas-lojas') || {};
             var v = parseInt(valor) || 0;
@@ -17783,6 +17848,21 @@
             await _salvar('metas-lojas', metas);
             renderGsMetas();
             // Atualiza ROCE também se estiver aberto
+            if (typeof renderROCE === 'function' && document.getElementById('analise-roce')?.style.display !== 'none') {
+                try { renderROCE(); } catch(e){}
+            }
+        }
+
+        // ─── Salvar campo genérico (unidades/faturamento/lucro) ───
+        async function metasSalvarCampo(lojaId, campo, valor) {
+            var metas = _ler('metas-lojas') || {};
+            var v = parseFloat(valor) || 0;
+            if (!metas[lojaId]) metas[lojaId] = {};
+            metas[lojaId][campo] = v;
+            // Compatibilidade: unidades = meta
+            if (campo === 'unidades') metas[lojaId].meta = v;
+            await _salvar('metas-lojas', metas);
+            renderGsMetas();
             if (typeof renderROCE === 'function' && document.getElementById('analise-roce')?.style.display !== 'none') {
                 try { renderROCE(); } catch(e){}
             }
@@ -19890,35 +19970,78 @@
             var metas = _ler('metas-lojas') || {};
             var acoes = _ler('acoes-lojas') || {};
             var metaObj = metas[String(lojaId)] || {};
-            // Compatível com formato antigo (.unidades) e novo (.meta)
-            var metaVal = parseInt(metaObj.unidades || metaObj.meta) || 0;
+            var metaQtd   = parseInt(metaObj.unidades || metaObj.meta) || 0;
+            var metaFat   = parseFloat(metaObj.faturamento) || 0;
+            var metaLucro = parseFloat(metaObj.lucro) || 0;
             var acoesLoja = acoes[String(lojaId)] || [];
             var contAc = _metasContarAcoes(lojaId);
 
-            // Se não tem meta nem ações → não mostra nada (some no card)
-            if (metaVal === 0 && acoesLoja.length === 0) return '';
+            var temAlgumaMeta = metaQtd > 0 || metaFat > 0 || metaLucro > 0;
+            if (!temAlgumaMeta && acoesLoja.length === 0) return '';
 
             var html = '<div style="margin-top:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px 12px;">';
 
-            // Meta
-            if (metaVal > 0) {
-                var vendido = _metasContarVendasLoja(lojaId);
-                var ritmo   = _metasRitmo(vendido, metaVal);
-                var pctBarra = Math.min(100, (vendido / metaVal) * 100);
+            if (temAlgumaMeta) {
+                var prog = _metasCalcularProgresso(lojaId);
+                var ritmoQtd   = _metasRitmo(prog.qtd, metaQtd);
+                var ritmoFat   = _metasRitmo(prog.faturamento, metaFat);
+                var ritmoLucro = _metasRitmo(prog.lucroBruto, metaLucro);
+
+                // Escolher a meta PRINCIPAL para exibir com barra grande
+                // Prioridade: lucro > faturamento > qtd
+                var metaP, valP, ritmoP, iconeP, labelP, isMoedaP;
+                if (metaLucro > 0) {
+                    metaP = metaLucro; valP = prog.lucroBruto; ritmoP = ritmoLucro;
+                    iconeP = '💎'; labelP = 'Lucro bruto'; isMoedaP = true;
+                } else if (metaFat > 0) {
+                    metaP = metaFat; valP = prog.faturamento; ritmoP = ritmoFat;
+                    iconeP = '💰'; labelP = 'Faturamento'; isMoedaP = true;
+                } else {
+                    metaP = metaQtd; valP = prog.qtd; ritmoP = ritmoQtd;
+                    iconeP = '🔢'; labelP = 'Vendas'; isMoedaP = false;
+                }
+                var pctP = Math.min(100, (valP / metaP) * 100);
+                var corP = ritmoP ? ritmoP.cor : '#7a7a96';
+                var fmtValP = isMoedaP ? 'R$ ' + Math.round(valP).toLocaleString('pt-BR') : String(valP);
+                var fmtMetaP = isMoedaP ? 'R$ ' + Math.round(metaP).toLocaleString('pt-BR') : String(metaP);
+
+                // Barra principal
                 html +=
                     '<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:4px;">' +
-                        '<span style="color:#b4b4cc;">🎯 <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + vendido + '/' + metaVal + '</b> vendas</span>' +
-                        (ritmo ? '<span style="color:' + ritmo.cor + ';font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.04em;">' + ritmo.icone + ' ' + ritmo.status + '</span>' : '') +
+                        '<span style="color:#b4b4cc;">' + iconeP + ' ' + labelP + ': <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + fmtValP + '/' + fmtMetaP + '</b></span>' +
+                        (ritmoP ? '<span style="color:' + corP + ';font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.04em;">' + ritmoP.icone + ' ' + ritmoP.status + '</span>' : '') +
                     '</div>' +
-                    '<div style="height:4px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
-                        '<div style="height:100%;background:' + (ritmo ? ritmo.cor : '#7a7a96') + ';border-radius:99px;width:' + pctBarra + '%;box-shadow:0 0 4px ' + (ritmo ? ritmo.cor : '#7a7a96') + ';"></div>' +
+                    '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
+                        '<div style="height:100%;background:' + corP + ';border-radius:99px;width:' + pctP + '%;box-shadow:0 0 5px ' + corP + ';"></div>' +
                     '</div>';
+
+                // Chips secundários (as outras 2 metas se existirem)
+                var chips = [];
+                if (metaQtd > 0 && labelP !== 'Vendas') {
+                    var corC = ritmoQtd ? ritmoQtd.cor : '#7a7a96';
+                    chips.push('<span style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:2px 7px;border-radius:5px;font-size:9px;color:' + corC + ';font-family:JetBrains Mono,monospace;font-weight:700;">🔢 ' + prog.qtd + '/' + metaQtd + '</span>');
+                }
+                if (metaFat > 0 && labelP !== 'Faturamento') {
+                    var corC = ritmoFat ? ritmoFat.cor : '#7a7a96';
+                    var fmtFatReal = 'R$ ' + Math.round(prog.faturamento).toLocaleString('pt-BR');
+                    var fmtFatMeta = 'R$ ' + Math.round(metaFat).toLocaleString('pt-BR');
+                    chips.push('<span style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:2px 7px;border-radius:5px;font-size:9px;color:' + corC + ';font-family:JetBrains Mono,monospace;font-weight:700;">💰 ' + fmtFatReal + '/' + fmtFatMeta + '</span>');
+                }
+                if (metaLucro > 0 && labelP !== 'Lucro bruto') {
+                    var corC = ritmoLucro ? ritmoLucro.cor : '#7a7a96';
+                    var fmtLuReal = 'R$ ' + Math.round(prog.lucroBruto).toLocaleString('pt-BR');
+                    var fmtLuMeta = 'R$ ' + Math.round(metaLucro).toLocaleString('pt-BR');
+                    chips.push('<span style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:2px 7px;border-radius:5px;font-size:9px;color:' + corC + ';font-family:JetBrains Mono,monospace;font-weight:700;">💎 ' + fmtLuReal + '/' + fmtLuMeta + '</span>');
+                }
+                if (chips.length > 0) {
+                    html += '<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">' + chips.join('') + '</div>';
+                }
             }
 
             // Ações (chip)
             if (acoesLoja.length > 0) {
                 var corAcoes = _metasCorAcoes(contAc.pct);
-                html += '<div style="margin-top:' + (metaVal > 0 ? '8' : '0') + 'px;display:flex;justify-content:space-between;align-items:center;font-size:10px;">' +
+                html += '<div style="margin-top:' + (temAlgumaMeta ? '8' : '0') + 'px;display:flex;justify-content:space-between;align-items:center;font-size:10px;">' +
                     '<span style="color:#b4b4cc;">✅ Ações: <b style="color:' + corAcoes + ';font-family:JetBrains Mono,monospace;">' + contAc.feitas + '/' + contAc.total + '</b></span>' +
                     '<span onclick="event.stopPropagation();_metasToggleDrilldownCard(event, \'' + lojaId + '\')" style="color:' + corAcoes + ';font-weight:700;font-size:9px;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em;">Ver ações ▾</span>' +
                 '</div>' +
