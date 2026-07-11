@@ -17850,6 +17850,10 @@
             if (tabReal) {
                 var real = document.getElementById(tabReal);
                 if (real) real.style.display = 'block';
+            } else {
+                // Fallback: mostrar o próprio container gs-* (pra sub-abas auto-contidas como gs-metas)
+                var proprio = document.getElementById(sub);
+                if (proprio) proprio.style.display = 'block';
             }
             var fn = _GS_INIT[sub];
             if (fn) try { fn(); } catch(e) { console.warn('[Gs]', sub, e); }
