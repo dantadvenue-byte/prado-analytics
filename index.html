@@ -2040,6 +2040,7 @@
                 <button class="sub-btn" data-gs-sub="gs-projetos"   onclick="mudarSubGs(this)">🎯 Projetos</button>
                 <button class="sub-btn" data-gs-sub="gs-fornecedores" onclick="mudarSubGs(this)">🏭 Fornecedores</button>
                 <button class="sub-btn" data-gs-sub="gs-lojas"      onclick="mudarSubGs(this)">🏪 Lojas</button>
+                <button class="sub-btn" data-gs-sub="gs-metas"      onclick="mudarSubGs(this)">🎯 Metas & Ações</button>
                 <button class="sub-btn" data-gs-sub="gs-metricas"   onclick="mudarSubGs(this)">📊 Métricas</button>
                 <button class="sub-btn" data-gs-sub="gs-equipe"     onclick="mudarSubGs(this)">👥 Equipe</button>
                 <button class="sub-btn" data-gs-sub="gs-validacao"  onclick="mudarSubGs(this)">🔬 Validação</button>
@@ -2048,6 +2049,7 @@
             <div id="gs-projetos"    class="sub-content-gs" style="display:none;"></div>
             <div id="gs-fornecedores" class="sub-content-gs" style="display:none;"></div>
             <div id="gs-lojas"       class="sub-content-gs" style="display:none;"></div>
+            <div id="gs-metas"       class="sub-content-gs" style="display:none;"></div>
             <div id="gs-metricas"    class="sub-content-gs" style="display:none;"></div>
             <div id="gs-equipe"      class="sub-content-gs" style="display:none;"></div>
             <div id="gs-validacao"   class="sub-content-gs" style="display:none;"></div>
@@ -4669,7 +4671,8 @@
                 'config':          { anuncios: [], cidades: [] },
                 'lojas':           [], 'produtos':        [], 'metricas':   [],
                 'vendas':          [], 'playbooks':       [], 'estoque':    {},
-                'metas-lojas':     {}, 'contas-lojas':    {}, 'objetivos-lojas': {},
+                'metas-lojas':     {}, 'acoes-lojas':    {}, 'acoes-check':    {},
+                'contas-lojas':    {}, 'objetivos-lojas': {},
                 'validacoes':      [], 'fin-contas':      [], 'fin-caixas': [],
                 'fin-movs':        [], 'fin-compras':     [], 'fin-obrigacoes': [],
             'fin-cartoes':     [], 'fin-parcelas':    [], 'fin-cc-metas':   [], 'fin-emprestimos': [],
@@ -16889,6 +16892,8 @@
             'fin-obrigacoes':      { tabela: 'fin_obrigacoes',       tipo: 'array'     },
             'fin-debitos-reserva': { tabela: 'fin_debitos_reserva',  tipo: 'array'     },
             'metas-lojas':         { tabela: 'metas_lojas',          tipo: 'dict'      },
+            'acoes-lojas':         { tabela: 'acoes_lojas',          tipo: 'dict'      },
+            'acoes-check':         { tabela: 'acoes_check',          tipo: 'dict'      },
             'objetivos-lojas':     { tabela: 'objetivos_lojas',      tipo: 'dict'      },
             'contas-lojas':        { tabela: 'objetivos_lojas',      tipo: 'dict', prefixo: 'conta_' },
             'tarefas':             { tabela: 'tarefas',              tipo: 'array'     },
@@ -17502,6 +17507,7 @@
             'gs-projetos':     function(){ if (typeof renderProjetos === 'function') renderProjetos(); },
             'gs-fornecedores': function(){ if (typeof renderFornecedores === 'function') renderFornecedores(); },
             'gs-lojas':        function(){ if (typeof renderLojasGestao === 'function') renderLojasGestao(); },
+            'gs-metas':        function(){ if (typeof renderGsMetas === 'function') renderGsMetas(); },
             'gs-metricas':     function(){ if (typeof atualizarSelects === 'function') atualizarSelects(); if (typeof renderMetricasLista === 'function') renderMetricasLista(); },
             'gs-equipe':       function(){ if (typeof renderEquipe === 'function') renderEquipe(); },
             'gs-validacao':    function(){ if (typeof renderValidacao === 'function') renderValidacao(); },
@@ -17576,6 +17582,255 @@
             }
             var fn = _OP_INIT[sub];
             if (fn) try { fn(); } catch(e) { console.warn('[Op]', sub, e); }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // METAS & AÇÕES POR NEGÓCIO
+        // - metas-lojas: {lojaId: {meta: 10, tipo: 'vendas'}} — meta única fixa
+        // - acoes-lojas: {lojaId: [{id, texto}]}              — templates de ações
+        // - acoes-check: {"lojaId-YYYY-MM": {acaoId: true}}   — check por mês
+        // ═══════════════════════════════════════════════════════════════
+
+        function _metasMesChave(lojaId, dataRef) {
+            var d = dataRef || new Date();
+            var ano = d.getFullYear();
+            var mes = String(d.getMonth() + 1).padStart(2, '0');
+            return String(lojaId) + '-' + ano + '-' + mes;
+        }
+
+        function _metasContarVendasLoja(lojaId, dataRef) {
+            var d = dataRef || new Date();
+            var ini = new Date(d.getFullYear(), d.getMonth(), 1);
+            var fim = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+            var vendas = _ler('vendas') || [];
+            var produtos = _ler('produtos') || [];
+            var count = 0;
+            vendas.forEach(function(v){
+                if (!v.data) return;
+                var dv = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
+                if (dv < ini || dv > fim) return;
+                // Match por produto.loja (vendas normais)
+                if (v.produtoId) {
+                    var p = produtos.find(function(pp){ return String(pp.id) === String(v.produtoId); });
+                    if (p && String(p.loja || p.lojaId) === String(lojaId)) count += (parseFloat(v.quantidade) || 1);
+                }
+                // Match por caixa.lojaId (vendas livres)
+                if (v.origem === 'livre' && v.caixaId) {
+                    var caixas = _ler('fin-caixas') || [];
+                    var cx = caixas.find(function(c){ return String(c.id) === String(v.caixaId); });
+                    if (cx && String(cx.lojaId) === String(lojaId)) count += (parseFloat(v.quantidade) || 1);
+                }
+            });
+            return count;
+        }
+
+        function _metasRitmo(vendido, meta, dataRef) {
+            if (!meta || meta <= 0) return null;
+            var hoje = dataRef || new Date();
+            var diaAtual  = hoje.getDate();
+            var diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+            var esperado  = meta * (diaAtual / diasNoMes);
+            var pctReal   = (vendido / meta) * 100;
+            var pctEsperado = (esperado / meta) * 100;
+            var delta = pctReal - pctEsperado;
+            var status, cor, icone;
+            if (pctReal >= 100)      { status = 'Meta batida'; cor = '#34d399'; icone = '🎉'; }
+            else if (delta >= 15)    { status = 'Vai ultrapassar'; cor = '#34d399'; icone = '🚀'; }
+            else if (delta >= -5)    { status = 'No ritmo'; cor = '#fbbf24'; icone = '⚡'; }
+            else if (delta >= -20)   { status = 'Um pouco abaixo'; cor = '#f97316'; icone = '⚠️'; }
+            else                     { status = 'Muito atrás'; cor = '#ef4444'; icone = '🔻'; }
+            return {
+                status: status, cor: cor, icone: icone,
+                vendido: vendido, meta: meta,
+                esperado: Math.round(esperado * 10) / 10,
+                delta: Math.round(delta * 10) / 10,
+                pct: Math.round(pctReal * 10) / 10,
+                pctEsperado: Math.round(pctEsperado * 10) / 10
+            };
+        }
+
+        function _metasCorAcoes(pct) {
+            if (pct >= 100) return '#34d399';
+            if (pct >= 60)  return '#fbbf24';
+            if (pct >= 30)  return '#f97316';
+            return '#ef4444';
+        }
+
+        function _metasContarAcoes(lojaId, dataRef) {
+            var acoesAll = _ler('acoes-lojas') || {};
+            var checkAll = _ler('acoes-check') || {};
+            var acoes = acoesAll[String(lojaId)] || [];
+            var chave = _metasMesChave(lojaId, dataRef);
+            var checks = checkAll[chave] || {};
+            var feitas = 0;
+            acoes.forEach(function(a){ if (checks[a.id]) feitas++; });
+            return { feitas: feitas, total: acoes.length, pct: acoes.length ? (feitas / acoes.length * 100) : 0 };
+        }
+
+        // ─── Renderização da sub-aba em Gestão ───
+        function renderGsMetas() {
+            var el = document.getElementById('gs-metas');
+            if (!el) return;
+            var lojas = _ler('lojas') || [];
+            var metas = _ler('metas-lojas') || {};
+            var acoes = _ler('acoes-lojas') || {};
+
+            if (!lojas.length) {
+                el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#7a7a96;">' +
+                    '<div style="font-size:38px;margin-bottom:8px;">🏪</div>' +
+                    '<div style="font-size:14px;font-weight:600;color:#b4b4cc;margin-bottom:4px;">Nenhuma loja cadastrada</div>' +
+                    '<div style="font-size:12px;">Cadastre uma loja em Gestão → Lojas</div>' +
+                '</div>';
+                return;
+            }
+
+            var html =
+                '<div style="margin-bottom:20px;">' +
+                    '<div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.01em;">🎯 Metas & Ações</div>' +
+                    '<div style="font-size:12px;color:#b4b4cc;margin-top:3px;">Meta de vendas mensal + checklist de ações por negócio. Ações reiniciam dia 1 de cada mês.</div>' +
+                '</div>';
+
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;">';
+
+            lojas.forEach(function(loja){
+                var lid = String(loja.id);
+                var metaObj  = metas[lid] || {};
+                var metaVal  = parseInt(metaObj.meta) || 0;
+                var vendido  = _metasContarVendasLoja(lid);
+                var ritmo    = _metasRitmo(vendido, metaVal);
+                var acoesLoja = acoes[lid] || [];
+                var contAc   = _metasContarAcoes(lid);
+                var corAcoes = _metasCorAcoes(contAc.pct);
+
+                // Barra progresso da meta
+                var pctBarra = metaVal > 0 ? Math.min(100, (vendido / metaVal) * 100) : 0;
+                var corBarra = ritmo ? ritmo.cor : '#7a7a96';
+
+                html +=
+                    '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.7), rgba(19,19,38,0.6));border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px 18px;">' +
+                        // Header
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">' +
+                            '<div style="min-width:0;flex:1;">' +
+                                '<div style="font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.01em;">' + loja.nome + '</div>' +
+                                (loja.cidade ? '<div style="font-size:10px;color:#7a7a96;font-weight:500;margin-top:2px;">📍 ' + loja.cidade + '</div>' : '') +
+                            '</div>' +
+                        '</div>' +
+
+                        // Meta
+                        '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:11px 12px;margin-bottom:12px;">' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">' +
+                                '<label style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">🎯 Meta mensal (vendas)</label>' +
+                                '<input type="number" min="0" step="1" value="' + (metaVal || '') + '" placeholder="0" ' +
+                                    'onchange="metasSalvarMeta(\'' + lid + '\', this.value)" ' +
+                                    'style="width:70px;background:var(--bg-surface);border:1px solid var(--border);color:#fff;padding:5px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;font-size:13px;font-weight:700;text-align:right;">' +
+                            '</div>' +
+                            (metaVal > 0 && ritmo ? (
+                                '<div style="display:flex;justify-content:space-between;font-size:10px;color:#b4b4cc;margin-bottom:4px;">' +
+                                    '<span>Realizado: <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + vendido + '</b></span>' +
+                                    '<span>Ritmo esperado: <b style="color:#7a7a96;font-family:JetBrains Mono,monospace;">' + ritmo.esperado + '</b></span>' +
+                                '</div>' +
+                                '<div style="height:5px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
+                                    '<div style="height:100%;background:' + corBarra + ';border-radius:99px;width:' + pctBarra + '%;box-shadow:0 0 6px ' + corBarra + ';"></div>' +
+                                '</div>' +
+                                '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:10px;">' +
+                                    '<span style="color:' + ritmo.cor + ';font-weight:700;">' + ritmo.icone + ' ' + ritmo.status + '</span>' +
+                                    '<span style="color:#7a7a96;font-family:JetBrains Mono,monospace;">' + ritmo.pct.toFixed(0) + '%</span>' +
+                                '</div>'
+                            ) : (
+                                metaVal > 0 ? '<div style="font-size:10px;color:#7a7a96;">Nenhuma venda ainda este mês.</div>' : '<div style="font-size:10px;color:#7a7a96;">Defina uma meta pra ver progresso.</div>'
+                            )) +
+                        '</div>' +
+
+                        // Ações
+                        '<div>' +
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                                '<label style="font-size:10px;color:#7a7a96;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">✅ Ações do mês' + (acoesLoja.length > 0 ? ' · <span style="color:' + corAcoes + ';">' + contAc.feitas + '/' + contAc.total + '</span>' : '') + '</label>' +
+                                '<button onclick="metasAdicionarAcao(\'' + lid + '\')" style="background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">+ Adicionar</button>' +
+                            '</div>' +
+                            (acoesLoja.length === 0 ? (
+                                '<div style="font-size:11px;color:#7a7a96;padding:8px 10px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:8px;text-align:center;">Nenhuma ação. Adicione o que você precisa fazer pra bater a meta.</div>'
+                            ) : (
+                                '<div style="display:flex;flex-direction:column;gap:4px;">' +
+                                    acoesLoja.map(function(a){
+                                        var chave = _metasMesChave(lid);
+                                        var checkAll = _ler('acoes-check') || {};
+                                        var feita = !!(checkAll[chave] && checkAll[chave][a.id]);
+                                        return '<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:7px;font-size:12px;">' +
+                                            '<input type="checkbox" ' + (feita ? 'checked' : '') + ' onchange="metasToggleAcao(\'' + lid + '\', \'' + a.id + '\')" style="cursor:pointer;accent-color:#34d399;flex-shrink:0;">' +
+                                            '<span style="flex:1;color:' + (feita ? '#7a7a96' : '#e4e4ea') + ';' + (feita ? 'text-decoration:line-through;' : '') + '">' + a.texto + '</span>' +
+                                            '<button onclick="metasRemoverAcao(\'' + lid + '\', \'' + a.id + '\')" style="background:none;border:none;color:#4a4d60;cursor:pointer;font-size:14px;padding:0 4px;" title="Remover">×</button>' +
+                                        '</div>';
+                                    }).join('') +
+                                '</div>'
+                            )) +
+                        '</div>' +
+                    '</div>';
+            });
+
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        async function metasSalvarMeta(lojaId, valor) {
+            var metas = _ler('metas-lojas') || {};
+            var v = parseInt(valor) || 0;
+            if (!metas[lojaId]) metas[lojaId] = {};
+            metas[lojaId].meta = v;
+            metas[lojaId].tipo = 'vendas';
+            await _salvar('metas-lojas', metas);
+            renderGsMetas();
+            // Atualiza ROCE também se estiver aberto
+            if (typeof renderROCE === 'function' && document.getElementById('analise-roce')?.style.display !== 'none') {
+                try { renderROCE(); } catch(e){}
+            }
+        }
+
+        async function metasAdicionarAcao(lojaId) {
+            var texto = prompt('Descreva a ação (ex: "Postar 3 anúncios por semana"):');
+            if (!texto || !texto.trim()) return;
+            var acoes = _ler('acoes-lojas') || {};
+            if (!acoes[lojaId]) acoes[lojaId] = [];
+            acoes[lojaId].push({
+                id: String(Date.now() + Math.floor(Math.random() * 1000)),
+                texto: texto.trim(),
+                criadoEm: new Date().toISOString()
+            });
+            await _salvar('acoes-lojas', acoes);
+            renderGsMetas();
+        }
+
+        async function metasToggleAcao(lojaId, acaoId) {
+            var checkAll = _ler('acoes-check') || {};
+            var chave = _metasMesChave(lojaId);
+            if (!checkAll[chave]) checkAll[chave] = {};
+            if (checkAll[chave][acaoId]) delete checkAll[chave][acaoId];
+            else checkAll[chave][acaoId] = true;
+            await _salvar('acoes-check', checkAll);
+            renderGsMetas();
+            // Atualiza ROCE também
+            if (typeof renderROCE === 'function' && document.getElementById('analise-roce')?.style.display !== 'none') {
+                try { renderROCE(); } catch(e){}
+            }
+        }
+
+        async function metasRemoverAcao(lojaId, acaoId) {
+            if (!confirm('Remover esta ação? (também remove os checks dela)')) return;
+            var acoes = _ler('acoes-lojas') || {};
+            if (acoes[lojaId]) {
+                acoes[lojaId] = acoes[lojaId].filter(function(a){ return String(a.id) !== String(acaoId); });
+                await _salvar('acoes-lojas', acoes);
+            }
+            // Remove checks correspondentes de todos os meses
+            var checkAll = _ler('acoes-check') || {};
+            var mudou = false;
+            Object.keys(checkAll).forEach(function(k){
+                if (k.startsWith(String(lojaId) + '-') && checkAll[k][acaoId]) {
+                    delete checkAll[k][acaoId];
+                    mudou = true;
+                }
+            });
+            if (mudou) await _salvar('acoes-check', checkAll);
+            renderGsMetas();
         }
 
         function mudarSubGs(btn) {
@@ -19617,9 +19872,70 @@
                             <div style="font-size:14px;font-weight:900;color:${lucroCor};margin-top:2px;">${lucroSinal}R$ ${_fmt(d.ebit)}</div>
                         </div>
                     </div>
+                    ${_renderMetasAcoesNoCard(d.lid)}
                     <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--purple-light);">👆 Clique para ver detalhes</div>
                 </div>`;
             }).join('') + '</div>';
+        }
+
+        // ─── Renderiza bloco de Meta+Ações dentro do card do ROCE ───
+        function _renderMetasAcoesNoCard(lojaId) {
+            var metas = _ler('metas-lojas') || {};
+            var acoes = _ler('acoes-lojas') || {};
+            var metaObj = metas[String(lojaId)] || {};
+            var metaVal = parseInt(metaObj.meta) || 0;
+            var acoesLoja = acoes[String(lojaId)] || [];
+            var contAc = _metasContarAcoes(lojaId);
+
+            // Se não tem meta nem ações → não mostra nada (some no card)
+            if (metaVal === 0 && acoesLoja.length === 0) return '';
+
+            var html = '<div style="margin-top:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px 12px;">';
+
+            // Meta
+            if (metaVal > 0) {
+                var vendido = _metasContarVendasLoja(lojaId);
+                var ritmo   = _metasRitmo(vendido, metaVal);
+                var pctBarra = Math.min(100, (vendido / metaVal) * 100);
+                html +=
+                    '<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:4px;">' +
+                        '<span style="color:#b4b4cc;">🎯 <b style="color:#fff;font-family:JetBrains Mono,monospace;">' + vendido + '/' + metaVal + '</b> vendas</span>' +
+                        (ritmo ? '<span style="color:' + ritmo.cor + ';font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:0.04em;">' + ritmo.icone + ' ' + ritmo.status + '</span>' : '') +
+                    '</div>' +
+                    '<div style="height:4px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
+                        '<div style="height:100%;background:' + (ritmo ? ritmo.cor : '#7a7a96') + ';border-radius:99px;width:' + pctBarra + '%;box-shadow:0 0 4px ' + (ritmo ? ritmo.cor : '#7a7a96') + ';"></div>' +
+                    '</div>';
+            }
+
+            // Ações (chip)
+            if (acoesLoja.length > 0) {
+                var corAcoes = _metasCorAcoes(contAc.pct);
+                html += '<div style="margin-top:' + (metaVal > 0 ? '8' : '0') + 'px;display:flex;justify-content:space-between;align-items:center;font-size:10px;">' +
+                    '<span style="color:#b4b4cc;">✅ Ações: <b style="color:' + corAcoes + ';font-family:JetBrains Mono,monospace;">' + contAc.feitas + '/' + contAc.total + '</b></span>' +
+                    '<span onclick="event.stopPropagation();_metasToggleDrilldownCard(event, \'' + lojaId + '\')" style="color:' + corAcoes + ';font-weight:700;font-size:9px;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em;">Ver ações ▾</span>' +
+                '</div>' +
+                '<div id="metas-drill-' + lojaId + '" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dotted rgba(255,255,255,0.06);">' +
+                    acoesLoja.map(function(a){
+                        var chave = _metasMesChave(lojaId);
+                        var checkAll = _ler('acoes-check') || {};
+                        var feita = !!(checkAll[chave] && checkAll[chave][a.id]);
+                        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;" onclick="event.stopPropagation();">' +
+                            '<input type="checkbox" ' + (feita ? 'checked' : '') + ' onchange="event.stopPropagation();metasToggleAcao(\'' + lojaId + '\', \'' + a.id + '\')" style="cursor:pointer;accent-color:#34d399;flex-shrink:0;">' +
+                            '<span style="color:' + (feita ? '#7a7a96' : '#e4e4ea') + ';' + (feita ? 'text-decoration:line-through;' : '') + '">' + a.texto + '</span>' +
+                        '</div>';
+                    }).join('') +
+                '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function _metasToggleDrilldownCard(event, lojaId) {
+            event.stopPropagation();
+            var d = document.getElementById('metas-drill-' + lojaId);
+            if (!d) return;
+            d.style.display = d.style.display === 'none' ? 'block' : 'none';
         }
 
         function verDetalheROCE(lid) {
