@@ -17695,7 +17695,8 @@
             lojas.forEach(function(loja){
                 var lid = String(loja.id);
                 var metaObj  = metas[lid] || {};
-                var metaVal  = parseInt(metaObj.meta) || 0;
+                // Compatível com formato antigo (.unidades) e novo (.meta)
+                var metaVal  = parseInt(metaObj.unidades || metaObj.meta) || 0;
                 var vendido  = _metasContarVendasLoja(lid);
                 var ritmo    = _metasRitmo(vendido, metaVal);
                 var acoesLoja = acoes[lid] || [];
@@ -17775,6 +17776,8 @@
             var metas = _ler('metas-lojas') || {};
             var v = parseInt(valor) || 0;
             if (!metas[lojaId]) metas[lojaId] = {};
+            // Compatibilidade: salva em .unidades (formato antigo) E em .meta (novo)
+            metas[lojaId].unidades = v;
             metas[lojaId].meta = v;
             metas[lojaId].tipo = 'vendas';
             await _salvar('metas-lojas', metas);
@@ -19883,7 +19886,8 @@
             var metas = _ler('metas-lojas') || {};
             var acoes = _ler('acoes-lojas') || {};
             var metaObj = metas[String(lojaId)] || {};
-            var metaVal = parseInt(metaObj.meta) || 0;
+            // Compatível com formato antigo (.unidades) e novo (.meta)
+            var metaVal = parseInt(metaObj.unidades || metaObj.meta) || 0;
             var acoesLoja = acoes[String(lojaId)] || [];
             var contAc = _metasContarAcoes(lojaId);
 
