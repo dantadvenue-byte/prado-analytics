@@ -16999,9 +16999,15 @@
 
             const { tabela, tipo, prefixo } = schema;
             const ts = new Date().toISOString();
-            // user_id do usuário logado — necessário pra tabelas com RLS que exigem auth.uid() = user_id
+            // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
+            // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
+            const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check'
+            ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
-            const _withUid = (obj) => _uid ? Object.assign({}, obj, { user_id: _uid }) : obj;
+            const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
+                ? Object.assign({}, obj, { user_id: _uid })
+                : obj;
 
             try {
                 if (tipo === 'singleton') {
