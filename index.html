@@ -17957,14 +17957,18 @@
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // MAPA DE FONTES DE RENDA (3D)
-        // Estrutura de dados:
+        // MAPA DE FONTES DE RENDA (3D) — V3 recursivo
+        // Estrutura de dados (ÁRVORE INFINITA):
         // mapa-fontes = {
         //   raiz: { nome, subtitulo, foto },
-        //   categorias: [{ id, nome, icone, cor, ordem, negocios: [
-        //     { id, nome, icone, valorMensal, valorAnual, estado, vinculoTipo, vinculoId }
-        //   ]}]
+        //   nos: [ no, no, ... ]
         // }
+        // no = {
+        //   id, nome, icone, foto, cor, tipo, estado,
+        //   valorMensal, valorAnual, vinculoTipo, vinculoId,
+        //   filhos: [ no, no, ... ]  ← recursão
+        // }
+        // tipo: 'categoria' (agrupador — soma dos filhos) | 'negocio' (folha — valor próprio)
         // estado: 'ativo' | 'projetado' | 'pausado'
         // vinculoTipo: null | 'loja' | 'emprestimos'
         // ═══════════════════════════════════════════════════════════════
@@ -17983,13 +17987,48 @@
             return _MAPA_CORES.find(function(c){ return c.key === key; }) || _MAPA_CORES[0];
         }
 
-        // Ícones sugeridos para cards
         var _MAPA_ICONES_SUGERIDOS = ['🛒','🏪','🤝','💎','📈','📱','🚗','🏭','🏦','🌾','⚡','🎮','🍔','☕','💼','🏗️','📦','🖥️','🎯','💰','📜','🏢','🎓','🩺'];
+
+        // Migração automática: dados no formato antigo → novo formato recursivo
+        function _mapaMigrarSeNecessario(m) {
+            if (!m.categorias || m.nos) return m; // já migrado ou vazio
+            // Converter cada categoria antiga em nó tipo 'categoria', cada negocio em nó tipo 'negocio'
+            m.nos = m.categorias.map(function(cat){
+                return {
+                    id: cat.id,
+                    nome: cat.nome,
+                    icone: cat.icone,
+                    foto: cat.foto || '',
+                    cor: cat.cor,
+                    tipo: 'categoria',
+                    estado: 'ativo',
+                    filhos: (cat.negocios || []).map(function(neg){
+                        return {
+                            id: neg.id,
+                            nome: neg.nome,
+                            icone: neg.icone,
+                            foto: neg.foto || '',
+                            cor: cat.cor, // herda cor
+                            tipo: 'negocio',
+                            estado: neg.estado || 'ativo',
+                            valorMensal: neg.valorMensal || 0,
+                            valorAnual: neg.valorAnual || 0,
+                            vinculoTipo: neg.vinculoTipo || null,
+                            vinculoId: neg.vinculoId || null,
+                            filhos: []
+                        };
+                    })
+                };
+            });
+            delete m.categorias;
+            return m;
+        }
 
         function _mapaCarregar() {
             var m = _ler('mapa-fontes') || {};
             if (!m.raiz) m.raiz = { nome: 'Você', subtitulo: 'CEO & Estrategista', foto: '' };
-            if (!m.categorias) m.categorias = [];
+            m = _mapaMigrarSeNecessario(m);
+            if (!m.nos) m.nos = [];
             return m;
         }
 
@@ -17997,7 +18036,19 @@
             await _salvar('mapa-fontes', m);
         }
 
-        // Calcular realizado do ROCE por loja (últimos 30 dias)
+        // Buscar um nó por id em qualquer nível da árvore
+        function _mapaBuscarNo(nos, id) {
+            for (var i = 0; i < nos.length; i++) {
+                if (String(nos[i].id) === String(id)) return { no: nos[i], parent: nos, index: i };
+                if (nos[i].filhos && nos[i].filhos.length) {
+                    var achado = _mapaBuscarNo(nos[i].filhos, id);
+                    if (achado) return achado;
+                }
+            }
+            return null;
+        }
+
+        // Realizado do ROCE
         function _mapaRealizadoLoja(lojaId) {
             try {
                 var dados = calcularROCENegocios(30);
@@ -18005,7 +18056,6 @@
                 return d ? d.ebit : 0;
             } catch(e) { return 0; }
         }
-
         function _mapaRealizadoEmprestimos() {
             try {
                 var dados = calcularROCENegocios(30);
@@ -18014,33 +18064,52 @@
             } catch(e) { return 0; }
         }
 
-        function _mapaCalcularTotais(m) {
-            var totalMensal = 0, totalAnual = 0;
-            var ativoMensal = 0, projetadoMensal = 0;
-            (m.categorias || []).forEach(function(cat){
-                (cat.negocios || []).forEach(function(n){
-                    if (n.estado === 'pausado') return;
-                    var vm = parseFloat(n.valorMensal) || 0;
-                    var va = parseFloat(n.valorAnual) || (vm * 12);
-                    totalMensal += vm;
-                    totalAnual += va;
-                    if (n.estado === 'ativo') ativoMensal += vm;
-                    else if (n.estado === 'projetado') projetadoMensal += vm;
-                });
+        // Somar valor mensal recursivo (categoria = soma dos filhos, negocio = valor próprio)
+        function _mapaSomarNo(no) {
+            if (no.estado === 'pausado') return { mensal: 0, anual: 0, ativos: 0, total: 0, projetados: 0 };
+            if (no.tipo === 'negocio') {
+                var vm = parseFloat(no.valorMensal) || 0;
+                var va = parseFloat(no.valorAnual) || (vm * 12);
+                return {
+                    mensal: vm,
+                    anual: va,
+                    ativos: no.estado === 'ativo' ? 1 : 0,
+                    projetados: no.estado === 'projetado' ? 1 : 0,
+                    total: 1
+                };
+            }
+            // categoria: soma recursivamente todos filhos
+            var mensal = 0, anual = 0, ativos = 0, projetados = 0, total = 0;
+            (no.filhos || []).forEach(function(f){
+                var s = _mapaSomarNo(f);
+                mensal += s.mensal; anual += s.anual;
+                ativos += s.ativos; projetados += s.projetados;
+                total  += s.total;
             });
-            return { totalMensal: totalMensal, totalAnual: totalAnual, ativoMensal: ativoMensal, projetadoMensal: projetadoMensal };
+            return { mensal: mensal, anual: anual, ativos: ativos, projetados: projetados, total: total };
         }
 
-        function _mapaTotalCategoria(cat) {
-            var mensal = 0, anual = 0, ativos = 0;
-            (cat.negocios || []).forEach(function(n){
-                if (n.estado === 'pausado') return;
-                var vm = parseFloat(n.valorMensal) || 0;
-                mensal += vm;
-                anual += (parseFloat(n.valorAnual) || vm * 12);
-                if (n.estado === 'ativo') ativos++;
+        function _mapaCalcularTotaisGeral(m) {
+            var totalMensal = 0, totalAnual = 0, ativoMensal = 0, projetadoMensal = 0;
+            (m.nos || []).forEach(function(no){
+                var s = _mapaSomarNo(no);
+                totalMensal += s.mensal;
+                totalAnual += s.anual;
+                // Precisa separar ativo/projetado — refazer
             });
-            return { mensal: mensal, anual: anual, ativos: ativos, total: (cat.negocios || []).length };
+            // Somar diretamente ativos e projetados
+            function walk(no) {
+                if (no.estado === 'pausado') return;
+                if (no.tipo === 'negocio') {
+                    var vm = parseFloat(no.valorMensal) || 0;
+                    if (no.estado === 'ativo') ativoMensal += vm;
+                    else if (no.estado === 'projetado') projetadoMensal += vm;
+                    return;
+                }
+                (no.filhos || []).forEach(walk);
+            }
+            (m.nos || []).forEach(walk);
+            return { totalMensal: totalMensal, totalAnual: totalAnual, ativoMensal: ativoMensal, projetadoMensal: projetadoMensal };
         }
 
         // ─── RENDER PRINCIPAL ───
@@ -18048,15 +18117,14 @@
             var el = document.getElementById('mapa-fontes-container');
             if (!el) return;
             var m = _mapaCarregar();
-            var totais = _mapaCalcularTotais(m);
+            var totais = _mapaCalcularTotaisGeral(m);
 
             var html =
-                // Header
                 '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:14px;padding-bottom:16px;border-bottom:1px solid rgba(139,92,246,0.15);">' +
                     '<div>' +
                         '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ MAPA DE FONTES DE RENDA · 3D</div>' +
                         '<div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.03em;">Diversifique. Escale. Multiplique.</div>' +
-                        '<div style="font-size:12px;color:#b4b4cc;margin-top:4px;">Todas suas fontes de renda: ativas, projetadas e pausadas.</div>' +
+                        '<div style="font-size:12px;color:#b4b4cc;margin-top:4px;">Árvore infinita: categorias, sub-categorias e negócios.</div>' +
                     '</div>' +
                     '<div style="display:flex;gap:10px;">' +
                         '<div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.25);padding:10px 14px;border-radius:10px;">' +
@@ -18077,39 +18145,44 @@
                 // Canvas 3D
                 '<div id="mapa-canvas" style="position:relative;background:radial-gradient(ellipse 1200px 700px at 50% 20%,rgba(139,92,246,0.10),transparent 60%),radial-gradient(ellipse 800px 500px at 30% 80%,rgba(59,130,246,0.06),transparent 60%),#050510;border-radius:14px;padding:32px 24px;min-height:640px;perspective:1400px;perspective-origin:50% 30%;overflow:auto;">';
 
-            // Nível 1: raiz (você)
             html += _mapaRenderRaiz(m.raiz);
 
-            // Nível 2: categorias em row
-            if (!m.categorias.length) {
+            if (!m.nos.length) {
                 html += '<div style="text-align:center;padding:80px 20px;color:#7a7a96;transform:translateZ(30px);">' +
                     '<div style="font-size:48px;margin-bottom:12px;">🗺️</div>' +
                     '<div style="font-size:16px;font-weight:600;color:#b4b4cc;margin-bottom:6px;">Nenhuma categoria ainda</div>' +
-                    '<div style="font-size:12px;margin-bottom:16px;">Comece criando uma categoria (Ex: Comércio, Financeiros, Ativos)</div>' +
-                    '<button onclick="mapaAbrirNovaCategoria()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px 24px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">+ Criar primeira categoria</button>' +
+                    '<div style="font-size:12px;margin-bottom:16px;">Comece criando uma categoria (ex: Comércio, Financeiros, Ativos)</div>' +
+                    '<button onclick="mapaAbrirNovoNo(null,\'categoria\')" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px 24px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">+ Criar primeira categoria</button>' +
                 '</div>';
             } else {
-                html += '<div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:80px;transform-style:preserve-3d;">';
-                m.categorias.forEach(function(cat){
-                    html += _mapaRenderCategoria(cat);
+                html += '<div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:60px;transform-style:preserve-3d;align-items:flex-start;">';
+                m.nos.forEach(function(no){
+                    html += _mapaRenderNo(no, 0);
                 });
-                html += '<div style="display:flex;align-items:center;transform:translateZ(30px);">' +
-                    '<button onclick="mapaAbrirNovaCategoria()" style="width:60px;height:60px;border-radius:50%;background:rgba(139,92,246,0.08);border:2px dashed rgba(139,92,246,0.30);color:#a78bfa;cursor:pointer;font-size:26px;font-weight:400;transition:all 0.2s;backdrop-filter:blur(12px);" onmouseover="this.style.background=\'rgba(139,92,246,0.16)\';this.style.transform=\'scale(1.08)\';" onmouseout="this.style.background=\'rgba(139,92,246,0.08)\';this.style.transform=\'scale(1)\';" title="Nova categoria">+</button>' +
+                html += '<div style="display:flex;align-items:center;transform:translateZ(30px);margin-top:16px;">' +
+                    '<button onclick="mapaAbrirNovoNo(null,\'categoria\')" style="width:60px;height:60px;border-radius:50%;background:rgba(139,92,246,0.08);border:2px dashed rgba(139,92,246,0.30);color:#a78bfa;cursor:pointer;font-size:26px;font-weight:400;transition:all 0.2s;backdrop-filter:blur(12px);" onmouseover="this.style.background=\'rgba(139,92,246,0.16)\';this.style.transform=\'scale(1.08)\';" onmouseout="this.style.background=\'rgba(139,92,246,0.08)\';this.style.transform=\'scale(1)\';" title="Nova categoria raiz">+</button>' +
                 '</div>';
                 html += '</div>';
             }
 
-            html += '</div>'; // fim canvas
-
+            html += '</div>';
             el.innerHTML = html;
         }
 
+        function _mapaRenderAvatar(nome, foto, corHex, tamanho) {
+            tamanho = tamanho || 56;
+            var initials = (nome || '?').split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+            if (foto) {
+                return '<div style="width:' + tamanho + 'px;height:' + tamanho + 'px;border-radius:50%;background-image:url(\'' + _esc(foto) + '\');background-size:cover;background-position:center;border:2px solid ' + (corHex || '#8b5cf6') + ';box-shadow:0 4px 20px ' + (corHex || '#8b5cf6') + '40;"></div>';
+            }
+            return '<div style="width:' + tamanho + 'px;height:' + tamanho + 'px;border-radius:50%;background:linear-gradient(135deg,' + (corHex || '#8b5cf6') + ',' + (corHex || '#3b82f6') + ');display:flex;align-items:center;justify-content:center;font-size:' + Math.floor(tamanho*0.36) + 'px;font-weight:800;color:#fff;box-shadow:0 4px 20px ' + (corHex || '#8b5cf6') + '80;">' + _esc(initials) + '</div>';
+        }
+
         function _mapaRenderRaiz(raiz) {
-            var initials = (raiz.nome || 'Você').split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
             return '<div style="display:flex;justify-content:center;transform-style:preserve-3d;">' +
                 '<div onclick="mapaAbrirEditarRaiz()" style="width:230px;transform:translateZ(80px) rotateX(-5deg);cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform=\'translateZ(90px) rotateX(-5deg) scale(1.03)\';" onmouseout="this.style.transform=\'translateZ(80px) rotateX(-5deg) scale(1)\';">' +
                     '<div style="background:linear-gradient(180deg,rgba(139,92,246,0.20),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.50);border-radius:14px;padding:18px 20px;text-align:center;box-shadow:0 20px 60px rgba(139,92,246,0.35),0 0 40px rgba(139,92,246,0.15);backdrop-filter:blur(20px);">' +
-                        '<div style="width:56px;height:56px;margin:0 auto 10px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;box-shadow:0 4px 20px rgba(139,92,246,0.5);">' + _esc(initials) + '</div>' +
+                        '<div style="display:flex;justify-content:center;margin-bottom:10px;">' + _mapaRenderAvatar(raiz.nome, raiz.foto, '#8b5cf6', 56) + '</div>' +
                         '<div style="font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + _esc(raiz.nome || 'Você') + '</div>' +
                         '<div style="font-size:10px;color:#a78bfa;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin-top:3px;">' + _esc(raiz.subtitulo || '') + '</div>' +
                     '</div>' +
@@ -18117,32 +18190,69 @@
             '</div>';
         }
 
-        function _mapaRenderCategoria(cat) {
-            var cor = _mapaCorPorKey(cat.cor);
-            var total = _mapaTotalCategoria(cat);
-            var html = '<div style="width:230px;transform:translateZ(50px) rotateX(-3deg);">' +
+        // Renderiza um nó (categoria ou negócio) recursivamente
+        function _mapaRenderNo(no, profundidade) {
+            profundidade = profundidade || 0;
+            var cor = _mapaCorPorKey(no.cor);
+
+            if (no.tipo === 'negocio') {
+                return _mapaRenderNegocio(no, cor);
+            }
+
+            // Categoria/agrupador
+            var soma = _mapaSomarNo(no);
+            var isPausado = no.estado === 'pausado';
+            var largura = profundidade === 0 ? 240 : 210;
+            var translateZ = Math.max(50 - profundidade * 15, 10);
+
+            var html = '<div style="width:' + largura + 'px;transform:translateZ(' + translateZ + 'px) rotateX(-3deg);' + (isPausado ? 'opacity:0.6;' : '') + '">' +
                 // Card categoria
-                '<div onclick="mapaAbrirEditarCategoria(\'' + cat.id + '\')" style="background:linear-gradient(180deg,' + cor.bg + ',rgba(255,255,255,0.02));border:1px solid ' + cor.border + ';border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px ' + cor.shadow + ';backdrop-filter:blur(16px);cursor:pointer;margin-bottom:14px;transition:transform 0.2s;" onmouseover="this.style.transform=\'scale(1.03)\';" onmouseout="this.style.transform=\'scale(1)\';">' +
-                    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
-                        '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid ' + cor.border + ';">' + _esc(cat.icone || '📦') + '</div>' +
+                '<div onclick="event.stopPropagation();mapaAbrirEditarNo(\'' + no.id + '\')" style="background:linear-gradient(180deg,' + cor.bg + ',rgba(255,255,255,0.02));border:1px solid ' + cor.border + ';border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px ' + cor.shadow + ';backdrop-filter:blur(16px);cursor:pointer;margin-bottom:14px;transition:transform 0.2s;" onmouseover="this.style.transform=\'scale(1.03)\';" onmouseout="this.style.transform=\'scale(1)\';">' +
+                    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+
+            // Ícone/foto
+            if (no.foto) {
+                html += _mapaRenderAvatar(no.nome, no.foto, cor.hex, 38);
+            } else {
+                html += '<div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid ' + cor.border + ';">' + _esc(no.icone || '📦') + '</div>';
+            }
+
+            html +=
                         '<div style="flex:1;min-width:0;">' +
-                            '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-0.01em;">' + _esc(cat.nome) + '</div>' +
-                            '<div style="font-size:9px;color:' + cor.hex + ';font-weight:600;">' + total.ativos + ' ativos · ' + total.total + ' total</div>' +
+                            '<div style="font-size:13px;font-weight:800;color:#fff;letter-spacing:-0.01em;">' + _esc(no.nome) + '</div>' +
+                            '<div style="font-size:9px;color:' + cor.hex + ';font-weight:600;">' + soma.ativos + ' ativos · ' + soma.total + ' filhos</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div style="font-size:10px;color:#7a7a96;margin-bottom:2px;">Total mensal</div>' +
-                    '<div style="font-size:16px;font-weight:800;color:' + cor.hex + ';font-family:JetBrains Mono,monospace;">R$ ' + _fmtNumMapa(total.mensal) + '</div>' +
+                    '<div style="font-size:10px;color:#7a7a96;margin-bottom:2px;">Soma dos filhos/mês</div>' +
+                    '<div style="font-size:16px;font-weight:800;color:' + cor.hex + ';font-family:JetBrains Mono,monospace;">R$ ' + _fmtNumMapa(soma.mensal) + '</div>' +
                 '</div>' +
 
-                // Negócios (nível 3)
-                '<div style="display:flex;flex-direction:column;gap:8px;transform:translateZ(-20px);">';
+                // Filhos (recursão!)
+                '<div style="display:flex;flex-direction:column;gap:8px;transform:translateZ(-15px);">';
 
-            (cat.negocios || []).forEach(function(n){
-                html += _mapaRenderNegocio(n, cor);
+            // Se tem filhos que são categorias, renderiza em row (horizontal); se são negócios, em coluna
+            var temCategoria = (no.filhos || []).some(function(f){ return f.tipo === 'categoria'; });
+            var temNegocio   = (no.filhos || []).some(function(f){ return f.tipo === 'negocio'; });
+
+            // Primeiro: negócios diretos (folhas) em coluna
+            (no.filhos || []).filter(function(f){ return f.tipo === 'negocio'; }).forEach(function(f){
+                html += _mapaRenderNegocio(f, cor);
             });
 
-            // Botão + Novo negócio
-            html += '<button onclick="mapaAbrirNovoNegocio(\'' + cat.id + '\')" style="background:rgba(255,255,255,0.02);border:1px dashed ' + cor.border + ';color:' + cor.hex + ';padding:10px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;transition:all 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.05)\';" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\';">+ Adicionar negócio</button>';
+            // Depois: sub-categorias (se houver) em row abaixo dos negócios
+            if (temCategoria) {
+                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
+                (no.filhos || []).filter(function(f){ return f.tipo === 'categoria'; }).forEach(function(f){
+                    html += _mapaRenderNo(f, profundidade + 1);
+                });
+                html += '</div>';
+            }
+
+            // Botões: + Negócio e + Sub-categoria
+            html += '<div style="display:flex;gap:6px;margin-top:6px;">' +
+                '<button onclick="event.stopPropagation();mapaAbrirNovoNo(\'' + no.id + '\',\'negocio\')" style="flex:1;background:rgba(255,255,255,0.02);border:1px dashed ' + cor.border + ';color:' + cor.hex + ';padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">+ Negócio</button>' +
+                '<button onclick="event.stopPropagation();mapaAbrirNovoNo(\'' + no.id + '\',\'categoria\')" style="flex:1;background:rgba(255,255,255,0.02);border:1px dashed ' + cor.border + ';color:' + cor.hex + ';padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">+ Sub-categoria</button>' +
+            '</div>';
 
             html += '</div>' +
             '</div>';
@@ -18150,25 +18260,18 @@
         }
 
         function _mapaRenderNegocio(n, corCategoria) {
-            // Cor por estado
-            var estadoCor, estadoBorda, estadoBg, estadoIcone, estadoLabel;
+            var estadoCor, estadoBorda, estadoBg, estadoIcone;
             if (n.estado === 'ativo') {
-                estadoCor = '#34d399'; estadoBorda = 'rgba(52,211,153,0.35)'; estadoBg = 'rgba(52,211,153,0.06)';
-                estadoIcone = '🟢'; estadoLabel = 'ativo';
+                estadoCor = '#34d399'; estadoBorda = 'rgba(52,211,153,0.35)'; estadoBg = 'rgba(52,211,153,0.06)'; estadoIcone = '🟢';
             } else if (n.estado === 'pausado') {
-                estadoCor = '#6b7280'; estadoBorda = 'rgba(107,114,128,0.35)'; estadoBg = 'rgba(107,114,128,0.06)';
-                estadoIcone = '⚫'; estadoLabel = 'pausado';
+                estadoCor = '#6b7280'; estadoBorda = 'rgba(107,114,128,0.35)'; estadoBg = 'rgba(107,114,128,0.06)'; estadoIcone = '⚫';
             } else {
-                estadoCor = '#a78bfa'; estadoBorda = 'rgba(139,92,246,0.35)'; estadoBg = 'rgba(139,92,246,0.04)';
-                estadoIcone = '🟣'; estadoLabel = 'projetado';
+                estadoCor = '#a78bfa'; estadoBorda = 'rgba(139,92,246,0.35)'; estadoBg = 'rgba(139,92,246,0.04)'; estadoIcone = '🟣';
             }
 
-            // Realizado (se vinculado)
             var realizadoHtml = '';
             if (n.vinculoTipo && n.vinculoId && n.estado === 'ativo') {
-                var realizado = n.vinculoTipo === 'emprestimos'
-                    ? _mapaRealizadoEmprestimos()
-                    : _mapaRealizadoLoja(n.vinculoId);
+                var realizado = n.vinculoTipo === 'emprestimos' ? _mapaRealizadoEmprestimos() : _mapaRealizadoLoja(n.vinculoId);
                 var meta = parseFloat(n.valorMensal) || 0;
                 if (meta > 0) {
                     var delta = ((realizado - meta) / meta) * 100;
@@ -18187,13 +18290,15 @@
             var isPausado = n.estado === 'pausado';
             var borderStyle = n.estado === 'projetado' ? 'dashed' : 'solid';
 
-            return '<div onclick="mapaAbrirEditarNegocio(\'' + n.id + '\')" style="background:linear-gradient(180deg,' + estadoBg + ',rgba(255,255,255,0.005));border:1px ' + borderStyle + ' ' + estadoBorda + ';border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px ' + estadoBg + ';backdrop-filter:blur(12px);cursor:pointer;transition:transform 0.2s;' + (isPausado ? 'opacity:0.6;' : '') + '" onmouseover="this.style.transform=\'scale(1.03)\';" onmouseout="this.style.transform=\'scale(1)\';">' +
+            var iconeHtml = n.foto
+                ? _mapaRenderAvatar(n.nome, n.foto, estadoCor, 22)
+                : '<span style="font-size:13px;">' + _esc(n.icone || '📌') + '</span>';
+
+            return '<div onclick="event.stopPropagation();mapaAbrirEditarNo(\'' + n.id + '\')" style="background:linear-gradient(180deg,' + estadoBg + ',rgba(255,255,255,0.005));border:1px ' + borderStyle + ' ' + estadoBorda + ';border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px ' + estadoBg + ';backdrop-filter:blur(12px);cursor:pointer;transition:transform 0.2s;' + (isPausado ? 'opacity:0.6;' : '') + '" onmouseover="this.style.transform=\'scale(1.03)\';" onmouseout="this.style.transform=\'scale(1)\';">' +
                 '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="display:flex;align-items:center;gap:6px;">' +
-                            '<span style="font-size:13px;">' + _esc(n.icone || '📌') + '</span>' +
-                            '<span style="font-size:11px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(n.nome) + (n.vinculoTipo ? ' <span style="color:' + estadoCor + ';">🔗</span>' : '') + '</span>' +
-                        '</div>' +
+                    '<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;">' +
+                        iconeHtml +
+                        '<span style="font-size:11px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(n.nome) + (n.vinculoTipo ? ' <span style="color:' + estadoCor + ';">🔗</span>' : '') + '</span>' +
                     '</div>' +
                     '<div style="font-size:8px;font-weight:700;color:' + estadoCor + ';text-transform:uppercase;letter-spacing:0.08em;">' + estadoIcone + '</div>' +
                 '</div>' +
@@ -18220,207 +18325,182 @@
                     '</div>' +
                     '<div class="form-group" style="margin-bottom:12px;"><label>Subtítulo</label>' +
                         '<input type="text" id="mapa-raiz-sub" value="' + _esc(m.raiz.subtitulo || '') + '" placeholder="Ex: CEO & Estrategista" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Foto (URL)</label>' +
+                        '<input type="text" id="mapa-raiz-foto" value="' + _esc(m.raiz.foto || '') + '" placeholder="Cole URL de imagem (opcional)" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                        '<div style="font-size:10px;color:#7a7a96;margin-top:4px;">Se preenchido, mostra a foto no lugar das iniciais.</div>' +
                     '</div>';
             }, async function(){
                 m.raiz.nome = document.getElementById('mapa-raiz-nome').value.trim() || 'Você';
                 m.raiz.subtitulo = document.getElementById('mapa-raiz-sub').value.trim();
+                m.raiz.foto = document.getElementById('mapa-raiz-foto').value.trim();
                 await _mapaSalvar(m);
                 _mapaFecharModal();
                 renderMapaFontes();
             }, null);
         }
 
-        function mapaAbrirNovaCategoria() {
-            _mapaAbrirModalCategoria(null);
+        // Novo nó dentro de um pai (ou raiz se parentId=null)
+        function mapaAbrirNovoNo(parentId, tipo) {
+            _mapaAbrirModalNo(parentId, null, tipo);
         }
 
-        function mapaAbrirEditarCategoria(catId) {
-            _mapaAbrirModalCategoria(catId);
+        // Editar nó existente
+        function mapaAbrirEditarNo(noId) {
+            _mapaAbrirModalNo(null, noId, null);
         }
 
-        function _mapaAbrirModalCategoria(catId) {
+        function _mapaAbrirModalNo(parentId, noId, tipoNovo) {
             var m = _mapaCarregar();
-            var cat = catId ? m.categorias.find(function(c){ return String(c.id) === String(catId); }) : { nome:'', icone:'📦', cor:'roxo' };
-            if (catId && !cat) return;
+            var no, parentFilhos, tipoUsado;
 
-            _mapaMostrarModal(catId ? 'Editar categoria' : 'Nova categoria', catId ? cat.nome : 'Categoria', function(root){
+            if (noId) {
+                // Editar existente
+                var achado = _mapaBuscarNo(m.nos, noId);
+                if (!achado) return;
+                no = achado.no;
+                tipoUsado = no.tipo;
+            } else {
+                // Novo
+                tipoUsado = tipoNovo || 'negocio';
+                no = { nome:'', icone: tipoUsado === 'categoria' ? '📦' : '📌', foto:'', cor:'roxo', tipo:tipoUsado, estado:'ativo', valorMensal:0, valorAnual:0, vinculoTipo:null, vinculoId:null, filhos:[] };
+                if (parentId) {
+                    var parent = _mapaBuscarNo(m.nos, parentId);
+                    if (!parent) return;
+                    parentFilhos = parent.no.filhos || (parent.no.filhos = []);
+                } else {
+                    parentFilhos = m.nos;
+                }
+            }
+
+            var isCategoria = tipoUsado === 'categoria';
+            var titulo = noId ? ('Editar ' + (isCategoria ? 'categoria' : 'negócio')) : ('Novo ' + (isCategoria ? 'categoria/agrupador' : 'negócio'));
+
+            _mapaMostrarModal(titulo, no.nome || (isCategoria ? 'Nova categoria' : 'Novo negócio'), function(root){
                 var htmlIcones = _MAPA_ICONES_SUGERIDOS.map(function(ic){
-                    return '<button type="button" onclick="document.getElementById(\'mapa-cat-icone\').value=\'' + ic + '\';document.querySelectorAll(\'.mapa-icone-btn\').forEach(function(b){b.style.background=\'rgba(255,255,255,0.03)\';});this.style.background=\'rgba(139,92,246,0.20)\';" class="mapa-icone-btn" style="background:' + (cat.icone === ic ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.03)') + ';border:1px solid rgba(255,255,255,0.08);padding:6px 8px;border-radius:6px;font-size:16px;cursor:pointer;">' + ic + '</button>';
+                    return '<button type="button" onclick="document.getElementById(\'mapa-no-icone\').value=\'' + ic + '\';document.querySelectorAll(\'.mapa-icone-btn\').forEach(function(b){b.style.background=\'rgba(255,255,255,0.03)\';});this.style.background=\'rgba(139,92,246,0.20)\';" class="mapa-icone-btn" style="background:' + (no.icone === ic ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.03)') + ';border:1px solid rgba(255,255,255,0.08);padding:6px 8px;border-radius:6px;font-size:16px;cursor:pointer;">' + ic + '</button>';
                 }).join('');
 
                 var htmlCores = _MAPA_CORES.map(function(c){
-                    return '<button type="button" onclick="document.getElementById(\'mapa-cat-cor\').value=\'' + c.key + '\';document.querySelectorAll(\'.mapa-cor-btn\').forEach(function(b){b.style.outline=\'none\';});this.style.outline=\'2px solid ' + c.hex + '\';" class="mapa-cor-btn" style="width:32px;height:32px;border-radius:50%;background:' + c.hex + ';border:none;cursor:pointer;outline:' + (cat.cor === c.key ? '2px solid ' + c.hex : 'none') + ';outline-offset:2px;" title="' + c.nome + '"></button>';
+                    return '<button type="button" onclick="document.getElementById(\'mapa-no-cor\').value=\'' + c.key + '\';document.querySelectorAll(\'.mapa-cor-btn\').forEach(function(b){b.style.outline=\'none\';});this.style.outline=\'2px solid ' + c.hex + '\';" class="mapa-cor-btn" style="width:32px;height:32px;border-radius:50%;background:' + c.hex + ';border:none;cursor:pointer;outline:' + (no.cor === c.key ? '2px solid ' + c.hex : 'none') + ';outline-offset:2px;" title="' + c.nome + '"></button>';
                 }).join('');
 
-                root.innerHTML =
-                    '<div class="form-group" style="margin-bottom:12px;"><label>Nome da categoria *</label>' +
-                        '<input type="text" id="mapa-cat-nome" value="' + _esc(cat.nome) + '" placeholder="Ex: Comércio, Ativos, Serviços" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                var html =
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Nome *</label>' +
+                        '<input type="text" id="mapa-no-nome" value="' + _esc(no.nome) + '" placeholder="' + (isCategoria ? 'Ex: Comércio, Motos, Eletrônicos...' : 'Ex: Mundial STM, Franqueado Manaus...') + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
                     '</div>' +
-                    '<div class="form-group" style="margin-bottom:12px;"><label>Ícone</label>' +
-                        '<input type="hidden" id="mapa-cat-icone" value="' + _esc(cat.icone || '📦') + '">' +
+
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Ícone (usado se não tiver foto)</label>' +
+                        '<input type="hidden" id="mapa-no-icone" value="' + _esc(no.icone || '📦') + '">' +
                         '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + htmlIcones + '</div>' +
                     '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Foto de perfil (URL — opcional)</label>' +
+                        '<input type="text" id="mapa-no-foto" value="' + _esc(no.foto || '') + '" placeholder="https://... (cole URL de imagem)" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                        '<div style="font-size:10px;color:#7a7a96;margin-top:4px;">Se preenchido, mostra a foto redonda no lugar do ícone.</div>' +
+                    '</div>' +
+
                     '<div class="form-group" style="margin-bottom:12px;"><label>Cor</label>' +
-                        '<input type="hidden" id="mapa-cat-cor" value="' + _esc(cat.cor || 'roxo') + '">' +
+                        '<input type="hidden" id="mapa-no-cor" value="' + _esc(no.cor || 'roxo') + '">' +
                         '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + htmlCores + '</div>' +
                     '</div>';
+
+                // Só negócios têm valores e vinculação
+                if (!isCategoria) {
+                    var lojas = _ler('lojas') || [];
+                    var temEmp = (_ler('fin-emprestimos') || []).length > 0;
+
+                    var estados = [
+                        {k:'ativo',     lbl:'🟢 Ativo',     desc:'já gera receita'},
+                        {k:'projetado', lbl:'🟣 Projetado', desc:'planejado / em breve'},
+                        {k:'pausado',   lbl:'⚫ Pausado',   desc:'não conta no total'}
+                    ];
+                    var htmlEstados = estados.map(function(e){
+                        var sel = (no.estado || 'ativo') === e.k;
+                        return '<label data-estado="1" style="display:flex;align-items:center;gap:8px;background:' + (sel ? 'rgba(139,92,246,0.10)' : 'rgba(255,255,255,0.02)') + ';border:1px solid ' + (sel ? 'rgba(139,92,246,0.40)' : 'rgba(255,255,255,0.06)') + ';border-radius:8px;padding:8px 10px;cursor:pointer;flex:1;">' +
+                            '<input type="radio" name="mapa-no-estado" value="' + e.k + '" ' + (sel ? 'checked' : '') + ' onchange="document.querySelectorAll(\'label[data-estado]\').forEach(function(l){l.style.background=\'rgba(255,255,255,0.02)\';l.style.borderColor=\'rgba(255,255,255,0.06)\';});this.parentElement.style.background=\'rgba(139,92,246,0.10)\';this.parentElement.style.borderColor=\'rgba(139,92,246,0.40)\';" style="cursor:pointer;">' +
+                            '<div style="flex:1;"><div style="font-size:12px;font-weight:700;color:#fff;">' + e.lbl + '</div><div style="font-size:10px;color:#7a7a96;">' + e.desc + '</div></div>' +
+                        '</label>';
+                    }).join('');
+
+                    var optsVinculo = '<option value="">— Não vincular —</option>';
+                    if (lojas.length) {
+                        optsVinculo += '<optgroup label="Vincular a uma loja">';
+                        lojas.forEach(function(l){
+                            optsVinculo += '<option value="loja:' + l.id + '" ' + (no.vinculoTipo === 'loja' && String(no.vinculoId) === String(l.id) ? 'selected' : '') + '>🏪 ' + _esc(l.nome) + '</option>';
+                        });
+                        optsVinculo += '</optgroup>';
+                    }
+                    if (temEmp) {
+                        optsVinculo += '<option value="emprestimos:_" ' + (no.vinculoTipo === 'emprestimos' ? 'selected' : '') + '>🤝 Empréstimos</option>';
+                    }
+
+                    html +=
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
+                            '<div class="form-group"><label>💰 Valor mensal (R$)</label>' +
+                                '<input type="number" id="mapa-no-mensal" value="' + (no.valorMensal || '') + '" min="0" step="100" oninput="if(!document.getElementById(\'mapa-no-anual-lock\').checked)document.getElementById(\'mapa-no-anual\').value=(parseFloat(this.value)||0)*12;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
+                            '</div>' +
+                            '<div class="form-group"><label>📅 Valor anual (R$)</label>' +
+                                '<input type="number" id="mapa-no-anual" value="' + (no.valorAnual || (no.valorMensal ? no.valorMensal * 12 : '')) + '" min="0" step="1000" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
+                            '</div>' +
+                        '</div>' +
+                        '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#b4b4cc;margin-bottom:12px;cursor:pointer;">' +
+                            '<input type="checkbox" id="mapa-no-anual-lock" ' + (no.valorAnual && no.valorMensal && Math.abs(no.valorAnual - no.valorMensal * 12) > 1 ? 'checked' : '') + ' style="cursor:pointer;"> Anual diferente de mensal × 12' +
+                        '</label>' +
+
+                        '<div class="form-group" style="margin-bottom:12px;"><label>Estado</label>' +
+                            '<div style="display:flex;gap:6px;">' + htmlEstados + '</div>' +
+                        '</div>' +
+
+                        '<div class="form-group" style="margin-bottom:8px;"><label>Vincular a negócio real (opcional)</label>' +
+                            '<select id="mapa-no-vinculo" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' + optsVinculo + '</select>' +
+                            '<div style="font-size:10px;color:#7a7a96;margin-top:4px;">Se vinculado, mostra o realizado do ROCE ao lado da meta.</div>' +
+                        '</div>';
+                }
+
+                root.innerHTML = html;
             }, async function(){
-                var nome = document.getElementById('mapa-cat-nome').value.trim();
+                var nome = document.getElementById('mapa-no-nome').value.trim();
                 if (!nome) { alert('Informe o nome'); return; }
-                var icone = document.getElementById('mapa-cat-icone').value;
-                var cor = document.getElementById('mapa-cat-cor').value;
-                if (catId) {
-                    cat.nome = nome; cat.icone = icone; cat.cor = cor;
-                } else {
-                    m.categorias.push({
-                        id: Date.now() + Math.floor(Math.random() * 1000),
-                        nome: nome, icone: icone, cor: cor,
-                        ordem: m.categorias.length,
-                        negocios: []
-                    });
+                var icone = document.getElementById('mapa-no-icone').value;
+                var foto  = document.getElementById('mapa-no-foto').value.trim();
+                var cor   = document.getElementById('mapa-no-cor').value;
+
+                no.nome = nome; no.icone = icone; no.foto = foto; no.cor = cor;
+
+                if (!isCategoria) {
+                    var mensal = parseFloat(document.getElementById('mapa-no-mensal').value) || 0;
+                    var anual  = parseFloat(document.getElementById('mapa-no-anual').value) || 0;
+                    var estado = document.querySelector('input[name="mapa-no-estado"]:checked')?.value || 'ativo';
+                    var vinculoVal = document.getElementById('mapa-no-vinculo').value;
+                    var vinculoTipo = null, vinculoId = null;
+                    if (vinculoVal) {
+                        var partes = vinculoVal.split(':');
+                        vinculoTipo = partes[0];
+                        vinculoId = partes[1];
+                    }
+                    no.valorMensal = mensal;
+                    no.valorAnual = anual;
+                    no.estado = estado;
+                    no.vinculoTipo = vinculoTipo;
+                    no.vinculoId = vinculoId;
+                }
+
+                if (!noId) {
+                    no.id = Date.now() + Math.floor(Math.random() * 1000);
+                    parentFilhos.push(no);
                 }
                 await _mapaSalvar(m);
                 _mapaFecharModal();
                 renderMapaFontes();
-            }, catId ? async function(){
-                if (!confirm('Excluir esta categoria e todos os seus negócios?')) return;
-                m.categorias = m.categorias.filter(function(c){ return String(c.id) !== String(catId); });
-                await _mapaSalvar(m);
-                _mapaFecharModal();
-                renderMapaFontes();
-            } : null);
-        }
-
-        function mapaAbrirNovoNegocio(catId) {
-            _mapaAbrirModalNegocio(catId, null);
-        }
-
-        function mapaAbrirEditarNegocio(negId) {
-            var m = _mapaCarregar();
-            var catId = null;
-            for (var i = 0; i < m.categorias.length; i++) {
-                var cat = m.categorias[i];
-                if ((cat.negocios || []).some(function(n){ return String(n.id) === String(negId); })) {
-                    catId = cat.id;
-                    break;
-                }
-            }
-            if (!catId) return;
-            _mapaAbrirModalNegocio(catId, negId);
-        }
-
-        function _mapaAbrirModalNegocio(catId, negId) {
-            var m = _mapaCarregar();
-            var cat = m.categorias.find(function(c){ return String(c.id) === String(catId); });
-            if (!cat) return;
-            var neg = negId ? (cat.negocios || []).find(function(n){ return String(n.id) === String(negId); }) : {
-                nome:'', icone:'📌', valorMensal:0, valorAnual:0, estado:'ativo', vinculoTipo:null, vinculoId:null
-            };
-            if (negId && !neg) return;
-
-            var lojas = _ler('lojas') || [];
-            var temEmp = (_ler('fin-emprestimos') || []).length > 0;
-
-            _mapaMostrarModal(negId ? 'Editar negócio' : 'Novo negócio em ' + cat.nome, neg.nome || 'Negócio', function(root){
-                var htmlIcones = _MAPA_ICONES_SUGERIDOS.map(function(ic){
-                    return '<button type="button" onclick="document.getElementById(\'mapa-neg-icone\').value=\'' + ic + '\';document.querySelectorAll(\'.mapa-icone-btn\').forEach(function(b){b.style.background=\'rgba(255,255,255,0.03)\';});this.style.background=\'rgba(139,92,246,0.20)\';" class="mapa-icone-btn" style="background:' + (neg.icone === ic ? 'rgba(139,92,246,0.20)' : 'rgba(255,255,255,0.03)') + ';border:1px solid rgba(255,255,255,0.08);padding:6px 8px;border-radius:6px;font-size:16px;cursor:pointer;">' + ic + '</button>';
-                }).join('');
-
-                var estados = [
-                    {k:'ativo',     lbl:'🟢 Ativo',     desc:'já gera receita hoje'},
-                    {k:'projetado', lbl:'🟣 Projetado', desc:'planejado / em breve'},
-                    {k:'pausado',   lbl:'⚫ Pausado',   desc:'não conta no total'}
-                ];
-                var htmlEstados = estados.map(function(e){
-                    var sel = (neg.estado || 'ativo') === e.k;
-                    return '<label style="display:flex;align-items:center;gap:8px;background:' + (sel ? 'rgba(139,92,246,0.10)' : 'rgba(255,255,255,0.02)') + ';border:1px solid ' + (sel ? 'rgba(139,92,246,0.40)' : 'rgba(255,255,255,0.06)') + ';border-radius:8px;padding:8px 10px;cursor:pointer;flex:1;">' +
-                        '<input type="radio" name="mapa-neg-estado" value="' + e.k + '" ' + (sel ? 'checked' : '') + ' onchange="document.querySelectorAll(\'label[data-estado]\').forEach(function(l){l.style.background=\'rgba(255,255,255,0.02)\';l.style.borderColor=\'rgba(255,255,255,0.06)\';});this.parentElement.style.background=\'rgba(139,92,246,0.10)\';this.parentElement.style.borderColor=\'rgba(139,92,246,0.40)\';" style="cursor:pointer;">' +
-                        '<div style="flex:1;">' +
-                            '<div style="font-size:12px;font-weight:700;color:#fff;">' + e.lbl + '</div>' +
-                            '<div style="font-size:10px;color:#7a7a96;">' + e.desc + '</div>' +
-                        '</div>' +
-                    '</label>';
-                }).join('');
-
-                // Vinculação
-                var optsVinculo = '<option value="">— Não vincular —</option>';
-                if (lojas.length) {
-                    optsVinculo += '<optgroup label="Vincular a uma loja">';
-                    lojas.forEach(function(l){
-                        optsVinculo += '<option value="loja:' + l.id + '" ' + (neg.vinculoTipo === 'loja' && String(neg.vinculoId) === String(l.id) ? 'selected' : '') + '>🏪 ' + _esc(l.nome) + '</option>';
-                    });
-                    optsVinculo += '</optgroup>';
-                }
-                if (temEmp) {
-                    optsVinculo += '<option value="emprestimos:_" ' + (neg.vinculoTipo === 'emprestimos' ? 'selected' : '') + '>🤝 Empréstimos</option>';
-                }
-
-                root.innerHTML =
-                    '<div class="form-group" style="margin-bottom:12px;"><label>Nome *</label>' +
-                        '<input type="text" id="mapa-neg-nome" value="' + _esc(neg.nome) + '" placeholder="Ex: Mundial Santarém, Franqueado Manaus..." style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
-                    '</div>' +
-
-                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">' +
-                        '<div class="form-group"><label>💰 Valor mensal (R$)</label>' +
-                            '<input type="number" id="mapa-neg-mensal" value="' + (neg.valorMensal || '') + '" min="0" step="100" oninput="if(!document.getElementById(\'mapa-neg-anual-lock\').checked)document.getElementById(\'mapa-neg-anual\').value=(parseFloat(this.value)||0)*12;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
-                        '</div>' +
-                        '<div class="form-group"><label>📅 Valor anual (R$)</label>' +
-                            '<input type="number" id="mapa-neg-anual" value="' + (neg.valorAnual || (neg.valorMensal ? neg.valorMensal * 12 : '')) + '" min="0" step="1000" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
-                        '</div>' +
-                    '</div>' +
-                    '<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#b4b4cc;margin-bottom:12px;cursor:pointer;">' +
-                        '<input type="checkbox" id="mapa-neg-anual-lock" ' + (neg.valorAnual && neg.valorMensal && Math.abs(neg.valorAnual - neg.valorMensal * 12) > 1 ? 'checked' : '') + ' style="cursor:pointer;"> Anual diferente de mensal × 12' +
-                    '</label>' +
-
-                    '<div class="form-group" style="margin-bottom:12px;"><label>Ícone</label>' +
-                        '<input type="hidden" id="mapa-neg-icone" value="' + _esc(neg.icone || '📌') + '">' +
-                        '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + htmlIcones + '</div>' +
-                    '</div>' +
-
-                    '<div class="form-group" style="margin-bottom:12px;"><label>Estado</label>' +
-                        '<div style="display:flex;gap:6px;">' + htmlEstados.replace(/label style/g, 'label data-estado="1" style') + '</div>' +
-                    '</div>' +
-
-                    '<div class="form-group" style="margin-bottom:8px;"><label>Vincular a negócio real (opcional)</label>' +
-                        '<select id="mapa-neg-vinculo" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' + optsVinculo + '</select>' +
-                        '<div style="font-size:10px;color:#7a7a96;margin-top:4px;">Se vinculado, o mapa mostra o realizado do ROCE ao lado da meta.</div>' +
-                    '</div>';
-            }, async function(){
-                var nome = document.getElementById('mapa-neg-nome').value.trim();
-                if (!nome) { alert('Informe o nome'); return; }
-                var icone = document.getElementById('mapa-neg-icone').value;
-                var mensal = parseFloat(document.getElementById('mapa-neg-mensal').value) || 0;
-                var anual  = parseFloat(document.getElementById('mapa-neg-anual').value) || 0;
-                var estado = document.querySelector('input[name="mapa-neg-estado"]:checked')?.value || 'ativo';
-                var vinculoVal = document.getElementById('mapa-neg-vinculo').value;
-                var vinculoTipo = null, vinculoId = null;
-                if (vinculoVal) {
-                    var partes = vinculoVal.split(':');
-                    vinculoTipo = partes[0];
-                    vinculoId = partes[1];
-                }
-
-                if (negId) {
-                    neg.nome = nome; neg.icone = icone;
-                    neg.valorMensal = mensal; neg.valorAnual = anual;
-                    neg.estado = estado;
-                    neg.vinculoTipo = vinculoTipo; neg.vinculoId = vinculoId;
-                } else {
-                    if (!cat.negocios) cat.negocios = [];
-                    cat.negocios.push({
-                        id: Date.now() + Math.floor(Math.random() * 1000),
-                        nome: nome, icone: icone,
-                        valorMensal: mensal, valorAnual: anual,
-                        estado: estado,
-                        vinculoTipo: vinculoTipo, vinculoId: vinculoId
-                    });
-                }
-                await _mapaSalvar(m);
-                _mapaFecharModal();
-                renderMapaFontes();
-            }, negId ? async function(){
-                if (!confirm('Excluir este negócio?')) return;
-                cat.negocios = (cat.negocios || []).filter(function(n){ return String(n.id) !== String(negId); });
+            }, noId ? async function(){
+                var qtdFilhos = (no.filhos || []).length;
+                var msg = qtdFilhos > 0
+                    ? 'Excluir este ' + (isCategoria ? 'agrupador' : 'negócio') + ' e TODOS os ' + qtdFilhos + ' filhos dentro?'
+                    : 'Excluir este ' + (isCategoria ? 'agrupador' : 'negócio') + '?';
+                if (!confirm(msg)) return;
+                var achado = _mapaBuscarNo(m.nos, noId);
+                if (achado) achado.parent.splice(achado.index, 1);
                 await _mapaSalvar(m);
                 _mapaFecharModal();
                 renderMapaFontes();
@@ -18455,11 +18535,9 @@
             modal.addEventListener('click', function(e){ if (e.target === modal) _mapaFecharModal(); });
             document.body.appendChild(modal);
 
-            // Popular corpo
             var body = document.getElementById('mapa-modal-body');
             if (body && contentFn) contentFn(body);
 
-            // Guardar handlers
             window._mapaModalSave = onSave;
             window._mapaModalDelete = onDelete;
 
@@ -18473,6 +18551,7 @@
             var m = document.getElementById('mapa-modal');
             if (m) m.remove();
         }
+
 
         function renderGsChecklists() {
             var el = document.getElementById('gs-checklists');
@@ -23848,6 +23927,13 @@
                     </div>
                 </div>
                 ${campoDeducao}
+                ${tipo === 'saida' ? `
+                <div class="form-group" style="margin-bottom:12px;"><label>Tipo *</label>
+                    <select id="mr-tipo-saida" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
+                        <option value="custo" selected>💸 Despesa (conta como despesa no ROCE)</option>
+                        <option value="investimento">📦 Reposição de estoque (não conta como despesa)</option>
+                    </select>
+                </div>` : ''}
                 <div class="form-group" style="margin-bottom:12px;"><label>Valor (R$) *</label>
                     <input type="number" id="mr-valor" placeholder="0,00" step="0.01" min="0.01" autofocus style="width:100%;background:var(--bg-surface);border:1px solid ${corTipo}40;color:var(--text-main);padding:12px;border-radius:8px;font-family:inherit;font-size:16px;text-align:center;">
                 </div>
@@ -23869,9 +23955,10 @@
             if (!val || val <= 0) { alert('Informe um valor válido'); return; }
             const dataRapida = document.getElementById('mr-data')?.value || new Date().toISOString().slice(0,10);
 
-            // Para saídas: verificar de onde deduzir
+            // Para saídas: verificar de onde deduzir + tipo (custo ou investimento)
             var categoria = tipo === 'entrada' ? 'entrada_rapida' : 'saida_rapida';
             var deducao   = 'faturamento'; // padrão
+            var tipoSaida = null;
             if (tipo === 'saida') {
                 var elLuc = document.getElementById('mr-ded-luc');
                 if (elLuc && elLuc.checked) {
@@ -23880,10 +23967,17 @@
                 } else {
                     categoria = 'saida_faturamento';
                 }
+                // Tipo da saída (despesa vs reposição)
+                var elTipoSaida = document.getElementById('mr-tipo-saida');
+                tipoSaida = elTipoSaida ? elTipoSaida.value : 'custo';
+                // Se for reposição, sobrescreve a categoria pra ficar coerente
+                if (tipoSaida === 'investimento') categoria = 'estoque';
             }
 
             const movs = [...(_ler('fin-movs') || [])];
-            movs.push({ id: Date.now(), tipo, caixaId, valor: val, categoria, deducao, data: dataRapida, descricao: desc, criadoEm: new Date().toISOString() });
+            var novoMov = { id: Date.now(), tipo, caixaId, valor: val, categoria, deducao, data: dataRapida, descricao: desc, criadoEm: new Date().toISOString() };
+            if (tipoSaida) novoMov.tipoSaida = tipoSaida;
+            movs.push(novoMov);
             await _salvar('fin-movs', movs);
             document.getElementById('modal-mov-rapida')?.remove();
             renderContasList();
