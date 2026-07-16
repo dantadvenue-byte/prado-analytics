@@ -9044,6 +9044,7 @@
                 ticketPorDia.push(qtd > 0 ? fat / qtd : 0);
             }
             // CPL: usar valores do mês
+            const metricasArr = _ler('metricas') || [];
             const cplPorDia = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
@@ -16890,7 +16891,7 @@
             'fin-emprestimos':          { tabela: 'fin_emprestimos',   tipo: 'array'  },
             'emp-config':               { tabela: 'emp_config',        tipo: 'dict'   },
             'checklists':               { tabela: 'checklists',        tipo: 'array'  },
-            'mapa-fontes':              { tabela: 'mapa_fontes',       tipo: 'dict'   },
+            'mapa-fontes':              { tabela: 'mapa_fontes',       tipo: 'singleton' },
             'projetos':                 { tabela: 'projetos',          tipo: 'array'  },
             'proj-estrategias':         { tabela: 'proj_estrategias',  tipo: 'array'  },
             'proj-simulacoes':           { tabela: 'proj_simulacoes',   tipo: 'array'  },
