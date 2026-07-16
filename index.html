@@ -981,15 +981,17 @@
             }
         });
         window._sb = _sb;
-        window._SB_AUTH = { token: null, email: null };
+        window._SB_AUTH = { token: null, email: null, userId: null };
 
         function setAuth(session) {
             if (session && session.access_token) {
-                window._SB_AUTH.token = session.access_token;
-                window._SB_AUTH.email = session.user?.email || null;
+                window._SB_AUTH.token  = session.access_token;
+                window._SB_AUTH.email  = session.user?.email || null;
+                window._SB_AUTH.userId = session.user?.id    || null;
             } else {
-                window._SB_AUTH.token = null;
-                window._SB_AUTH.email = null;
+                window._SB_AUTH.token  = null;
+                window._SB_AUTH.email  = null;
+                window._SB_AUTH.userId = null;
             }
         }
 
@@ -9045,6 +9047,21 @@
             }
             // CPL: usar valores do mês
             const metricasArr = _ler('metricas') || [];
+            // Cálculo local dos 14d atuais e 14d anteriores (pra sparkline e trend do CPL)
+            const hoje14 = new Date(); const inicio14 = new Date(); inicio14.setDate(inicio14.getDate() - 14);
+            const ant14ini = new Date(); ant14ini.setDate(ant14ini.getDate() - 28);
+            const ant14fim = new Date(); ant14fim.setDate(ant14fim.getDate() - 14);
+            let cplGasto14 = 0, cplLeads14 = 0, cplGastoAnt = 0, cplLeadsAnt = 0;
+            metricasArr.forEach(m => {
+                const d = new Date(m.data);
+                const gasto = parseFloat(m.gastos || m.gastoTotal || 0);
+                const leads = parseFloat(m.leads || m.contatos || 0);
+                if (d >= inicio14 && d <= hoje14) { cplGasto14 += gasto; cplLeads14 += leads; }
+                else if (d >= ant14ini && d < ant14fim) { cplGastoAnt += gasto; cplLeadsAnt += leads; }
+            });
+            const cplMedio    = cplLeads14  > 0 ? (cplGasto14  / cplLeads14)  : 0;
+            const cplMedioAnt = cplLeadsAnt > 0 ? (cplGastoAnt / cplLeadsAnt) : 0;
+            const deltaCpl    = cplMedioAnt > 0 ? ((cplMedio - cplMedioAnt) / cplMedioAnt * 100) : 0;
             const cplPorDia = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
@@ -16982,13 +16999,16 @@
 
             const { tabela, tipo, prefixo } = schema;
             const ts = new Date().toISOString();
+            // user_id do usuário logado — necessário pra tabelas com RLS que exigem auth.uid() = user_id
+            const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
+            const _withUid = (obj) => _uid ? Object.assign({}, obj, { user_id: _uid }) : obj;
 
             try {
                 if (tipo === 'singleton') {
                     // config: upsert única linha id=1
                     await _sbFetch(tabela, {
                         method: 'POST',
-                        body: { id: 1, dados: valor, atualizado_em: ts },
+                        body: _withUid({ id: 1, dados: valor, atualizado_em: ts }),
                         prefer: 'resolution=merge-duplicates,return=minimal'
                     });
 
@@ -17000,7 +17020,7 @@
                     await Promise.all(entradas.map(([k, v]) =>
                         _sbFetch(tabela, {
                             method: 'POST',
-                            body: { id: `${pref}${k}`, dados: v, atualizado_em: ts },
+                            body: _withUid({ id: `${pref}${k}`, dados: v, atualizado_em: ts }),
                             prefer: 'resolution=merge-duplicates,return=minimal'
                         })
                     ));
@@ -17033,14 +17053,14 @@
                         for (const item of valor) {
                             await _sbFetch(tabela, {
                                 method: 'POST',
-                                body: { id: item.id, dados: item, atualizado_em: ts },
+                                body: _withUid({ id: item.id, dados: item, atualizado_em: ts }),
                                 prefer: 'resolution=merge-duplicates,return=minimal'
                             });
                         }
                     } else {
                         // Sem foto: lotes de 100 (mais rápido)
                         for (let i = 0; i < valor.length; i += 100) {
-                            const lote = valor.slice(i, i + 100).map(item => ({
+                            const lote = valor.slice(i, i + 100).map(item => _withUid({
                                 id: item.id,
                                 dados: item,
                                 atualizado_em: ts
