@@ -10988,9 +10988,13 @@
 
         // ===== VALIDAÇÃO =====
         // ═══════════════════════════════════════════════════════════════
-        // PROSPECÇÕES — produtos que ainda posso testar
-        // Estrutura: { id, nome, foto, notas, custos: [{id, categoria, descricao, valor}],
-        //              simulacao: {precoVenda, qtdSimulada}, criadoEm }
+        // PROSPECÇÕES V2 — cada produto tem MÚLTIPLAS simulações (rotas/mercados)
+        // Estrutura:
+        // { id, nome, foto, notas, criadoEm,
+        //   simulacoes: [
+        //     { id, nome, custos:[{id,categoria,descricao,valor}], precoVenda, qtdSimulada }
+        //   ]
+        // }
         // ═══════════════════════════════════════════════════════════════
 
         var _PROSP_CATEGORIAS = [
@@ -11002,25 +11006,19 @@
             { key:'outros',     label:'📝 Outros',     cor:'#6b7280' }
         ];
 
-        function _prospCatCor(k) {
-            var c = _PROSP_CATEGORIAS.find(function(x){ return x.key === k; });
-            return c ? c.cor : '#6b7280';
-        }
-
         function _prospCatLabel(k) {
             var c = _PROSP_CATEGORIAS.find(function(x){ return x.key === k; });
             return c ? c.label : '📝 Outros';
         }
 
-        function _prospCustoTotal(p) {
-            return (p.custos || []).reduce(function(s, c){ return s + (parseFloat(c.valor) || 0); }, 0);
+        function _prospSimCustoTotal(sim) {
+            return (sim.custos || []).reduce(function(s, c){ return s + (parseFloat(c.valor) || 0); }, 0);
         }
 
-        function _prospCalcSimulacao(p) {
-            var custoUnit = _prospCustoTotal(p);
-            var s = p.simulacao || {};
-            var precoVenda = parseFloat(s.precoVenda) || 0;
-            var qtd = parseInt(s.qtdSimulada) || 0;
+        function _prospCalcSim(sim) {
+            var custoUnit = _prospSimCustoTotal(sim);
+            var precoVenda = parseFloat(sim.precoVenda) || 0;
+            var qtd = parseInt(sim.qtdSimulada) || 0;
             var margemUnit = precoVenda - custoUnit;
             var margemPct  = precoVenda > 0 ? (margemUnit / precoVenda * 100) : 0;
             var lucroTotal = margemUnit * qtd;
@@ -11028,29 +11026,53 @@
             var retornoTotal = precoVenda * qtd;
             var roi = investNecessario > 0 ? (lucroTotal / investNecessario * 100) : 0;
             return {
-                custoUnit: custoUnit,
-                precoVenda: precoVenda,
-                qtd: qtd,
-                margemUnit: margemUnit,
-                margemPct: margemPct,
-                lucroTotal: lucroTotal,
-                investNecessario: investNecessario,
-                retornoTotal: retornoTotal,
-                roi: roi
+                custoUnit: custoUnit, precoVenda: precoVenda, qtd: qtd,
+                margemUnit: margemUnit, margemPct: margemPct,
+                lucroTotal: lucroTotal, investNecessario: investNecessario,
+                retornoTotal: retornoTotal, roi: roi
             };
+        }
+
+        // Migração automática: formato antigo (1 simulação inline) → novo (array de simulações)
+        function _prospMigrar(p) {
+            if (p.simulacoes && Array.isArray(p.simulacoes)) return p;
+            var simulacaoAntiga = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                nome: 'Simulação 1',
+                custos: p.custos || [],
+                precoVenda: (p.simulacao && p.simulacao.precoVenda) || 0,
+                qtdSimulada: (p.simulacao && p.simulacao.qtdSimulada) || 0
+            };
+            p.simulacoes = [simulacaoAntiga];
+            delete p.custos;
+            delete p.simulacao;
+            return p;
+        }
+
+        function _prospGetOrdenadas(sims) {
+            // Rank por ROI (não muda a ordem original, só marca medalhas)
+            var comCalc = sims.map(function(s, idx){ return { sim: s, calc: _prospCalcSim(s), idx: idx }; });
+            var ordenadas = comCalc.slice().sort(function(a,b){ return b.calc.roi - a.calc.roi; });
+            // Marca medalhas
+            var medalhas = {};
+            ordenadas.forEach(function(item, rank){
+                if (item.calc.roi > 0 && rank < 3) {
+                    medalhas[item.sim.id] = rank === 0 ? '🥇' : (rank === 1 ? '🥈' : '🥉');
+                }
+            });
+            return { comCalc: comCalc, medalhas: medalhas };
         }
 
         function renderProspeccoes() {
             var el = document.getElementById('val-prospeccoes-content');
             if (!el) return;
-            var prospeccoes = _ler('prospeccoes') || [];
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
 
             var html =
-                // Header
                 '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">' +
                     '<div>' +
                         '<div style="font-size:20px;font-weight:800;color:var(--text-main);letter-spacing:-0.01em;">🔍 Prospecções</div>' +
-                        '<div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Produtos que você está avaliando antes de testar. Cadastre custos, simule vendas e decida se vai pro pipeline.</div>' +
+                        '<div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Produtos que você está avaliando. Múltiplas simulações por rota/mercado.</div>' +
                     '</div>' +
                     '<button onclick="prospAbrirNovo()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:10px 18px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">+ Nova Prospecção</button>' +
                 '</div>';
@@ -11059,83 +11081,47 @@
                 html += '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);background:var(--bg-card);border:1px dashed var(--border);border-radius:12px;">' +
                     '<div style="font-size:42px;margin-bottom:10px;">🔍</div>' +
                     '<div style="font-size:15px;font-weight:600;color:var(--text-main);margin-bottom:6px;">Nenhuma prospecção ainda</div>' +
-                    '<div style="font-size:12px;">Cadastre produtos que você está pesquisando. Depois, promova pro pipeline pra começar a testar.</div>' +
+                    '<div style="font-size:12px;">Cadastre produtos e adicione várias simulações (uma por rota/mercado).</div>' +
                 '</div>';
                 el.innerHTML = html;
                 return;
             }
 
-            // Grid de cards
-            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">';
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px;">';
             prospeccoes.forEach(function(p){
-                var sim = _prospCalcSimulacao(p);
-                var totalCustos = _prospCustoTotal(p);
-                var corMargem = sim.margemUnit >= 0 ? 'var(--green)' : 'var(--red)';
-                var corLucro  = sim.lucroTotal >= 0 ? 'var(--green)' : 'var(--red)';
-                var corRoi    = sim.roi >= 50 ? 'var(--green)' : (sim.roi >= 20 ? '#fbbf24' : (sim.roi > 0 ? '#f97316' : 'var(--red)'));
-
+                var ord = _prospGetOrdenadas(p.simulacoes || []);
                 html +=
                     '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--purple)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                        // Foto/header
+                        // Header com foto ou título
                         (p.foto
                             ? '<div style="height:120px;background-image:url(\'' + _esc(p.foto) + '\');background-size:cover;background-position:center;position:relative;"><div style="position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.85));"></div><div style="position:absolute;bottom:10px;left:14px;right:14px;"><div style="font-size:15px;font-weight:800;color:#fff;">' + _esc(p.nome) + '</div></div></div>'
                             : '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(139,92,246,0.10),rgba(59,130,246,0.05));border-bottom:1px solid var(--border);"><div style="font-size:15px;font-weight:800;color:var(--text-main);">🔍 ' + _esc(p.nome) + '</div></div>'
                         ) +
 
                         // Corpo
-                        '<div style="padding:14px 16px;">' +
-                            // Custos
-                            '<div style="margin-bottom:12px;">' +
-                                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">💸 Custos (' + (p.custos || []).length + ')</div>' +
-                                    '<div style="font-size:13px;font-weight:800;color:var(--text-main);font-family:JetBrains Mono,monospace;">R$ ' + totalCustos.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</div>' +
-                                '</div>' +
-                                ((p.custos || []).length === 0
-                                    ? '<div style="font-size:10px;color:var(--text-dim);font-style:italic;">Nenhum custo cadastrado</div>'
-                                    : '<div style="display:flex;flex-direction:column;gap:3px;">' + (p.custos || []).slice(0, 3).map(function(c){
-                                        return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 6px;background:var(--bg-surface);border-radius:5px;">' +
-                                            '<span style="color:var(--text-dim);">' + _prospCatLabel(c.categoria) + (c.descricao ? ' · ' + _esc(c.descricao) : '') + '</span>' +
-                                            '<span style="color:var(--text-main);font-family:JetBrains Mono,monospace;font-weight:600;">R$ ' + (parseFloat(c.valor) || 0).toFixed(2) + '</span>' +
-                                        '</div>';
-                                    }).join('') + ((p.custos || []).length > 3 ? '<div style="font-size:9px;color:var(--text-dim);text-align:center;">+ ' + ((p.custos || []).length - 3) + ' outros</div>' : '') + '</div>'
-                                ) +
+                        '<div style="padding:12px 14px;">' +
+                            // Header simulações
+                            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                                '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">🎯 Simulações (' + (p.simulacoes || []).length + ')</div>' +
+                                '<button onclick="prospAbrirNovaSim(' + p.id + ')" style="background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;padding:3px 9px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">+ Adicionar</button>' +
                             '</div>' +
 
-                            // Simulador
-                            (sim.precoVenda > 0 && sim.qtd > 0 ? (
-                                '<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
-                                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:8px;">🎯 Simulação: ' + sim.qtd + ' vendas × R$ ' + sim.precoVenda.toFixed(2) + '</div>' +
-                                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">' +
-                                        '<div>' +
-                                            '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;">Lucro total</div>' +
-                                            '<div style="font-size:14px;font-weight:800;color:' + corLucro + ';font-family:JetBrains Mono,monospace;">R$ ' + sim.lucroTotal.toFixed(0) + '</div>' +
-                                        '</div>' +
-                                        '<div>' +
-                                            '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;">ROI</div>' +
-                                            '<div style="font-size:14px;font-weight:800;color:' + corRoi + ';font-family:JetBrains Mono,monospace;">' + sim.roi.toFixed(1) + '%</div>' +
-                                        '</div>' +
-                                        '<div>' +
-                                            '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;">Margem/un</div>' +
-                                            '<div style="font-size:13px;font-weight:700;color:' + corMargem + ';font-family:JetBrains Mono,monospace;">R$ ' + sim.margemUnit.toFixed(2) + ' (' + sim.margemPct.toFixed(1) + '%)</div>' +
-                                        '</div>' +
-                                        '<div>' +
-                                            '<div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;">Invest. necess.</div>' +
-                                            '<div style="font-size:13px;font-weight:700;color:var(--text-main);font-family:JetBrains Mono,monospace;">R$ ' + sim.investNecessario.toFixed(0) + '</div>' +
-                                        '</div>' +
-                                    '</div>' +
-                                '</div>'
-                            ) : '<div style="font-size:11px;color:var(--text-dim);padding:8px;background:var(--bg-surface);border-radius:6px;text-align:center;margin-bottom:12px;font-style:italic;">💡 Configure preço e quantidade pra ver simulação</div>') +
+                            // Tabela de simulações
+                            (ord.comCalc.length === 0
+                                ? '<div style="font-size:11px;color:var(--text-dim);padding:12px;background:var(--bg-surface);border-radius:6px;text-align:center;font-style:italic;">Sem simulações. Clique em "+ Adicionar".</div>'
+                                : _prospRenderTabelaSims(p.id, ord)
+                            ) +
 
-                            // Notas preview
+                            // Notas
                             (p.notas ? (
-                                '<div style="font-size:11px;color:var(--text-dim);background:var(--bg-surface);padding:8px 10px;border-left:2px solid var(--purple);border-radius:4px;margin-bottom:12px;max-height:60px;overflow:hidden;">' +
+                                '<div style="font-size:11px;color:var(--text-dim);background:var(--bg-surface);padding:8px 10px;border-left:2px solid var(--purple);border-radius:4px;margin-top:12px;max-height:60px;overflow:hidden;">' +
                                     '<div style="font-size:9px;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:3px;">📝 Notas</div>' +
                                     _esc(p.notas.slice(0, 200)) + (p.notas.length > 200 ? '...' : '') +
                                 '</div>'
                             ) : '') +
 
                             // Botões
-                            '<div style="display:flex;gap:6px;">' +
+                            '<div style="display:flex;gap:6px;margin-top:12px;">' +
                                 '<button onclick="prospAbrirEditar(' + p.id + ')" style="flex:1;background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.30);color:var(--purple-light);padding:8px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;">✏️ Editar</button>' +
                                 '<button onclick="prospPromover(' + p.id + ')" style="flex:1.5;background:linear-gradient(135deg,#10b981,#14b8a6);border:none;color:#fff;padding:8px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;">🚀 Promover</button>' +
                                 '<button onclick="prospExcluir(' + p.id + ')" style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.30);color:var(--red);padding:8px 10px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;">🗑</button>' +
@@ -11144,178 +11130,109 @@
                     '</div>';
             });
             html += '</div>';
-
             el.innerHTML = html;
         }
 
-        // ─── Modal Nova/Editar Prospecção ───
-        function prospAbrirNovo() {
-            _prospAbrirModal(null);
+        function _prospRenderTabelaSims(prospId, ord) {
+            // Cabeçalho compacto
+            var html = '<div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">' +
+                '<div style="display:grid;grid-template-columns:1fr 90px 70px 24px;gap:4px;padding:6px 10px;background:rgba(139,92,246,0.05);font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;font-weight:700;border-bottom:1px solid var(--border);">' +
+                    '<div>Rota / Nome</div>' +
+                    '<div style="text-align:right;">Lucro</div>' +
+                    '<div style="text-align:right;">ROI</div>' +
+                    '<div></div>' +
+                '</div>';
+
+            // Uma linha por simulação (mantém ordem original, não a de ROI)
+            ord.comCalc.forEach(function(item, idx){
+                var sim = item.sim;
+                var c = item.calc;
+                var medalha = ord.medalhas[sim.id] || '';
+                var corLucro = c.lucroTotal >= 0 ? 'var(--green)' : 'var(--red)';
+                var corRoi   = c.roi >= 50 ? 'var(--green)' : (c.roi >= 20 ? '#fbbf24' : (c.roi > 0 ? '#f97316' : 'var(--red)'));
+                var incompleto = c.precoVenda === 0 || c.qtd === 0;
+
+                html += '<div style="display:grid;grid-template-columns:1fr 90px 70px 24px;gap:4px;padding:7px 10px;border-top:' + (idx === 0 ? '0' : '1px solid rgba(255,255,255,0.03)') + ';align-items:center;cursor:pointer;transition:background 0.1s;" onclick="prospAbrirEditarSim(' + prospId + ',' + sim.id + ')" onmouseover="this.style.background=\'rgba(139,92,246,0.05)\'" onmouseout="this.style.background=\'transparent\'">' +
+                    '<div style="font-size:11px;color:var(--text-main);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (medalha ? medalha + ' ' : '') + _esc(sim.nome || 'Simulação') + '</div>' +
+                    (incompleto
+                        ? '<div style="grid-column:span 2;font-size:9px;color:var(--text-dim);font-style:italic;text-align:right;">configure preço e qtd</div>'
+                        : '<div style="font-size:11px;color:' + corLucro + ';font-family:JetBrains Mono,monospace;font-weight:700;text-align:right;">R$ ' + c.lucroTotal.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '</div>' +
+                          '<div style="font-size:11px;color:' + corRoi + ';font-family:JetBrains Mono,monospace;font-weight:700;text-align:right;">' + c.roi.toFixed(1) + '%</div>'
+                    ) +
+                    '<div onclick="event.stopPropagation();prospRemoverSim(' + prospId + ',' + sim.id + ')" style="text-align:center;color:#4a4d60;font-size:14px;cursor:pointer;" title="Remover">×</div>' +
+                '</div>';
+            });
+
+            html += '</div>';
+            return html;
         }
 
-        function prospAbrirEditar(id) {
-            _prospAbrirModal(id);
-        }
+        // ─── Modal Nova/Editar Prospecção (só nome, foto, notas) ───
+        function prospAbrirNovo() { _prospAbrirModal(null); }
+        function prospAbrirEditar(id) { _prospAbrirModal(id); }
 
         function _prospAbrirModal(id) {
-            var prospeccoes = _ler('prospeccoes') || [];
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
             var p = id
                 ? prospeccoes.find(function(x){ return x.id === id; })
-                : { nome:'', foto:'', notas:'', custos:[], simulacao:{precoVenda:0, qtdSimulada:0} };
+                : { nome:'', foto:'', notas:'', simulacoes: [] };
             if (id && !p) return;
+            var isNovo = !id;
 
             var prev = document.getElementById('prosp-modal');
             if (prev) prev.remove();
-
-            // Estado local do modal (edição incremental)
-            window._prospEstado = {
-                id: p.id || null,
-                nome: p.nome || '',
-                foto: p.foto || '',
-                notas: p.notas || '',
-                custos: JSON.parse(JSON.stringify(p.custos || [])),
-                simulacao: {
-                    precoVenda: (p.simulacao && p.simulacao.precoVenda) || 0,
-                    qtdSimulada: (p.simulacao && p.simulacao.qtdSimulada) || 0
-                }
-            };
 
             var modal = document.createElement('div');
             modal.id = 'prosp-modal';
             modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
             modal.innerHTML =
-                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:24px;width:100%;max-width:640px;margin:auto;">' +
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:24px;width:100%;max-width:560px;margin:auto;">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:14px;">' +
                         '<div>' +
                             '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">🔍 PROSPECÇÃO</div>' +
-                            '<div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + (id ? 'Editar prospecção' : 'Nova prospecção') + '</div>' +
+                            '<div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + (isNovo ? 'Nova prospecção' : 'Editar prospecção') + '</div>' +
+                            '<div style="font-size:11px;color:#b4b4cc;margin-top:2px;">Após salvar, adicione simulações no card.</div>' +
                         '</div>' +
                         '<button onclick="_prospFecharModal()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
                     '</div>' +
 
-                    '<div id="prosp-modal-body"></div>' +
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Nome do produto *</label>' +
+                        '<input type="text" id="prosp-nome" value="' + _esc(p.nome) + '" placeholder="Ex: Playstation 5" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
 
-                    '<div style="display:flex;gap:8px;margin-top:16px;">' +
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Foto (URL — opcional)</label>' +
+                        '<input type="text" id="prosp-foto" value="' + _esc(p.foto || '') + '" placeholder="https://... (cole URL de imagem)" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:12px;"><label>📝 Notas (bloco livre)</label>' +
+                        '<textarea id="prosp-notas" placeholder="Anote qualquer coisa: fornecedores contatados, dúvidas, links, ideias, riscos..." style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;min-height:100px;resize:vertical;">' + _esc(p.notas || '') + '</textarea>' +
+                    '</div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
                         '<button onclick="_prospFecharModal()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
-                        '<button onclick="_prospSalvar()" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar prospecção</button>' +
+                        '<button onclick="_prospSalvarInfo(' + (id || 'null') + ')" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar</button>' +
                     '</div>' +
                 '</div>';
-
             modal.addEventListener('click', function(e){ if (e.target === modal) _prospFecharModal(); });
             document.body.appendChild(modal);
-            _prospRenderCorpo();
             setTimeout(function(){ document.getElementById('prosp-nome')?.focus(); }, 100);
         }
 
-        function _prospRenderCorpo() {
-            var body = document.getElementById('prosp-modal-body');
-            if (!body) return;
-            var e = window._prospEstado;
-            var sim = _prospCalcSimulacao({ custos: e.custos, simulacao: e.simulacao });
+        async function _prospSalvarInfo(id) {
+            var nome  = document.getElementById('prosp-nome').value.trim();
+            var foto  = document.getElementById('prosp-foto').value.trim();
+            var notas = document.getElementById('prosp-notas').value;
+            if (!nome) { alert('Informe o nome do produto'); return; }
 
-            var htmlCustos = '';
-            if (e.custos.length === 0) {
-                htmlCustos = '<div style="font-size:11px;color:#7a7a96;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:8px;text-align:center;">Nenhum custo cadastrado. Adicione fornecedor, frete, taxas...</div>';
-            } else {
-                htmlCustos = '<div style="display:flex;flex-direction:column;gap:6px;">' + e.custos.map(function(c, idx){
-                    var opts = _PROSP_CATEGORIAS.map(function(cat){
-                        return '<option value="' + cat.key + '"' + (c.categoria === cat.key ? ' selected' : '') + '>' + cat.label + '</option>';
-                    }).join('');
-                    return '<div style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 8px;">' +
-                        '<select onchange="_prospEstado.custos[' + idx + '].categoria=this.value;_prospRenderCorpo();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;flex:0 0 130px;">' + opts + '</select>' +
-                        '<input type="text" placeholder="Descrição" value="' + _esc(c.descricao || '') + '" onchange="_prospEstado.custos[' + idx + '].descricao=this.value;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;flex:1;">' +
-                        '<input type="number" min="0" step="0.01" value="' + (c.valor || '') + '" placeholder="0" onchange="_prospEstado.custos[' + idx + '].valor=parseFloat(this.value)||0;_prospRenderCorpo();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:6px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;font-size:11px;font-weight:700;flex:0 0 100px;text-align:right;">' +
-                        '<button onclick="_prospEstado.custos.splice(' + idx + ',1);_prospRenderCorpo();" style="background:none;border:none;color:#4a4d60;cursor:pointer;font-size:16px;padding:0 4px;">×</button>' +
-                    '</div>';
-                }).join('') + '</div>';
-            }
-
-            var htmlSim = '';
-            if (sim.precoVenda > 0 && sim.qtd > 0) {
-                var corLucro = sim.lucroTotal >= 0 ? 'var(--green)' : 'var(--red)';
-                var corRoi   = sim.roi >= 50 ? 'var(--green)' : (sim.roi >= 20 ? '#fbbf24' : (sim.roi > 0 ? '#f97316' : 'var(--red)'));
-                htmlSim =
-                    '<div style="background:linear-gradient(135deg,rgba(139,92,246,0.06),rgba(59,130,246,0.03));border:1px solid rgba(139,92,246,0.20);border-radius:10px;padding:12px 14px;margin-top:8px;">' +
-                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">📊 RESULTADO SIMULADO</div>' +
-                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Custo/un</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:JetBrains Mono,monospace;">R$ ' + sim.custoUnit.toFixed(2) + '</div></div>' +
-                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Margem/un</div><div style="font-size:13px;font-weight:700;color:' + corLucro + ';font-family:JetBrains Mono,monospace;">R$ ' + sim.margemUnit.toFixed(2) + ' (' + sim.margemPct.toFixed(1) + '%)</div></div>' +
-                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Invest. total</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:JetBrains Mono,monospace;">R$ ' + sim.investNecessario.toFixed(0) + '</div></div>' +
-                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Retorno bruto</div><div style="font-size:13px;font-weight:700;color:#3b82f6;font-family:JetBrains Mono,monospace;">R$ ' + sim.retornoTotal.toFixed(0) + '</div></div>' +
-                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Lucro total</div><div style="font-size:16px;font-weight:800;color:' + corLucro + ';font-family:JetBrains Mono,monospace;">R$ ' + sim.lucroTotal.toFixed(0) + '</div></div>' +
-                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">ROI</div><div style="font-size:16px;font-weight:800;color:' + corRoi + ';font-family:JetBrains Mono,monospace;">' + sim.roi.toFixed(1) + '%</div></div>' +
-                        '</div>' +
-                    '</div>';
-            }
-
-            body.innerHTML =
-                // Nome
-                '<div class="form-group" style="margin-bottom:12px;"><label>Nome do produto *</label>' +
-                    '<input type="text" id="prosp-nome" value="' + _esc(e.nome) + '" placeholder="Ex: Scooter Elétrica EW STM" onchange="_prospEstado.nome=this.value;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
-                '</div>' +
-
-                // Foto
-                '<div class="form-group" style="margin-bottom:12px;"><label>Foto (URL — opcional)</label>' +
-                    '<input type="text" id="prosp-foto" value="' + _esc(e.foto) + '" placeholder="https://... (cole URL de imagem)" onchange="_prospEstado.foto=this.value;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
-                '</div>' +
-
-                // Custos
-                '<div class="form-group" style="margin-bottom:12px;">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                        '<label style="margin:0;">💸 Custos <span style="color:var(--text-dim);font-weight:400;">(total: R$ ' + _prospCustoTotal(e).toFixed(2) + ')</span></label>' +
-                        '<button onclick="_prospEstado.custos.push({id:Date.now(),categoria:\'fornecedor\',descricao:\'\',valor:0});_prospRenderCorpo();" style="background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">+ Adicionar custo</button>' +
-                    '</div>' +
-                    htmlCustos +
-                '</div>' +
-
-                // Simulador
-                '<div class="form-group" style="margin-bottom:12px;">' +
-                    '<label>🎯 Simulador de vendas</label>' +
-                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">' +
-                        '<div>' +
-                            '<div style="font-size:10px;color:var(--text-dim);margin-bottom:3px;">Preço de venda (R$)</div>' +
-                            '<input type="number" min="0" step="0.01" value="' + (e.simulacao.precoVenda || '') + '" placeholder="0" onchange="_prospEstado.simulacao.precoVenda=parseFloat(this.value)||0;_prospRenderCorpo();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;width:100%;">' +
-                        '</div>' +
-                        '<div>' +
-                            '<div style="font-size:10px;color:var(--text-dim);margin-bottom:3px;">Qtd. simulada</div>' +
-                            '<input type="number" min="0" step="1" value="' + (e.simulacao.qtdSimulada || '') + '" placeholder="0" onchange="_prospEstado.simulacao.qtdSimulada=parseInt(this.value)||0;_prospRenderCorpo();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;width:100%;">' +
-                        '</div>' +
-                    '</div>' +
-                    htmlSim +
-                '</div>' +
-
-                // Notas
-                '<div class="form-group" style="margin-bottom:12px;"><label>📝 Notas (bloco livre)</label>' +
-                    '<textarea id="prosp-notas" placeholder="Anote qualquer coisa: fornecedores contatados, dúvidas, links, ideias, riscos..." onchange="_prospEstado.notas=this.value;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;min-height:100px;resize:vertical;">' + _esc(e.notas) + '</textarea>' +
-                '</div>';
-        }
-
-        async function _prospSalvar() {
-            var e = window._prospEstado;
-            if (!e.nome || !e.nome.trim()) { alert('Informe o nome do produto'); return; }
-
-            var prospeccoes = _ler('prospeccoes') || [];
-            if (e.id) {
-                var idx = prospeccoes.findIndex(function(x){ return x.id === e.id; });
-                if (idx >= 0) {
-                    prospeccoes[idx] = {
-                        id: e.id,
-                        nome: e.nome.trim(),
-                        foto: e.foto.trim(),
-                        notas: e.notas,
-                        custos: e.custos,
-                        simulacao: e.simulacao,
-                        criadoEm: prospeccoes[idx].criadoEm
-                    };
-                }
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
+            if (id) {
+                var p = prospeccoes.find(function(x){ return x.id === id; });
+                if (p) { p.nome = nome; p.foto = foto; p.notas = notas; }
             } else {
                 prospeccoes.push({
                     id: Date.now() + Math.floor(Math.random() * 1000),
-                    nome: e.nome.trim(),
-                    foto: e.foto.trim(),
-                    notas: e.notas,
-                    custos: e.custos,
-                    simulacao: e.simulacao,
+                    nome: nome, foto: foto, notas: notas,
+                    simulacoes: [],
                     criadoEm: new Date().toISOString()
                 });
             }
@@ -11324,39 +11241,212 @@
                 await _salvar('prospeccoes', prospeccoes);
                 _prospFecharModal();
                 renderProspeccoes();
-            } catch(err) {
-                alert('❌ Erro ao salvar: ' + err.message);
-                console.error(err);
-            }
+            } catch(err) { alert('❌ Erro ao salvar: ' + err.message); console.error(err); }
         }
 
         function _prospFecharModal() {
             var m = document.getElementById('prosp-modal');
             if (m) m.remove();
-            window._prospEstado = null;
+            window._prospSimEstado = null;
         }
 
         async function prospExcluir(id) {
-            if (!confirm('Excluir esta prospecção? Essa ação não pode ser desfeita.')) return;
+            if (!confirm('Excluir esta prospecção com todas as simulações? Essa ação não pode ser desfeita.')) return;
             var prospeccoes = _ler('prospeccoes') || [];
             prospeccoes = prospeccoes.filter(function(x){ return x.id !== id; });
             await _salvar('prospeccoes', prospeccoes);
             renderProspeccoes();
         }
 
-        // Promover pra Cadastrado (envia pro pipeline em validacoes)
+        // ─── Modal Simulação (custos + preço + qtd) ───
+        function prospAbrirNovaSim(prospId) { _prospAbrirModalSim(prospId, null); }
+        function prospAbrirEditarSim(prospId, simId) { _prospAbrirModalSim(prospId, simId); }
+
+        function _prospAbrirModalSim(prospId, simId) {
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
+            var p = prospeccoes.find(function(x){ return x.id === prospId; });
+            if (!p) return;
+            var sim = simId
+                ? (p.simulacoes || []).find(function(s){ return s.id === simId; })
+                : { nome:'', custos:[], precoVenda:0, qtdSimulada:0 };
+            if (simId && !sim) return;
+
+            // Estado local
+            window._prospSimEstado = {
+                prospId: prospId,
+                simId: sim.id || null,
+                nome: sim.nome || '',
+                custos: JSON.parse(JSON.stringify(sim.custos || [])),
+                precoVenda: parseFloat(sim.precoVenda) || 0,
+                qtdSimulada: parseInt(sim.qtdSimulada) || 0
+            };
+
+            var prev = document.getElementById('prosp-sim-modal');
+            if (prev) prev.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'prosp-sim-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:24px;width:100%;max-width:640px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:14px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">🎯 SIMULAÇÃO · ' + _esc(p.nome) + '</div>' +
+                            '<div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.02em;">' + (simId ? 'Editar simulação' : 'Nova simulação') + '</div>' +
+                        '</div>' +
+                        '<button onclick="_prospFecharModalSim()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    '<div id="prosp-sim-body"></div>' +
+
+                    '<div style="display:flex;gap:8px;margin-top:16px;">' +
+                        '<button onclick="_prospFecharModalSim()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="_prospSalvarSim()" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar simulação</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) _prospFecharModalSim(); });
+            document.body.appendChild(modal);
+            _prospRenderCorpoSim();
+            setTimeout(function(){ document.getElementById('prosp-sim-nome')?.focus(); }, 100);
+        }
+
+        function _prospRenderCorpoSim() {
+            var body = document.getElementById('prosp-sim-body');
+            if (!body) return;
+            var e = window._prospSimEstado;
+            var calc = _prospCalcSim({ custos: e.custos, precoVenda: e.precoVenda, qtdSimulada: e.qtdSimulada });
+
+            var htmlCustos = '';
+            if (e.custos.length === 0) {
+                htmlCustos = '<div style="font-size:11px;color:#7a7a96;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:8px;text-align:center;">Nenhum custo. Clique em "+ Adicionar custo".</div>';
+            } else {
+                htmlCustos = '<div style="display:flex;flex-direction:column;gap:6px;">' + e.custos.map(function(c, idx){
+                    var opts = _PROSP_CATEGORIAS.map(function(cat){
+                        return '<option value="' + cat.key + '"' + (c.categoria === cat.key ? ' selected' : '') + '>' + cat.label + '</option>';
+                    }).join('');
+                    return '<div style="display:flex;gap:6px;align-items:center;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 8px;">' +
+                        '<select onchange="_prospSimEstado.custos[' + idx + '].categoria=this.value;_prospRenderCorpoSim();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;flex:0 0 130px;">' + opts + '</select>' +
+                        '<input type="text" placeholder="Descrição" value="' + _esc(c.descricao || '') + '" onchange="_prospSimEstado.custos[' + idx + '].descricao=this.value;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:11px;flex:1;">' +
+                        '<input type="number" min="0" step="0.01" value="' + (c.valor || '') + '" placeholder="0" onchange="_prospSimEstado.custos[' + idx + '].valor=parseFloat(this.value)||0;_prospRenderCorpoSim();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:6px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;font-size:11px;font-weight:700;flex:0 0 100px;text-align:right;">' +
+                        '<button onclick="_prospSimEstado.custos.splice(' + idx + ',1);_prospRenderCorpoSim();" style="background:none;border:none;color:#4a4d60;cursor:pointer;font-size:16px;padding:0 4px;">×</button>' +
+                    '</div>';
+                }).join('') + '</div>';
+            }
+
+            var htmlSim = '';
+            if (calc.precoVenda > 0 && calc.qtd > 0) {
+                var corLucro = calc.lucroTotal >= 0 ? 'var(--green)' : 'var(--red)';
+                var corRoi   = calc.roi >= 50 ? 'var(--green)' : (calc.roi >= 20 ? '#fbbf24' : (calc.roi > 0 ? '#f97316' : 'var(--red)'));
+                htmlSim =
+                    '<div style="background:linear-gradient(135deg,rgba(139,92,246,0.06),rgba(59,130,246,0.03));border:1px solid rgba(139,92,246,0.20);border-radius:10px;padding:12px 14px;margin-top:8px;">' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">📊 RESULTADO SIMULADO</div>' +
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Custo/un</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:JetBrains Mono,monospace;">R$ ' + calc.custoUnit.toFixed(2) + '</div></div>' +
+                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Margem/un</div><div style="font-size:13px;font-weight:700;color:' + corLucro + ';font-family:JetBrains Mono,monospace;">R$ ' + calc.margemUnit.toFixed(2) + ' (' + calc.margemPct.toFixed(1) + '%)</div></div>' +
+                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Invest. total</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:JetBrains Mono,monospace;">R$ ' + calc.investNecessario.toFixed(0) + '</div></div>' +
+                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Retorno bruto</div><div style="font-size:13px;font-weight:700;color:#3b82f6;font-family:JetBrains Mono,monospace;">R$ ' + calc.retornoTotal.toFixed(0) + '</div></div>' +
+                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">Lucro total</div><div style="font-size:16px;font-weight:800;color:' + corLucro + ';font-family:JetBrains Mono,monospace;">R$ ' + calc.lucroTotal.toFixed(0) + '</div></div>' +
+                            '<div><div style="font-size:9px;color:#7a7a96;text-transform:uppercase;">ROI</div><div style="font-size:16px;font-weight:800;color:' + corRoi + ';font-family:JetBrains Mono,monospace;">' + calc.roi.toFixed(1) + '%</div></div>' +
+                        '</div>' +
+                    '</div>';
+            }
+
+            body.innerHTML =
+                '<div class="form-group" style="margin-bottom:12px;"><label>Nome da rota/simulação *</label>' +
+                    '<input type="text" id="prosp-sim-nome" value="' + _esc(e.nome) + '" placeholder="Ex: EUA → Boa Vista" onchange="_prospSimEstado.nome=this.value;" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Ex: "EUA→BV", "Amazon→MAO", "Fornecedor A", "Direto China", etc.</div>' +
+                '</div>' +
+
+                '<div class="form-group" style="margin-bottom:12px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                        '<label style="margin:0;">💸 Custos <span style="color:var(--text-dim);font-weight:400;">(total: R$ ' + _prospSimCustoTotal(e).toFixed(2) + ')</span></label>' +
+                        '<button onclick="_prospSimEstado.custos.push({id:Date.now(),categoria:\'fornecedor\',descricao:\'\',valor:0});_prospRenderCorpoSim();" style="background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:700;">+ Adicionar custo</button>' +
+                    '</div>' +
+                    htmlCustos +
+                '</div>' +
+
+                '<div class="form-group" style="margin-bottom:12px;">' +
+                    '<label>🎯 Simulador</label>' +
+                    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">' +
+                        '<div>' +
+                            '<div style="font-size:10px;color:var(--text-dim);margin-bottom:3px;">Preço de venda (R$)</div>' +
+                            '<input type="number" min="0" step="0.01" value="' + (e.precoVenda || '') + '" placeholder="0" onchange="_prospSimEstado.precoVenda=parseFloat(this.value)||0;_prospRenderCorpoSim();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;width:100%;">' +
+                        '</div>' +
+                        '<div>' +
+                            '<div style="font-size:10px;color:var(--text-dim);margin-bottom:3px;">Qtd. simulada</div>' +
+                            '<input type="number" min="0" step="1" value="' + (e.qtdSimulada || '') + '" placeholder="0" onchange="_prospSimEstado.qtdSimulada=parseInt(this.value)||0;_prospRenderCorpoSim();" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 10px;border-radius:7px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;width:100%;">' +
+                        '</div>' +
+                    '</div>' +
+                    htmlSim +
+                '</div>';
+        }
+
+        async function _prospSalvarSim() {
+            var e = window._prospSimEstado;
+            if (!e.nome || !e.nome.trim()) { alert('Dê um nome à simulação (ex: "EUA → BV")'); return; }
+
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
+            var p = prospeccoes.find(function(x){ return x.id === e.prospId; });
+            if (!p) return;
+            if (!p.simulacoes) p.simulacoes = [];
+
+            if (e.simId) {
+                var s = p.simulacoes.find(function(x){ return x.id === e.simId; });
+                if (s) {
+                    s.nome = e.nome.trim();
+                    s.custos = e.custos;
+                    s.precoVenda = e.precoVenda;
+                    s.qtdSimulada = e.qtdSimulada;
+                }
+            } else {
+                p.simulacoes.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    nome: e.nome.trim(),
+                    custos: e.custos,
+                    precoVenda: e.precoVenda,
+                    qtdSimulada: e.qtdSimulada
+                });
+            }
+
+            try {
+                await _salvar('prospeccoes', prospeccoes);
+                _prospFecharModalSim();
+                renderProspeccoes();
+            } catch(err) { alert('❌ Erro: ' + err.message); console.error(err); }
+        }
+
+        function _prospFecharModalSim() {
+            var m = document.getElementById('prosp-sim-modal');
+            if (m) m.remove();
+            window._prospSimEstado = null;
+        }
+
+        async function prospRemoverSim(prospId, simId) {
+            if (!confirm('Remover esta simulação?')) return;
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
+            var p = prospeccoes.find(function(x){ return x.id === prospId; });
+            if (!p || !p.simulacoes) return;
+            p.simulacoes = p.simulacoes.filter(function(s){ return s.id !== simId; });
+            await _salvar('prospeccoes', prospeccoes);
+            renderProspeccoes();
+        }
+
+        // Promover pra Cadastrado — usa a PRIMEIRA simulação
         async function prospPromover(id) {
-            var prospeccoes = _ler('prospeccoes') || [];
+            var prospeccoes = (_ler('prospeccoes') || []).map(_prospMigrar);
             var p = prospeccoes.find(function(x){ return x.id === id; });
             if (!p) return;
 
-            if (!confirm('Promover "' + p.nome + '" para o pipeline (etapa Cadastrado)?\n\nO produto será enviado para Validações e removido da lista de prospecções.')) return;
+            if (!p.simulacoes || p.simulacoes.length === 0) {
+                alert('⚠️ Adicione pelo menos uma simulação antes de promover.');
+                return;
+            }
+            var sim = p.simulacoes[0]; // primeira da lista
+            var calc = _prospCalcSim(sim);
+
+            if (!confirm('Promover "' + p.nome + '" para o pipeline (etapa Cadastrado)?\n\nUsando a simulação: "' + sim.nome + '" (primeira da lista).\n\nO produto será enviado para Validações e removido da lista de prospecções.')) return;
 
             var validacoes = _ler('validacoes') || [];
-            var custoTotal = _prospCustoTotal(p);
-            var sim = _prospCalcSimulacao(p);
-
-            // Criar produto novo em validações com etapa "cadastrado"
             var novoProduto = {
                 id: Date.now() + Math.floor(Math.random() * 1000),
                 nome: p.nome,
@@ -11364,17 +11454,15 @@
                 etapa: 'cadastrado',
                 dataCriacao: new Date().toISOString().slice(0,10),
                 loja: '',
-                custo: custoTotal,
-                preco: sim.precoVenda || 0,
-                margem: sim.margemPct || 0,
-                notas: (p.notas || '') + (p.custos && p.custos.length ? '\n\n--- Custos importados da prospecção ---\n' + p.custos.map(function(c){
+                custo: calc.custoUnit,
+                preco: calc.precoVenda,
+                margem: calc.margemPct,
+                notas: (p.notas || '') + '\n\n--- Simulação escolhida: ' + sim.nome + ' ---\n' + (sim.custos || []).map(function(c){
                     return _prospCatLabel(c.categoria) + (c.descricao ? ' (' + c.descricao + ')' : '') + ': R$ ' + (parseFloat(c.valor) || 0).toFixed(2);
-                }).join('\n') : ''),
+                }).join('\n') + '\n\nOutras simulações analisadas: ' + (p.simulacoes.slice(1).map(function(s){ return s.nome; }).join(', ') || 'nenhuma'),
                 criadoEm: new Date().toISOString()
             };
             validacoes.push(novoProduto);
-
-            // Remover da lista de prospecções
             prospeccoes = prospeccoes.filter(function(x){ return x.id !== id; });
 
             try {
@@ -11383,12 +11471,10 @@
                     _salvar('prospeccoes', prospeccoes)
                 ]);
                 renderProspeccoes();
-                alert('✅ Prospecção promovida! Confira em 📋 Pipeline (coluna Cadastrado).');
-            } catch(err) {
-                alert('❌ Erro ao promover: ' + err.message);
-                console.error(err);
-            }
+                alert('✅ Prospecção promovida com a simulação "' + sim.nome + '"! Confira em 📋 Pipeline.');
+            } catch(err) { alert('❌ Erro: ' + err.message); console.error(err); }
         }
+
 
         function mudarSubVal(btn) {
             document.querySelectorAll('#validacao .sub-btn').forEach(b => b.classList.remove('active'));
