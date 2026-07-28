@@ -15965,107 +15965,427 @@
             renderProximasCompras();
         }
 
-        // ── VISÃO GERAL ──
-        function renderFinVisaoGeral() {
-            const el = document.getElementById('fin-visao-content');
-            if (!el) return;
-            // CORREÇÃO: usar _ler() em vez de localStorage.getItem direto
-            // para garantir leitura do cache _db (que vem do Supabase).
-            const caixas  = _ler('fin-caixas')  || [];
-            const contas  = _ler('fin-contas')  || [];
-            const compras = _ler('fin-compras') || [];
+        // ── EDITAR MOVIMENTAÇÃO (modal simples) ──
+        function editarMovimentacao(movId) {
+            var movs = _ler('fin-movs') || [];
+            var m = movs.find(function(x){ return x.id === movId; });
+            if (!m) { alert('Movimentação não encontrada'); return; }
 
-            if (!caixas.length) {
-                el.innerHTML = `<div style="text-align:center;padding:60px 20px;">
-                    <div style="font-size:48px;margin-bottom:16px;">🏦</div>
-                    <div style="font-size:16px;font-weight:600;color:var(--text-main);margin-bottom:8px;">Configure seu financeiro</div>
-                    <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Vá em "Contas e Caixas" para cadastrar sua conta bancária e criar os caixas das suas operações.</div>
-                    <button onclick="document.querySelector('[data-fin-sub=sub-fin-contas]').click()" class="btn-primary" style="padding:12px 24px;">➕ Criar primeira conta</button>
-                </div>`;
+            var prev = document.getElementById('mov-edit-modal');
+            if (prev) prev.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'mov-edit-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:24px;width:100%;max-width:480px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ EDITAR MOVIMENTAÇÃO</div>' +
+                            '<div style="font-size:18px;font-weight:800;color:#fff;">' + (m.tipo === 'entrada' ? 'Entrada' : m.tipo === 'saida' ? 'Saída' : 'Transferência') + '</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'mov-edit-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Descrição</label>' +
+                        '<input type="text" id="mov-edit-desc" value="' + _esc(m.descricao || '') + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Valor (R$)</label>' +
+                        '<input type="number" id="mov-edit-valor" value="' + (m.valor || 0) + '" step="0.01" min="0" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:16px;"><label>Data</label>' +
+                        '<input type="date" id="mov-edit-data" value="' + (m.data ? String(m.data).slice(0,10) : new Date().toISOString().slice(0,10)) + '" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="_movEditExcluir(' + movId + ')" style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.35);color:#ef4444;padding:11px 14px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;">Excluir</button>' +
+                        '<button onclick="document.getElementById(\'mov-edit-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="_movEditSalvar(' + movId + ')" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+        }
+
+        async function _movEditSalvar(movId) {
+            var movs = _ler('fin-movs') || [];
+            var m = movs.find(function(x){ return x.id === movId; });
+            if (!m) return;
+            var desc  = document.getElementById('mov-edit-desc').value.trim();
+            var valor = parseFloat(document.getElementById('mov-edit-valor').value) || 0;
+            var data  = document.getElementById('mov-edit-data').value;
+            if (!valor || valor <= 0) { alert('Informe um valor válido'); return; }
+            if (!data) { alert('Informe a data'); return; }
+            m.descricao = desc;
+            m.valor = valor;
+            m.data = data;
+            try {
+                await _salvar('fin-movs', movs);
+                document.getElementById('mov-edit-modal').remove();
+                if (typeof renderFinVisaoGeral === 'function') renderFinVisaoGeral();
+                if (typeof renderHistoricoMovimentacoes === 'function') renderHistoricoMovimentacoes();
+            } catch(err) { alert('Erro ao salvar: ' + err.message); }
+        }
+
+        async function _movEditExcluir(movId) {
+            if (!confirm('Excluir essa movimentação? Não pode ser desfeito.')) return;
+            var movs = _ler('fin-movs') || [];
+            movs = movs.filter(function(x){ return x.id !== movId; });
+            try {
+                await _salvar('fin-movs', movs);
+                document.getElementById('mov-edit-modal').remove();
+                if (typeof renderFinVisaoGeral === 'function') renderFinVisaoGeral();
+                if (typeof renderHistoricoMovimentacoes === 'function') renderHistoricoMovimentacoes();
+            } catch(err) { alert('Erro ao excluir: ' + err.message); }
+        }
+
+        // ── VISÃO GERAL 3D CONSOLIDADA ──
+        // Cascata executiva: Entradas por negócio → Lucro operacional → Fluxo pessoal → Sobra real
+        // Fluxo de Caixa = conta centralizadora (nome contém "fluxo" ou "central")
+
+        var _FIN_MES_SELECIONADO = null; // YYYY-MM ou null pra mês atual
+
+        // Ícones SVG inline (sem emojis exceto medalhas)
+        var _FIN_ICONES = {
+            entradas: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>',
+            lucro:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+            pessoal:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+            sobra:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+            emprestimos: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9l4 4-4 4M10 15l-4-4 4-4"/></svg>',
+            calendar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+            edit:     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+            item:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+        };
+
+        function _finFmt(v) {
+            return (parseFloat(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+        }
+
+        function _finFmtDec(v, dec) {
+            return (parseFloat(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: dec || 2, maximumFractionDigits: dec || 2 });
+        }
+
+        function _finCorMargem(pct) {
+            if (pct >= 35) return { txt:'#34d399', bg:'rgba(52,211,153,0.10)', border:'rgba(52,211,153,0.20)' };
+            if (pct >= 20) return { txt:'#fbbf24', bg:'rgba(245,158,11,0.10)', border:'rgba(245,158,11,0.20)' };
+            if (pct >= 0)  return { txt:'#f97316', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.20)' };
+            return { txt:'#ef4444', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.20)' };
+        }
+
+        function _finMedalha(idx) {
+            if (idx === 0) return '🥇';
+            if (idx === 1) return '🥈';
+            if (idx === 2) return '🥉';
+            return String(idx + 1);
+        }
+
+        function _finMesLabel(mesKey) {
+            if (!mesKey) {
+                var h = new Date();
+                mesKey = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0');
+            }
+            var partes = mesKey.split('-');
+            var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            return meses[parseInt(partes[1]) - 1] + '/' + partes[0];
+        }
+
+        function _finSeletorMesOpts(atual) {
+            var opts = '';
+            var h = new Date();
+            for (var i = 0; i < 12; i++) {
+                var d = new Date(h.getFullYear(), h.getMonth() - i, 1);
+                var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                var lbl = _finMesLabel(key);
+                var sel = (atual === key || (!atual && i === 0)) ? ' selected' : '';
+                opts += '<option value="' + key + '"' + sel + '>' + lbl + '</option>';
+            }
+            return opts;
+        }
+
+        // Identifica se a conta/caixa é o centralizador (Fluxo de Caixa)
+        function _finEhCentralizador(item) {
+            if (!item || !item.nome) return false;
+            var n = item.nome.toLowerCase();
+            return n.indexOf('fluxo') >= 0 || n.indexOf('central') >= 0;
+        }
+
+        // Retorna array de movimentações no mês do CENTRALIZADOR (Fluxo de Caixa)
+        // Considera: caixaId de centralizador OU contaId de centralizador OU transferências ENTRADAS pra centralizador
+        function _finMovsCentralizadorMes(mesKey) {
+            var caixas = _ler('fin-caixas') || [];
+            var contas = _ler('fin-contas') || [];
+            var movs   = _ler('fin-movs')   || [];
+
+            var caixasCentralIds = new Set(caixas.filter(_finEhCentralizador).map(function(c){ return String(c.id); }));
+            var contasCentralIds = new Set(contas.filter(_finEhCentralizador).map(function(c){ return String(c.id); }));
+
+            var partes = mesKey.split('-');
+            var ano = parseInt(partes[0]);
+            var mes = parseInt(partes[1]) - 1;
+
+            return movs.filter(function(m){
+                var d = new Date(m.data || m.criadoEm);
+                if (isNaN(d.getTime())) return false;
+                if (d.getFullYear() !== ano || d.getMonth() !== mes) return false;
+                var cx = String(m.caixaId || '');
+                var ct = String(m.contaId || '');
+                var cxDest = String(m.caixaDestinoId || '');
+                if (caixasCentralIds.has(cx) || contasCentralIds.has(ct)) return true;
+                if (caixasCentralIds.has(cxDest) && m.tipo === 'transferencia') return true;
+                return false;
+            });
+        }
+
+        function renderFinVisaoGeral() {
+            var el = document.getElementById('fin-visao-content');
+            if (!el) return;
+
+            var caixas = _ler('fin-caixas') || [];
+            var contas = _ler('fin-contas') || [];
+            if (!caixas.length && !contas.length) {
+                el.innerHTML = '<div style="text-align:center;padding:60px 20px;">' +
+                    '<div style="font-size:16px;font-weight:600;color:var(--text-main);margin-bottom:8px;">Configure seu financeiro</div>' +
+                    '<div style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Vá em "Contas e Caixas" para cadastrar sua conta bancária e criar os caixas das suas operações.</div>' +
+                    '<button onclick="document.querySelector(\'[data-fin-sub=sub-fin-contas]\').click()" class="btn-primary" style="padding:12px 24px;">Criar primeira conta</button>' +
+                '</div>';
                 return;
             }
 
-            // Alertas
-            const alertas = caixas.filter(c => {
-                const s = calcularSaldoCaixa(c.id);
-                return c.saldoMinimo > 0 && s.saldo <= c.saldoMinimo;
+            var mesKey = _FIN_MES_SELECIONADO;
+            if (!mesKey) {
+                var h = new Date();
+                mesKey = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0');
+            }
+
+            // Calcular ROCE por negócio no mês selecionado
+            var dadosROCE = [];
+            try {
+                dadosROCE = calcularROCENegocios(30, mesKey) || [];
+            } catch(e) {
+                console.warn('Erro ao calcular ROCE:', e);
+                dadosROCE = [];
+            }
+
+            // Filtrar só negócios que geraram receita OU tiveram atividade
+            var negociosAtivos = dadosROCE.filter(function(d){
+                return (parseFloat(d.receitaBruta) || 0) > 0 || (parseFloat(d.despesasOp) || 0) > 0;
             });
-            const alertasCompra = compras.filter(c => {
-                const s = calcularSaldoCaixa(c.caixaId);
-                return s.saldoDisponivel >= c.valorTotal && c.status !== 'concluida';
+
+            // Ordenar por EBIT (lucro operacional) desc
+            negociosAtivos.sort(function(a, b){ return (parseFloat(b.ebit) || 0) - (parseFloat(a.ebit) || 0); });
+
+            var totalFat  = negociosAtivos.reduce(function(s,d){ return s + (parseFloat(d.receitaBruta) || 0); }, 0);
+            var totalDesp = negociosAtivos.reduce(function(s,d){ return s + (parseFloat(d.despesasOp)   || 0); }, 0);
+            var totalLucro= negociosAtivos.reduce(function(s,d){ return s + (parseFloat(d.ebit)         || 0); }, 0);
+            var margemGeral = totalFat > 0 ? (totalLucro / totalFat * 100) : 0;
+
+            // Fluxo pessoal (centralizador)
+            var movsCentral = _finMovsCentralizadorMes(mesKey);
+            // Saídas do centralizador (pagamentos que fez)
+            var saidasPessoais = movsCentral.filter(function(m){
+                if (m.tipo !== 'saida') return false;
+                // ignorar transferências
+                return true;
             });
+            // Agrupar por descrição/categoria
+            var totalPessoal = saidasPessoais.reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
+            saidasPessoais.sort(function(a,b){ return (parseFloat(b.valor) || 0) - (parseFloat(a.valor) || 0); });
 
-            let totalGeral = 0, totalProLabore = 0, totalDisp = 0;
-            caixas.forEach(c => {
-                const s = calcularSaldoCaixa(c.id);
-                totalGeral    += s.saldo;
-                totalProLabore+= s.proLaboreReservado;
-                totalDisp     += s.saldoDisponivel;
-            });
+            var sobraReal = totalLucro - totalPessoal;
+            var pctSobra = totalLucro > 0 ? (sobraReal / totalLucro * 100) : 0;
 
-            el.innerHTML = `
-            <!-- Alertas -->
-            ${alertas.length || alertasCompra.length ? `
-            <div style="margin-bottom:20px;">
-                ${alertasCompra.map(c=>`
-                <div style="background:var(--green-bg);border:1px solid rgba(0,230,118,0.3);border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
-                    <div style="font-size:13px;font-weight:700;color:var(--green);">🔔 Capital disponível para comprar: ${c.produtoNome}</div>
-                    <button onclick="document.querySelector('[data-fin-sub=sub-fin-compras]').click()" class="btn-success" style="padding:6px 12px;font-size:12px;">Ver →</button>
-                </div>`).join('')}
-                ${alertas.map(c=>`
-                <div style="background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.25);border-radius:8px;padding:12px 16px;margin-bottom:8px;">
-                    <div style="font-size:13px;font-weight:700;color:var(--red);">⚠️ Caixa "${c.nome}" abaixo do saldo mínimo!</div>
-                </div>`).join('')}
-            </div>` : ''}
+            var html =
+                // Header
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:14px;">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ VISÃO GERAL · FINANCEIRO</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Onde tá o lucro? Onde tá o prejuízo?</div>' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);padding:8px 12px;border-radius:10px;backdrop-filter:blur(12px);">' +
+                        '<span style="color:#a78bfa;display:flex;align-items:center;">' + _FIN_ICONES.calendar + '</span>' +
+                        '<select onchange="_FIN_MES_SELECIONADO=this.value;renderFinVisaoGeral();" style="background:transparent;border:none;color:#a78bfa;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;outline:none;">' + _finSeletorMesOpts(mesKey) + '</select>' +
+                    '</div>' +
+                '</div>' +
 
-            <!-- KPIs gerais -->
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;position:relative;overflow:hidden;">
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);opacity:0.6;"></div>
-                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Patrimônio Total</div>
-                    <div style="font-size:28px;font-weight:700;color:var(--green);font-family:JetBrains Mono,monospace;">R$ ${totalGeral.toFixed(2)}</div>
-                    <div style="font-size:11px;color:var(--text-dim);">${caixas.length} caixas · ${contas.length} contas</div>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;position:relative;overflow:hidden;">
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#ffc107;opacity:0.6;"></div>
-                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Pró-labore Reservado</div>
-                    <div style="font-size:28px;font-weight:700;color:#ffc107;font-family:JetBrains Mono,monospace;">R$ ${totalProLabore.toFixed(2)}</div>
-                    <div style="font-size:11px;color:var(--text-dim);">30% das vendas separado</div>
-                </div>
-                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;position:relative;overflow:hidden;">
-                    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--blue);opacity:0.6;"></div>
-                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Capital de Giro Disponível</div>
-                    <div style="font-size:28px;font-weight:700;color:var(--blue);font-family:JetBrains Mono,monospace;">R$ ${totalDisp.toFixed(2)}</div>
-                    <div style="font-size:11px;color:var(--text-dim);">patrimônio − pró-labore</div>
-                </div>
-            </div>
+                // Canvas 3D
+                '<div style="perspective:1600px;perspective-origin:50% 20%;">' +
+                    '<div style="transform-style:preserve-3d;">' +
 
-            <!-- Cards por caixa — clean/minimal -->
-            <div style="display:flex;flex-direction:column;gap:8px;">
-                ${caixas.map(c => {
-                    const s     = calcularSaldoCaixa(c.id);
-                    const conta = contas.find(ct => ct.id == c.contaId);
-                    const alerta= c.saldoMinimo > 0 && s.saldo <= c.saldoMinimo;
-                    const lucro = s.lucroTotal || 0;
-                    const pl    = s.saldoReservado || 0;
-                    const corBorda = alerta ? 'var(--red)' : s.saldo > 0 ? 'var(--green)' : 'var(--border)';
-                    return `<div style="background:var(--bg-card);border:1px solid var(--border);border-left:3px solid ${corBorda};border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;" onclick="document.querySelector('[data-fin-sub=sub-fin-contas]').click()">
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:13px;font-weight:700;color:var(--text-main);">💼 ${c.nome}</div>
-                            <div style="font-size:10px;color:var(--text-dim);">${conta?.nome||'Sem conta'}${alerta?' · ⚠️ Saldo baixo':''}</div>
-                        </div>
-                        <div style="display:flex;gap:16px;align-items:center;flex-shrink:0;">
-                            ${lucro > 0 ? `<div style="text-align:right;"><div style="font-size:9px;color:var(--green);">Lucro</div><div style="font-size:12px;font-weight:700;color:var(--green);">R$ ${lucro.toFixed(0)}</div></div>` : ''}
-                            ${pl > 0 ? `<div style="text-align:right;"><div style="font-size:9px;color:#ffc107;">Pró-lab</div><div style="font-size:12px;font-weight:700;color:#ffc107;">R$ ${pl.toFixed(0)}</div></div>` : ''}
-                            <div style="text-align:right;">
-                                <div style="font-size:9px;color:var(--text-dim);">Saldo</div>
-                                <div style="font-size:18px;font-weight:900;color:${s.saldo>=0?'var(--green)':'var(--red)'};font-family:JetBrains Mono,monospace;">R$ ${s.saldo.toFixed(0)}</div>
-                            </div>
-                        </div>
-                    </div>`;
-                }).join('')}
-            </div>`;
+                    // ═════ BLOCO 1: ENTRADAS POR NEGÓCIO ═════
+                    '<div style="background:linear-gradient(180deg,rgba(52,211,153,0.10),rgba(52,211,153,0.02));border:1px solid rgba(52,211,153,0.30);border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 20px 60px rgba(52,211,153,0.15),0 0 40px rgba(52,211,153,0.08),inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(60px) rotateX(-1.5deg);">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
+                            '<div style="display:flex;align-items:center;gap:10px;">' +
+                                '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(52,211,153,0.30),rgba(52,211,153,0.10));display:flex;align-items:center;justify-content:center;color:#34d399;border:1px solid rgba(52,211,153,0.30);box-shadow:0 4px 20px rgba(52,211,153,0.20);">' + _FIN_ICONES.entradas + '</div>' +
+                                '<div>' +
+                                    '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">1 · ENTRADAS POR NEGÓCIO</div>' +
+                                    '<div style="font-size:11px;color:var(--text-dim);">Ordenado por lucro operacional</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div style="font-size:10px;color:var(--text-dim);">' + negociosAtivos.length + ' ' + (negociosAtivos.length === 1 ? 'negócio' : 'negócios') + '</div>' +
+                        '</div>';
+
+            if (negociosAtivos.length === 0) {
+                html += '<div style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:12px;">Nenhum negócio com receita nesse mês.</div>';
+            } else {
+                // Cabeçalho da tabela
+                html +=
+                    '<div style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:9px;padding:6px 12px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:6px;">' +
+                        '<div></div><div>Negócio</div><div style="text-align:right;">Faturamento</div><div style="text-align:right;">Despesa Op.</div><div style="text-align:right;">Lucro</div><div style="text-align:right;">Margem</div>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:5px;">';
+
+                negociosAtivos.forEach(function(d, idx){
+                    var medalha = _finMedalha(idx);
+                    var fat  = parseFloat(d.receitaBruta) || 0;
+                    var desp = parseFloat(d.despesasOp)   || 0;
+                    var luc  = parseFloat(d.ebit)         || 0;
+                    var mrg  = parseFloat(d.margem)       || 0;
+                    var corM = _finCorMargem(mrg);
+                    var corLuc = luc >= 0 ? '#34d399' : '#ef4444';
+
+                    // Highlight top 3
+                    var rowBg, rowBorder;
+                    if (idx === 0) {
+                        rowBg = 'linear-gradient(90deg,rgba(255,215,0,0.05),rgba(255,255,255,0.02))';
+                        rowBorder = 'rgba(255,215,0,0.15)';
+                    } else if (idx === 1) {
+                        rowBg = 'linear-gradient(90deg,rgba(192,192,192,0.04),rgba(255,255,255,0.02))';
+                        rowBorder = 'rgba(255,255,255,0.06)';
+                    } else if (idx === 2) {
+                        rowBg = 'linear-gradient(90deg,rgba(205,127,50,0.04),rgba(255,255,255,0.02))';
+                        rowBorder = 'rgba(255,255,255,0.06)';
+                    } else {
+                        rowBg = 'rgba(255,255,255,0.02)';
+                        rowBorder = 'rgba(255,255,255,0.05)';
+                    }
+
+                    var isMedalha = idx < 3;
+                    var isEmp = d.isEmprestimos;
+
+                    html +=
+                        '<div style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:12px;padding:9px 12px;background:' + rowBg + ';border:1px solid ' + rowBorder + ';border-radius:8px;' + (idx === 0 ? 'box-shadow:0 4px 15px rgba(255,215,0,0.06);' : '') + '">' +
+                            '<div style="font-size:' + (isMedalha ? '16px' : '12px') + ';color:' + (isMedalha ? 'inherit' : 'var(--text-dim)') + ';font-weight:700;text-align:center;">' + medalha + '</div>' +
+                            '<div style="color:var(--text-main);font-weight:700;display:flex;align-items:center;gap:6px;">' + (isEmp ? '<span style="color:#fbbf24;display:inline-flex;">' + _FIN_ICONES.emprestimos + '</span>' : '') + _esc(d.loja && d.loja.nome ? d.loja.nome : '—') + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:700;">R$ ' + _finFmt(fat) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#f97316;font-weight:600;">R$ ' + _finFmt(desp) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corLuc + ';font-weight:800;">R$ ' + _finFmt(luc) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corM.txt + ';font-weight:800;font-size:11px;background:' + corM.bg + ';padding:2px 6px;border-radius:5px;border:1px solid ' + corM.border + ';">' + mrg.toFixed(1) + '%</div>' +
+                        '</div>';
+                });
+
+                // Total
+                var corMargemGeral = _finCorMargem(margemGeral);
+                html +=
+                        '<div style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:12px;padding:11px 12px;margin-top:8px;background:linear-gradient(90deg,rgba(52,211,153,0.10),rgba(139,92,246,0.05));border:1px solid rgba(52,211,153,0.30);border-radius:8px;box-shadow:0 4px 20px rgba(52,211,153,0.10);">' +
+                            '<div></div>' +
+                            '<div style="color:var(--text-main);font-weight:800;text-transform:uppercase;font-size:10px;letter-spacing:0.10em;">TOTAL</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:800;">R$ ' + _finFmt(totalFat) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#ef4444;font-weight:800;">R$ ' + _finFmt(totalDesp) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#34d399;font-weight:800;font-size:14px;">R$ ' + _finFmt(totalLucro) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corMargemGeral.txt + ';font-weight:800;font-size:11px;background:' + corMargemGeral.bg + ';padding:2px 6px;border-radius:5px;border:1px solid ' + corMargemGeral.border + ';">' + margemGeral.toFixed(1) + '%</div>' +
+                        '</div>' +
+                    '</div>';
+            }
+
+            html +=
+                    '</div>' + // fim bloco 1
+
+                    // ═════ BLOCO 2: LUCRO CONSOLIDADO ═════
+                    '<div style="background:linear-gradient(180deg,rgba(59,130,246,0.10),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.30);border-radius:14px;padding:14px 18px;margin-bottom:14px;box-shadow:0 20px 60px rgba(59,130,246,0.12),0 0 40px rgba(59,130,246,0.06),inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(40px) rotateX(-1deg);">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                            '<div style="display:flex;align-items:center;gap:10px;">' +
+                                '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));display:flex;align-items:center;justify-content:center;color:#3b82f6;border:1px solid rgba(59,130,246,0.30);box-shadow:0 4px 20px rgba(59,130,246,0.20);">' + _FIN_ICONES.lucro + '</div>' +
+                                '<div>' +
+                                    '<div style="font-size:10px;color:#3b82f6;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">2 · LUCRO OPERACIONAL CONSOLIDADO</div>' +
+                                    '<div style="font-size:11px;color:var(--text-dim);">O que os negócios geraram esse mês</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div style="text-align:right;">' +
+                                '<div style="font-size:24px;font-weight:800;color:' + (totalLucro >= 0 ? '#34d399' : '#ef4444') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;text-shadow:0 0 30px ' + (totalLucro >= 0 ? 'rgba(52,211,153,0.30)' : 'rgba(239,68,68,0.30)') + ';">R$ ' + _finFmt(totalLucro) + '</div>' +
+                                '<div style="font-size:10px;color:' + (totalLucro >= 0 ? '#34d399' : '#ef4444') + ';font-weight:700;">' + margemGeral.toFixed(1) + '% de margem consolidada</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // ═════ BLOCO 3: FLUXO PESSOAL ═════
+                    '<div style="background:linear-gradient(180deg,rgba(245,158,11,0.08),rgba(245,158,11,0.02));border:1px solid rgba(245,158,11,0.30);border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 20px 60px rgba(245,158,11,0.12),0 0 40px rgba(245,158,11,0.06),inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(20px) rotateX(-0.5deg);">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                            '<div style="display:flex;align-items:center;gap:10px;">' +
+                                '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(245,158,11,0.30),rgba(245,158,11,0.10));display:flex;align-items:center;justify-content:center;color:#fbbf24;border:1px solid rgba(245,158,11,0.30);box-shadow:0 4px 20px rgba(245,158,11,0.20);">' + _FIN_ICONES.pessoal + '</div>' +
+                                '<div>' +
+                                    '<div style="font-size:10px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">3 · FLUXO PESSOAL (CENTRALIZADOR)</div>' +
+                                    '<div style="font-size:11px;color:var(--text-dim);">Saídas via Fluxo de Caixa</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div style="font-size:10px;color:var(--text-dim);">' + saidasPessoais.length + ' ' + (saidasPessoais.length === 1 ? 'lançamento' : 'lançamentos') + '</div>' +
+                        '</div>';
+
+            if (saidasPessoais.length === 0) {
+                html += '<div style="text-align:center;padding:30px 20px;color:var(--text-dim);font-size:12px;font-style:italic;">Nenhuma saída no Fluxo de Caixa nesse mês.<br><span style="font-size:10px;">Dica: crie uma conta chamada "Fluxo de Caixa" pra usar como centralizador.</span></div>';
+            } else {
+                // Mostrar top 8, agrupando o resto
+                var top = saidasPessoais.slice(0, 8);
+                var resto = saidasPessoais.slice(8);
+                var totalResto = resto.reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
+
+                html += '<div style="display:flex;flex-direction:column;gap:5px;">';
+                top.forEach(function(m){
+                    var desc = m.descricao || m.categoria || '(sem descrição)';
+                    html +=
+                        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:7px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;color:var(--text-muted);gap:10px;">' +
+                            '<div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">' +
+                                '<span style="color:#fbbf24;display:inline-flex;flex-shrink:0;">' + _FIN_ICONES.item + '</span>' +
+                                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(desc) + '</span>' +
+                            '</div>' +
+                            '<div style="font-family:JetBrains Mono,monospace;color:#fbbf24;font-weight:700;flex-shrink:0;">- R$ ' + _finFmt(m.valor) + '</div>' +
+                            '<button onclick="editarMovimentacao(' + m.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 4px;display:flex;align-items:center;" title="Editar">' + _FIN_ICONES.edit + '</button>' +
+                        '</div>';
+                });
+
+                if (resto.length > 0) {
+                    html +=
+                        '<div style="display:flex;justify-content:space-between;font-size:12px;padding:7px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;color:var(--text-dim);font-style:italic;">' +
+                            '<div>+ ' + resto.length + ' outras despesas</div>' +
+                            '<div style="font-family:JetBrains Mono,monospace;color:var(--text-dim);">- R$ ' + _finFmt(totalResto) + '</div>' +
+                        '</div>';
+                }
+
+                html +=
+                    '</div>' +
+                    '<div style="display:flex;justify-content:space-between;font-size:13px;padding:11px 12px;margin-top:8px;background:linear-gradient(90deg,rgba(245,158,11,0.10),rgba(249,115,22,0.05));border:1px solid rgba(245,158,11,0.30);border-radius:8px;">' +
+                        '<div style="color:var(--text-main);font-weight:800;text-transform:uppercase;font-size:10px;letter-spacing:0.10em;">TOTAL PESSOAL</div>' +
+                        '<div style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px;">- R$ ' + _finFmt(totalPessoal) + '</div>' +
+                    '</div>';
+            }
+
+            html +=
+                    '</div>' + // fim bloco 3
+
+                    // ═════ BLOCO 4: SOBRA REAL ═════
+                    '<div style="background:linear-gradient(135deg,rgba(52,211,153,0.20),rgba(59,130,246,0.10));border:1px solid rgba(52,211,153,0.50);border-radius:14px;padding:20px 22px;box-shadow:0 30px 80px rgba(52,211,153,0.25),0 0 60px rgba(52,211,153,0.15),inset 0 2px 0 rgba(255,255,255,0.10);backdrop-filter:blur(20px);transform:translateZ(80px) rotateX(-2deg);">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                            '<div style="display:flex;align-items:center;gap:12px;">' +
+                                '<div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#34d399,#22c55e);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 8px 30px rgba(52,211,153,0.50);">' + _FIN_ICONES.sobra + '</div>' +
+                                '<div>' +
+                                    '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.16em;font-weight:800;">4 · SOBRA REAL DO MÊS</div>' +
+                                    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Lucro operacional − fluxo pessoal</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div style="text-align:right;">' +
+                                '<div style="font-size:32px;font-weight:800;color:' + (sobraReal >= 0 ? '#34d399' : '#ef4444') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.03em;text-shadow:0 0 40px ' + (sobraReal >= 0 ? 'rgba(52,211,153,0.50)' : 'rgba(239,68,68,0.50)') + ';">R$ ' + _finFmt(sobraReal) + '</div>' +
+                                '<div style="font-size:11px;color:' + (sobraReal >= 0 ? '#34d399' : '#ef4444') + ';font-weight:700;margin-top:2px;">' + (totalLucro > 0 ? pctSobra.toFixed(0) + '% do lucro sobrou' : (sobraReal < 0 ? 'Prejuízo esse mês' : 'Sem lucro')) + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '</div>' + // fim preserve-3d
+                '</div>'; // fim perspective
+
+            el.innerHTML = html;
         }
+
 
         function importarJSON(event) {
             const file = event.target.files[0];
