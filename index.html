@@ -21878,25 +21878,34 @@
                 const prods = prodPorLoja[lid] || [];
 
                 // ── RECEITA BRUTA (vendas no período) ──
-                // Aceita 2 modos:
-                //  - Venda normal: v.produtoId → produto.loja === lid
-                //  - Venda livre:  v.origem === 'livre' → caixa.lojaId === lid
+                // Vincula venda a loja da mesma forma que a aba Vendas:
+                //  - Se v.produtoId E produto tem loja correta → conta pelo produto
+                //  - Senão, se v.caixaId E caixa tem loja correta → conta pelo caixa
+                // (removida a exigência de v.origem === 'livre' — vendas antigas
+                //  cujo produto foi deletado passam a contar via caixa)
                 const caixasDaLojaSet = new Set((caixaPorLoja[lid] || []).map(c => String(c.id)));
                 const vendasLoja = vendas.filter(v => {
                     const dv = new Date(v.data);
                     if (dv < corte || dv > hoje) return false;
+                    // Tenta pelo produto primeiro
                     if (v.produtoId) {
                         const prod = produtos.find(p => String(p.id) === String(v.produtoId));
                         if (prod && String(prod.loja || prod.lojaId) === lid) return true;
+                        // Se o produto foi encontrado mas é de outra loja, NÃO cai no fallback
+                        // (evita venda ser contada em duas lojas)
+                        if (prod) return false;
                     }
-                    if (v.origem === 'livre' && v.caixaId) {
-                        if (caixasDaLojaSet.has(String(v.caixaId))) return true;
-                    }
+                    // Fallback: pelo caixa
+                    if (v.caixaId && caixasDaLojaSet.has(String(v.caixaId))) return true;
                     return false;
                 });
-                const receitaBruta    = vendasLoja.reduce((s, v) => s + (v.precoFinal * v.quantidade || 0), 0);
-                const custoProdutos   = vendasLoja.reduce((s, v) => s + (v.custoUnitario * v.quantidade || 0), 0);
-                const lucroVendas     = vendasLoja.reduce((s, v) => s + (v.lucroTotal || (v.precoFinal - v.custoUnitario) * v.quantidade || 0), 0);
+                const receitaBruta    = vendasLoja.reduce((s, v) => s + ((parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1)), 0);
+                const custoProdutos   = vendasLoja.reduce((s, v) => s + ((parseFloat(v.custoUnitario)||0) * (parseInt(v.quantidade)||1)), 0);
+                const lucroVendas     = vendasLoja.reduce((s, v) => {
+                    var lt = parseFloat(v.lucroTotal);
+                    if (isNaN(lt)) lt = ((parseFloat(v.precoFinal)||0) - (parseFloat(v.custoUnitario)||0)) * (parseInt(v.quantidade)||1);
+                    return s + lt;
+                }, 0);
 
                 // ── DESPESAS OPERACIONAIS ──
                 // Regra: só sa\u00edda categorizada como 'custo' (n\u00e3o investimento em mercadoria)
@@ -21970,17 +21979,29 @@
                 const giro   = capitalEmpregado > 0 ? receitaBruta / capitalEmpregado : 0;
 
                 // ── HISTÓRICO MENSAL para tendência ──
+                // Usa a mesma lógica de filtro (produto OU caixa), mas sem restrição de período
+                const vendasLojaTodas = vendas.filter(v => {
+                    if (v.produtoId) {
+                        const prod = produtos.find(p => String(p.id) === String(v.produtoId));
+                        if (prod && String(prod.loja || prod.lojaId) === lid) return true;
+                        if (prod) return false;
+                    }
+                    if (v.caixaId && caixasDaLojaSet.has(String(v.caixaId))) return true;
+                    return false;
+                });
                 const meses = {};
-                vendas.filter(v => {
-                    const prod = produtos.find(p => String(p.id) === String(v.produtoId));
-                    return prod && String(prod.loja || prod.lojaId) === lid;
-                }).forEach(v => {
+                vendasLojaTodas.forEach(v => {
                     const mes = (v.data || '').slice(0, 7);
                     if (!mes) return;
                     if (!meses[mes]) meses[mes] = { receita: 0, lucro: 0, custo: 0 };
-                    meses[mes].receita += v.precoFinal * v.quantidade || 0;
-                    meses[mes].lucro   += v.lucroTotal || 0;
-                    meses[mes].custo   += v.custoUnitario * v.quantidade || 0;
+                    var qtd = parseInt(v.quantidade) || 1;
+                    var fat = (parseFloat(v.precoFinal) || 0) * qtd;
+                    var custo = (parseFloat(v.custoUnitario) || 0) * qtd;
+                    var lucro = parseFloat(v.lucroTotal);
+                    if (isNaN(lucro)) lucro = fat - custo;
+                    meses[mes].receita += fat;
+                    meses[mes].lucro   += lucro;
+                    meses[mes].custo   += custo;
                 });
                 const historico = Object.entries(meses)
                     .sort(([a],[b]) => a.localeCompare(b))
