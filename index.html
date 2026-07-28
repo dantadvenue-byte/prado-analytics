@@ -2927,6 +2927,7 @@
                 <!-- Seletor interno de análise -->
                 <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
                     <button id="analise-btn-visao" onclick="mudarSubAnalise('visao')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--purple-light);border:1px solid var(--purple-light);color:#fff;">📊 Visão Geral</button>
+                    <button id="analise-btn-vendas" onclick="mudarSubAnalise('vendas')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">🧾 Vendas</button>
                     <button id="analise-btn-dre" onclick="mudarSubAnalise('dre')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">📋 DRE Mensal</button>
                     <button id="analise-btn-roce" onclick="mudarSubAnalise('roce')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">📈 ROCE</button>
                 </div>
@@ -2934,6 +2935,11 @@
                 <!-- Visão Geral (conteúdo do sub-fin-visao espelhado) -->
                 <div id="analise-visao">
                     <div id="fin-visao-geral-wrap"></div>
+                </div>
+
+                <!-- Vendas por loja -->
+                <div id="analise-vendas" style="display:none;">
+                    <div id="fin-vendas-content"></div>
                 </div>
 
                 <!-- DRE -->
@@ -14504,7 +14510,7 @@
 
         function mudarSubAnalise(sub) {
             // Atualizar botões
-            ['visao','dre','roce'].forEach(function(s) {
+            ['visao','vendas','dre','roce'].forEach(function(s) {
                 var btn = document.getElementById('analise-btn-' + s);
                 if (!btn) return;
                 if (s === sub) {
@@ -14518,7 +14524,7 @@
                 }
             });
             // Mostrar/ocultar painéis
-            var paineis = {visao:'analise-visao', dre:'analise-dre', roce:'analise-roce'};
+            var paineis = {visao:'analise-visao', vendas:'analise-vendas', dre:'analise-dre', roce:'analise-roce'};
             Object.entries(paineis).forEach(function(e){
                 var el = document.getElementById(e[1]);
                 if (el) el.style.display = e[0]===sub ? 'block' : 'none';
@@ -14534,6 +14540,7 @@
                     if (typeof renderVisaoGeral === 'function') renderVisaoGeral();
                 }
             }
+            if (sub === 'vendas') { if (typeof renderFinVendas === 'function') renderFinVendas(); }
             if (sub === 'dre') { if (typeof renderDRE === 'function') renderDRE(); }
             if (sub === 'roce') { if (typeof renderROCE === 'function') renderROCE(); }
         }
@@ -16041,9 +16048,261 @@
             } catch(err) { alert('Erro ao excluir: ' + err.message); }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // VENDAS POR LOJA — detalhamento venda a venda no mês selecionado
+        // Estilo 3D consistente com a Visão Geral
+        // ═══════════════════════════════════════════════════════════════
+
+        var _FIN_VENDAS_MES = null; // YYYY-MM ou null pra mês atual
+
+        function _finVendaProdutoNome(v) {
+            return v.produtoNome || v.produto || 'Produto';
+        }
+
+        // Retorna { vendasPorLoja: {lojaId: [venda]}, semLoja: [venda] }
+        function _finAgruparVendasPorLoja(mesKey) {
+            var vendas   = _ler('vendas')   || [];
+            var produtos = _ler('produtos') || [];
+            var caixas   = _ler('fin-caixas') || [];
+
+            // Índice caixa → loja
+            var caixaLoja = {};
+            caixas.forEach(function(c){ if (c.lojaId) caixaLoja[String(c.id)] = String(c.lojaId); });
+
+            // Índice produto → loja
+            var prodLoja = {};
+            produtos.forEach(function(p){
+                var lid = p.loja || p.lojaId;
+                if (lid) prodLoja[String(p.id)] = String(lid);
+            });
+
+            var partes = mesKey.split('-');
+            var ano = parseInt(partes[0]);
+            var mes = parseInt(partes[1]) - 1;
+
+            var vendasPorLoja = {};
+            var semLoja = [];
+
+            vendas.forEach(function(v){
+                if (!v.data) return;
+                var d = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
+                if (isNaN(d.getTime())) return;
+                if (d.getFullYear() !== ano || d.getMonth() !== mes) return;
+
+                var lid = null;
+                if (v.produtoId && prodLoja[String(v.produtoId)]) {
+                    lid = prodLoja[String(v.produtoId)];
+                } else if (v.caixaId && caixaLoja[String(v.caixaId)]) {
+                    lid = caixaLoja[String(v.caixaId)];
+                }
+
+                if (lid) {
+                    if (!vendasPorLoja[lid]) vendasPorLoja[lid] = [];
+                    vendasPorLoja[lid].push(v);
+                } else {
+                    semLoja.push(v);
+                }
+            });
+
+            return { vendasPorLoja: vendasPorLoja, semLoja: semLoja };
+        }
+
+        function renderFinVendas() {
+            var el = document.getElementById('fin-vendas-content');
+            if (!el) return;
+
+            var mesKey = _FIN_VENDAS_MES;
+            if (!mesKey) {
+                var h = new Date();
+                mesKey = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0');
+            }
+
+            var lojas = _ler('lojas') || [];
+            var agrupadas = _finAgruparVendasPorLoja(mesKey);
+            var vendasPorLoja = agrupadas.vendasPorLoja;
+            var semLoja = agrupadas.semLoja;
+
+            // Estatísticas por loja (usar as vendas já agrupadas)
+            var cardsLoja = [];
+            lojas.forEach(function(l){
+                var vs = vendasPorLoja[String(l.id)] || [];
+                if (vs.length === 0) return;
+                cardsLoja.push(_finMontarCardLoja(l, vs));
+            });
+
+            // Ordenar cards por lucro total desc
+            cardsLoja.sort(function(a, b){ return b.lucroTotal - a.lucroTotal; });
+
+            var html =
+                // Header
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:14px;">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ VENDAS · DETALHAMENTO POR LOJA</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Venda por venda: fat, custo, lucro e margem</div>' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);padding:8px 12px;border-radius:10px;">' +
+                        '<span style="color:#a78bfa;display:flex;align-items:center;">' + _FIN_ICONES.calendar + '</span>' +
+                        '<select onchange="_FIN_VENDAS_MES=this.value;renderFinVendas();" style="background:transparent;border:none;color:#a78bfa;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;outline:none;">' + _finSeletorMesOpts(mesKey) + '</select>' +
+                    '</div>' +
+                '</div>';
+
+            if (cardsLoja.length === 0 && semLoja.length === 0) {
+                html += '<div style="text-align:center;padding:60px 20px;color:var(--text-dim);background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:12px;">' +
+                    '<div style="font-size:15px;font-weight:600;color:var(--text-main);margin-bottom:6px;">Nenhuma venda nesse mês</div>' +
+                    '<div style="font-size:12px;">Registre vendas em Operações → Vender ou Movimentações → Venda Livre.</div>' +
+                '</div>';
+                el.innerHTML = html;
+                return;
+            }
+
+            // Canvas 3D
+            html += '<div style="perspective:1600px;perspective-origin:50% 20%;"><div style="transform-style:preserve-3d;">';
+
+            cardsLoja.forEach(function(cardData, idx){
+                // ProfundidadeZ decresce conforme desce
+                var tz = Math.max(60 - idx * 12, 20);
+                html += _finRenderCardVendasLoja(cardData, tz);
+            });
+
+            // Vendas sem loja vinculada (fallback)
+            if (semLoja.length > 0) {
+                var totFatSl  = semLoja.reduce(function(s,v){ return s + (parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1); }, 0);
+                var totCustoSl= semLoja.reduce(function(s,v){ return s + (parseFloat(v.custoUnitario)||0) * (parseInt(v.quantidade)||1); }, 0);
+                var totLucroSl= semLoja.reduce(function(s,v){ return s + (parseFloat(v.lucroTotal) || 0); }, 0);
+                var cardSl = {
+                    loja: { id: '_sem_loja', nome: 'Vendas sem loja vinculada' },
+                    vendas: semLoja,
+                    fatTotal: totFatSl,
+                    custoTotal: totCustoSl,
+                    lucroTotal: totLucroSl,
+                    margem: totFatSl > 0 ? (totLucroSl / totFatSl * 100) : 0
+                };
+                html += _finRenderCardVendasLoja(cardSl, 15, true);
+            }
+
+            html += '</div></div>';
+            el.innerHTML = html;
+        }
+
+        function _finMontarCardLoja(loja, vendas) {
+            var fatTotal   = vendas.reduce(function(s,v){ return s + (parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1); }, 0);
+            var custoTotal = vendas.reduce(function(s,v){ return s + (parseFloat(v.custoUnitario)||0) * (parseInt(v.quantidade)||1); }, 0);
+            var lucroTotal = vendas.reduce(function(s,v){
+                var lt = parseFloat(v.lucroTotal);
+                if (isNaN(lt)) lt = ((parseFloat(v.precoFinal)||0) - (parseFloat(v.custoUnitario)||0)) * (parseInt(v.quantidade)||1);
+                return s + lt;
+            }, 0);
+            var margem = fatTotal > 0 ? (lucroTotal / fatTotal * 100) : 0;
+            return {
+                loja: loja,
+                vendas: vendas,
+                fatTotal: fatTotal,
+                custoTotal: custoTotal,
+                lucroTotal: lucroTotal,
+                margem: margem
+            };
+        }
+
+        function _finRenderCardVendasLoja(cardData, translateZ, isSemLoja) {
+            var loja = cardData.loja;
+            var vendas = cardData.vendas.slice().sort(function(a, b){
+                // Ordenar por data desc
+                var da = new Date(a.data + 'T12:00:00');
+                var db = new Date(b.data + 'T12:00:00');
+                return db - da;
+            });
+
+            var corAcento = isSemLoja ? '#6b7280' : '#a78bfa';
+            var corAcentoBg = isSemLoja ? 'rgba(107,114,128,0.10)' : 'rgba(139,92,246,0.10)';
+            var corAcentoBorder = isSemLoja ? 'rgba(107,114,128,0.30)' : 'rgba(139,92,246,0.30)';
+            var corAcentoShadow = isSemLoja ? 'rgba(107,114,128,0.10)' : 'rgba(139,92,246,0.15)';
+
+            var corMargem = _finCorMargem(cardData.margem);
+
+            var html =
+                '<div style="background:linear-gradient(180deg,' + corAcentoBg + ',rgba(255,255,255,0.01));border:1px solid ' + corAcentoBorder + ';border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 20px 60px ' + corAcentoShadow + ',0 0 40px ' + corAcentoShadow + ',inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(' + translateZ + 'px) rotateX(-1deg);">' +
+                    // Header da loja
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:12px;">' +
+                        '<div style="display:flex;align-items:center;gap:10px;">' +
+                            '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,' + corAcentoBorder.replace('0.30','0.40') + ',' + corAcentoBg + ');display:flex;align-items:center;justify-content:center;color:' + corAcento + ';border:1px solid ' + corAcentoBorder + ';">' +
+                                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' +
+                            '</div>' +
+                            '<div>' +
+                                '<div style="font-size:14px;font-weight:800;color:var(--text-main);letter-spacing:-0.01em;">' + _esc(loja.nome) + '</div>' +
+                                '<div style="font-size:10px;color:' + corAcento + ';text-transform:uppercase;letter-spacing:0.10em;font-weight:700;">' + vendas.length + ' ' + (vendas.length === 1 ? 'venda' : 'vendas') + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        // KPIs no header
+                        '<div style="display:flex;gap:10px;align-items:center;">' +
+                            '<div style="text-align:right;"><div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;">Faturamento</div><div style="font-size:13px;font-weight:700;color:#3b82f6;font-family:JetBrains Mono,monospace;">R$ ' + _finFmt(cardData.fatTotal) + '</div></div>' +
+                            '<div style="width:1px;height:22px;background:rgba(255,255,255,0.06);"></div>' +
+                            '<div style="text-align:right;"><div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;">Custo</div><div style="font-size:13px;font-weight:700;color:#f97316;font-family:JetBrains Mono,monospace;">R$ ' + _finFmt(cardData.custoTotal) + '</div></div>' +
+                            '<div style="width:1px;height:22px;background:rgba(255,255,255,0.06);"></div>' +
+                            '<div style="text-align:right;"><div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;">Lucro</div><div style="font-size:14px;font-weight:800;color:' + (cardData.lucroTotal >= 0 ? '#34d399' : '#ef4444') + ';font-family:JetBrains Mono,monospace;">R$ ' + _finFmt(cardData.lucroTotal) + '</div></div>' +
+                            '<div style="background:' + corMargem.bg + ';border:1px solid ' + corMargem.border + ';padding:4px 8px;border-radius:6px;font-family:JetBrains Mono,monospace;font-size:11px;font-weight:800;color:' + corMargem.txt + ';">' + cardData.margem.toFixed(1) + '%</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Cabeçalho tabela
+                    '<div style="display:grid;grid-template-columns:80px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:9px;padding:6px 12px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:6px;">' +
+                        '<div>Data</div><div>Produto</div><div style="text-align:right;">Faturamento</div><div style="text-align:right;">Custo</div><div style="text-align:right;">Lucro</div><div style="text-align:right;">Margem</div>' +
+                    '</div>' +
+
+                    '<div style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto;padding-right:4px;">';
+
+            vendas.forEach(function(v){
+                var fat   = (parseFloat(v.precoFinal) || 0) * (parseInt(v.quantidade) || 1);
+                var custo = (parseFloat(v.custoUnitario) || 0) * (parseInt(v.quantidade) || 1);
+                var lucro = parseFloat(v.lucroTotal);
+                if (isNaN(lucro)) lucro = fat - custo;
+                var mrg   = fat > 0 ? (lucro / fat * 100) : 0;
+                var corM  = _finCorMargem(mrg);
+                var corLuc= lucro >= 0 ? '#34d399' : '#ef4444';
+
+                var dt = '';
+                if (v.data) {
+                    var d = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
+                    if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+                }
+
+                var nomeProd = _finVendaProdutoNome(v);
+                var qtd = parseInt(v.quantidade) || 1;
+                if (qtd > 1) nomeProd += ' (' + qtd + 'un)';
+                if (v.origem === 'livre') nomeProd += ' ⚡';
+
+                html +=
+                    '<div style="display:grid;grid-template-columns:80px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:11px;padding:7px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:7px;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'rgba(139,92,246,0.3)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.04)\'">' +
+                        '<div style="color:var(--text-dim);font-family:JetBrains Mono,monospace;">' + dt + '</div>' +
+                        '<div style="color:var(--text-main);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(nomeProd) + '</div>' +
+                        '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:700;">R$ ' + _finFmt(fat) + '</div>' +
+                        '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#f97316;">R$ ' + _finFmt(custo) + '</div>' +
+                        '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corLuc + ';font-weight:800;">R$ ' + _finFmt(lucro) + '</div>' +
+                        '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corM.txt + ';font-weight:700;font-size:10px;background:' + corM.bg + ';padding:2px 5px;border-radius:4px;">' + mrg.toFixed(0) + '%</div>' +
+                    '</div>';
+            });
+
+            html += '</div></div>';
+            return html;
+        }
+
         // ── VISÃO GERAL 3D CONSOLIDADA ──
         // Cascata executiva: Entradas por negócio → Lucro operacional → Fluxo pessoal → Sobra real
         // Fluxo de Caixa = conta centralizadora (nome contém "fluxo" ou "central")
+
+        // Ver detalhamento completo de um negócio (abre em Análise → ROCE)
+        function _finVerDetalheNegocio(lid) {
+            // Muda pra sub-aba Análise
+            var btnAnalise = document.querySelector('[data-fin-sub="sub-fin-analise"]');
+            if (btnAnalise) btnAnalise.click();
+            // Espera renderizar e chama verDetalheROCE
+            setTimeout(function(){
+                if (typeof mudarSubAnalise === 'function') mudarSubAnalise('roce');
+                setTimeout(function(){
+                    if (typeof verDetalheROCE === 'function') verDetalheROCE(lid);
+                }, 200);
+            }, 100);
+        }
+
 
         var _FIN_MES_SELECIONADO = null; // YYYY-MM ou null pra mês atual
 
@@ -16220,7 +16479,7 @@
                                 '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(52,211,153,0.30),rgba(52,211,153,0.10));display:flex;align-items:center;justify-content:center;color:#34d399;border:1px solid rgba(52,211,153,0.30);box-shadow:0 4px 20px rgba(52,211,153,0.20);">' + _FIN_ICONES.entradas + '</div>' +
                                 '<div>' +
                                     '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">1 · ENTRADAS POR NEGÓCIO</div>' +
-                                    '<div style="font-size:11px;color:var(--text-dim);">Ordenado por lucro operacional</div>' +
+                                    '<div style="font-size:11px;color:var(--text-dim);">Ordenado por lucro operacional · <span style="color:#a78bfa;">clique numa linha pra ver detalhes</span></div>' +
                                 '</div>' +
                             '</div>' +
                             '<div style="font-size:10px;color:var(--text-dim);">' + negociosAtivos.length + ' ' + (negociosAtivos.length === 1 ? 'negócio' : 'negócios') + '</div>' +
@@ -16265,7 +16524,7 @@
                     var isEmp = d.isEmprestimos;
 
                     html +=
-                        '<div style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:12px;padding:9px 12px;background:' + rowBg + ';border:1px solid ' + rowBorder + ';border-radius:8px;' + (idx === 0 ? 'box-shadow:0 4px 15px rgba(255,215,0,0.06);' : '') + '">' +
+                        '<div onclick="_finVerDetalheNegocio(\'' + d.lid + '\')" style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:12px;padding:9px 12px;background:' + rowBg + ';border:1px solid ' + rowBorder + ';border-radius:8px;cursor:pointer;transition:transform 0.15s, border-color 0.15s;' + (idx === 0 ? 'box-shadow:0 4px 15px rgba(255,215,0,0.06);' : '') + '" onmouseover="this.style.borderColor=\'rgba(139,92,246,0.4)\';this.style.transform=\'translateX(2px)\'" onmouseout="this.style.borderColor=\'' + rowBorder + '\';this.style.transform=\'translateX(0)\'" title="Clique para ver detalhamento completo">' +
                             '<div style="font-size:' + (isMedalha ? '16px' : '12px') + ';color:' + (isMedalha ? 'inherit' : 'var(--text-dim)') + ';font-weight:700;text-align:center;">' + medalha + '</div>' +
                             '<div style="color:var(--text-main);font-weight:700;display:flex;align-items:center;gap:6px;">' + (isEmp ? '<span style="color:#fbbf24;display:inline-flex;">' + _FIN_ICONES.emprestimos + '</span>' : '') + _esc(d.loja && d.loja.nome ? d.loja.nome : '—') + '</div>' +
                             '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:700;">R$ ' + _finFmt(fat) + '</div>' +
