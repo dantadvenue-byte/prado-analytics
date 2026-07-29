@@ -16530,8 +16530,22 @@
             var lucroOperacional = totalLucroBruto - totalSaidasOp;
 
             // ── 3. SAÍDAS PESSOAIS (centralizador) ──
+            // Aplica os MESMOS filtros de "não é despesa" das saídas operacionais:
+            // - tipoSaida='investimento' → é compra de estoque, não despesa
+            // - categoria em lista negra (estoque, investimento, transferencia, etc)
+            // - descrição contém saque/transferência/etc
             var movsCentral = _finMovsCentralizadorMes(mesKey);
-            var saidasPessoais = movsCentral.filter(function(m){ return m.tipo === 'saida'; });
+            var catNaoDespesaP = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador','estoque','investimento','emprestimo_saida','emprestimo_entrada'];
+            var reNaoDespesaP = /(saque|saquei|saque lucro|lucro transferido|empr[ée]stimo (para|pra)|troca por esp[ée]cie|ajuste de valor|acerto|transfer[eê]ncia|transferi|abater cart[ãa]o|adiantei do cart[ãa]o)/i;
+            var saidasPessoais = movsCentral.filter(function(m){
+                if (m.tipo !== 'saida') return false;
+                if ((m.tipoSaida || 'custo') === 'investimento') return false;
+                if (catNaoDespesaP.includes(m.categoria)) return false;
+                var descL = (m.descricao || '').toLowerCase();
+                if (descL.includes('centralizador') || descL.startsWith('lucro') || descL.includes('retirada')) return false;
+                if (reNaoDespesaP.test(descL)) return false;
+                return true;
+            });
             var totalPessoal = saidasPessoais.reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
             saidasPessoais.sort(function(a,b){ return (parseFloat(b.valor) || 0) - (parseFloat(a.valor) || 0); });
 
