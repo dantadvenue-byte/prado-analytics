@@ -16415,17 +16415,24 @@
             var ano = parseInt(partes[0]);
             var mes = parseInt(partes[1]) - 1;
 
-            var catNaoDespesa = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador'];
+            var catNaoDespesa = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador','estoque','investimento','emprestimo_saida','emprestimo_entrada'];
+
+            // Regex de heurística por descrição — cobre saques, empréstimos e transferências mal-cadastrados
+            var reNaoDespesa = /(saque|saquei|saque lucro|lucro transferido|empr[ée]stimo (para|pra)|troca por esp[ée]cie|ajuste de valor|acerto|transfer[eê]ncia|transferi|abater cart[ãa]o|adiantei do cart[ãa]o)/i;
 
             var porLoja = {}; // { lojaId: [movs] }
             var semLoja = [];
 
             movs.forEach(function(m){
                 if (m.tipo !== 'saida') return;
+                // Regra 1: tipoSaida = investimento nunca é despesa
                 if ((m.tipoSaida || 'custo') === 'investimento') return;
+                // Regra 2: categoria em lista negra
                 if (catNaoDespesa.includes(m.categoria)) return;
+                // Regra 3: heurística de descrição (saques, empréstimos internos, transferências, etc)
                 var descLower = (m.descricao || '').toLowerCase();
                 if (descLower.includes('centralizador') || descLower.startsWith('lucro') || descLower.includes('retirada')) return;
+                if (reNaoDespesa.test(descLower)) return;
 
                 var d = new Date(m.data || m.criadoEm);
                 if (isNaN(d.getTime())) return;
@@ -22100,14 +22107,14 @@
                     if (dm < corte || dm > hoje) return;
                     // NUNCA contar investimento em mercadoria como despesa
                     if ((m.tipoSaida || 'custo') === 'investimento') return;
-                    // Excluir categorias que N\u00c3O s\u00e3o despesa operacional
-                    // - venda / transferencia: n\u00e3o s\u00e3o despesas
-                    // - retirada / prolabore / lucro / centralizador: dinheiro seu, s\u00f3 sai do caixa
-                    const catNaoDespesa = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador'];
+                    // Categorias que N\u00c3O s\u00e3o despesa operacional (incluindo estoque/investimento/empr\u00e9stimo)
+                    const catNaoDespesa = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador','estoque','investimento','emprestimo_saida','emprestimo_entrada'];
                     if (catNaoDespesa.includes(m.categoria)) return;
-                    // Descri\u00e7\u00f5es que indicam retirada (heur\u00edstica p/ dados antigos sem categoria)
+                    // Descri\u00e7\u00f5es que indicam retirada, saque, empr\u00e9stimo interno, transfer\u00eancia
                     const descLower = (m.descricao || '').toLowerCase();
                     if (descLower.includes('centralizador') || descLower.includes('lucro ') || descLower.startsWith('lucro') || descLower.includes('retirada')) return;
+                    const reNaoDespesa = /(saque|saquei|saque lucro|lucro transferido|empr[ée]stimo (para|pra)|troca por esp[ée]cie|ajuste de valor|acerto|transfer[eê]ncia|transferi|abater cart[ãa]o|adiantei do cart[ãa]o)/i;
+                    if (reNaoDespesa.test(descLower)) return;
 
                     // Vincular \u00e0 loja: m.lojaId explicito OU caixa da loja
                     const temLojaVinculada = m.lojaId != null && m.lojaId !== '';
