@@ -2927,7 +2927,6 @@
                 <!-- Seletor interno de análise -->
                 <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
                     <button id="analise-btn-visao" onclick="mudarSubAnalise('visao')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--purple-light);border:1px solid var(--purple-light);color:#fff;">📊 Visão Geral</button>
-                    <button id="analise-btn-vendas" onclick="mudarSubAnalise('vendas')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">🧾 Vendas</button>
                     <button id="analise-btn-dre" onclick="mudarSubAnalise('dre')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">📋 DRE Mensal</button>
                     <button id="analise-btn-roce" onclick="mudarSubAnalise('roce')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">📈 ROCE</button>
                 </div>
@@ -2935,11 +2934,6 @@
                 <!-- Visão Geral (conteúdo do sub-fin-visao espelhado) -->
                 <div id="analise-visao">
                     <div id="fin-visao-geral-wrap"></div>
-                </div>
-
-                <!-- Vendas por loja -->
-                <div id="analise-vendas" style="display:none;">
-                    <div id="fin-vendas-content"></div>
                 </div>
 
                 <!-- DRE -->
@@ -14510,7 +14504,7 @@
 
         function mudarSubAnalise(sub) {
             // Atualizar botões
-            ['visao','vendas','dre','roce'].forEach(function(s) {
+            ['visao','dre','roce'].forEach(function(s) {
                 var btn = document.getElementById('analise-btn-' + s);
                 if (!btn) return;
                 if (s === sub) {
@@ -14524,7 +14518,7 @@
                 }
             });
             // Mostrar/ocultar painéis
-            var paineis = {visao:'analise-visao', vendas:'analise-vendas', dre:'analise-dre', roce:'analise-roce'};
+            var paineis = {visao:'analise-visao', dre:'analise-dre', roce:'analise-roce'};
             Object.entries(paineis).forEach(function(e){
                 var el = document.getElementById(e[1]);
                 if (el) el.style.display = e[0]===sub ? 'block' : 'none';
@@ -14540,7 +14534,6 @@
                     if (typeof renderVisaoGeral === 'function') renderVisaoGeral();
                 }
             }
-            if (sub === 'vendas') { if (typeof renderFinVendas === 'function') renderFinVendas(); }
             if (sub === 'dre') { if (typeof renderDRE === 'function') renderDRE(); }
             if (sub === 'roce') { if (typeof renderROCE === 'function') renderROCE(); }
         }
@@ -16397,6 +16390,69 @@
             });
         }
 
+        // Estado dos cards colapsáveis (mantém expansão entre re-renders)
+        var _FIN_EXPANSAO = { vendas: false, saidasOp: false, saidasPes: false };
+
+        function _finToggle(qual) {
+            _FIN_EXPANSAO[qual] = !_FIN_EXPANSAO[qual];
+            renderFinVisaoGeral();
+        }
+
+        // Agrupa saídas operacionais por loja (excluindo o centralizador e categorias não-despesa)
+        function _finSaidasOperacionaisPorLoja(mesKey) {
+            var caixas = _ler('fin-caixas') || [];
+            var contas = _ler('fin-contas') || [];
+            var lojas  = _ler('lojas')     || [];
+            var movs   = _ler('fin-movs')  || [];
+
+            var caixaLoja = {};
+            caixas.forEach(function(c){ if (c.lojaId) caixaLoja[String(c.id)] = String(c.lojaId); });
+
+            var caixasCentralIds = new Set(caixas.filter(_finEhCentralizador).map(function(c){ return String(c.id); }));
+            var contasCentralIds = new Set(contas.filter(_finEhCentralizador).map(function(c){ return String(c.id); }));
+
+            var partes = mesKey.split('-');
+            var ano = parseInt(partes[0]);
+            var mes = parseInt(partes[1]) - 1;
+
+            var catNaoDespesa = ['venda','transferencia','retirada','retirada_lucro','prolabore','lucro','centralizador'];
+
+            var porLoja = {}; // { lojaId: [movs] }
+            var semLoja = [];
+
+            movs.forEach(function(m){
+                if (m.tipo !== 'saida') return;
+                if ((m.tipoSaida || 'custo') === 'investimento') return;
+                if (catNaoDespesa.includes(m.categoria)) return;
+                var descLower = (m.descricao || '').toLowerCase();
+                if (descLower.includes('centralizador') || descLower.startsWith('lucro') || descLower.includes('retirada')) return;
+
+                var d = new Date(m.data || m.criadoEm);
+                if (isNaN(d.getTime())) return;
+                if (d.getFullYear() !== ano || d.getMonth() !== mes) return;
+
+                // Ignorar saídas do centralizador (contam como pessoais, não operacionais)
+                if (caixasCentralIds.has(String(m.caixaId)) || contasCentralIds.has(String(m.contaId))) return;
+
+                // Descobrir loja
+                var lid = null;
+                if (m.lojaId) {
+                    lid = String(m.lojaId);
+                } else if (m.caixaId && caixaLoja[String(m.caixaId)]) {
+                    lid = caixaLoja[String(m.caixaId)];
+                }
+
+                if (lid) {
+                    if (!porLoja[lid]) porLoja[lid] = [];
+                    porLoja[lid].push(m);
+                } else {
+                    semLoja.push(m);
+                }
+            });
+
+            return { porLoja: porLoja, semLoja: semLoja };
+        }
+
         function renderFinVisaoGeral() {
             var el = document.getElementById('fin-visao-content');
             if (!el) return;
@@ -16418,232 +16474,351 @@
                 mesKey = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0');
             }
 
-            // Calcular ROCE por negócio no mês selecionado
-            var dadosROCE = [];
-            try {
-                dadosROCE = calcularROCENegocios(30, mesKey) || [];
-            } catch(e) {
-                console.warn('Erro ao calcular ROCE:', e);
-                dadosROCE = [];
+            var lojas = _ler('lojas') || [];
+
+            // ── 1. VENDAS POR LOJA (usa agrupamento já validado) ──
+            var agrupadas = _finAgruparVendasPorLoja(mesKey);
+            var cardsLoja = [];
+            lojas.forEach(function(l){
+                var vs = agrupadas.vendasPorLoja[String(l.id)] || [];
+                if (vs.length === 0) return;
+                cardsLoja.push(_finMontarCardLoja(l, vs));
+            });
+            cardsLoja.sort(function(a, b){ return b.lucroTotal - a.lucroTotal; });
+
+            var totalFat   = cardsLoja.reduce(function(s,c){ return s + c.fatTotal; }, 0);
+            var totalCusto = cardsLoja.reduce(function(s,c){ return s + c.custoTotal; }, 0);
+            var totalLucroBruto = cardsLoja.reduce(function(s,c){ return s + c.lucroTotal; }, 0);
+            var totalVendas = cardsLoja.reduce(function(s,c){ return s + c.vendas.length; }, 0);
+
+            // Vendas sem loja
+            if (agrupadas.semLoja.length > 0) {
+                var totFatSl   = agrupadas.semLoja.reduce(function(s,v){ return s + ((parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1)); }, 0);
+                var totCustoSl = agrupadas.semLoja.reduce(function(s,v){ return s + ((parseFloat(v.custoUnitario)||0) * (parseInt(v.quantidade)||1)); }, 0);
+                var totLucroSl = agrupadas.semLoja.reduce(function(s,v){
+                    var lt = parseFloat(v.lucroTotal);
+                    if (isNaN(lt)) lt = ((parseFloat(v.precoFinal)||0) - (parseFloat(v.custoUnitario)||0)) * (parseInt(v.quantidade)||1);
+                    return s + lt;
+                }, 0);
+                totalFat += totFatSl; totalCusto += totCustoSl; totalLucroBruto += totLucroSl;
+                totalVendas += agrupadas.semLoja.length;
             }
 
-            // Filtrar só negócios que geraram receita OU tiveram atividade
-            var negociosAtivos = dadosROCE.filter(function(d){
-                return (parseFloat(d.receitaBruta) || 0) > 0 || (parseFloat(d.despesasOp) || 0) > 0;
+            // ── 2. SAÍDAS OPERACIONAIS por loja ──
+            var saidasOp = _finSaidasOperacionaisPorLoja(mesKey);
+            var totalSaidasOp = 0;
+            var listaSaidasOpPorLoja = [];
+            Object.keys(saidasOp.porLoja).forEach(function(lid){
+                var loja = lojas.find(function(l){ return String(l.id) === lid; });
+                if (!loja) return;
+                var soma = saidasOp.porLoja[lid].reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
+                totalSaidasOp += soma;
+                listaSaidasOpPorLoja.push({ loja: loja, movs: saidasOp.porLoja[lid], total: soma });
             });
+            var somaSemLoja = saidasOp.semLoja.reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
+            totalSaidasOp += somaSemLoja;
+            listaSaidasOpPorLoja.sort(function(a,b){ return b.total - a.total; });
 
-            // Ordenar por EBIT (lucro operacional) desc
-            negociosAtivos.sort(function(a, b){ return (parseFloat(b.ebit) || 0) - (parseFloat(a.ebit) || 0); });
+            // Lucro operacional
+            var lucroOperacional = totalLucroBruto - totalSaidasOp;
 
-            var totalFat  = negociosAtivos.reduce(function(s,d){ return s + (parseFloat(d.receitaBruta) || 0); }, 0);
-            var totalDesp = negociosAtivos.reduce(function(s,d){ return s + (parseFloat(d.despesasOp)   || 0); }, 0);
-            var totalLucro= negociosAtivos.reduce(function(s,d){ return s + (parseFloat(d.ebit)         || 0); }, 0);
-            var margemGeral = totalFat > 0 ? (totalLucro / totalFat * 100) : 0;
-
-            // Fluxo pessoal (centralizador)
+            // ── 3. SAÍDAS PESSOAIS (centralizador) ──
             var movsCentral = _finMovsCentralizadorMes(mesKey);
-            // Saídas do centralizador (pagamentos que fez)
-            var saidasPessoais = movsCentral.filter(function(m){
-                if (m.tipo !== 'saida') return false;
-                // ignorar transferências
-                return true;
-            });
-            // Agrupar por descrição/categoria
+            var saidasPessoais = movsCentral.filter(function(m){ return m.tipo === 'saida'; });
             var totalPessoal = saidasPessoais.reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
             saidasPessoais.sort(function(a,b){ return (parseFloat(b.valor) || 0) - (parseFloat(a.valor) || 0); });
 
-            var sobraReal = totalLucro - totalPessoal;
-            var pctSobra = totalLucro > 0 ? (sobraReal / totalLucro * 100) : 0;
+            // ── 4. SOBRA REAL ──
+            var sobraReal = lucroOperacional - totalPessoal;
 
+            // ═════════════════════════════════════════
+            // HTML
+            // ═════════════════════════════════════════
             var html =
                 // Header
-                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:14px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:14px;">' +
                     '<div>' +
-                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ VISÃO GERAL · FINANCEIRO</div>' +
-                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Onde tá o lucro? Onde tá o prejuízo?</div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ FINANCEIRO · VISÃO GERAL</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Vendas, saídas e o que sobrou</div>' +
                     '</div>' +
-                    '<div style="display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);padding:8px 12px;border-radius:10px;backdrop-filter:blur(12px);">' +
+                    '<div style="display:flex;align-items:center;gap:8px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);padding:8px 12px;border-radius:10px;">' +
                         '<span style="color:#a78bfa;display:flex;align-items:center;">' + _FIN_ICONES.calendar + '</span>' +
                         '<select onchange="_FIN_MES_SELECIONADO=this.value;renderFinVisaoGeral();" style="background:transparent;border:none;color:#a78bfa;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;outline:none;">' + _finSeletorMesOpts(mesKey) + '</select>' +
                     '</div>' +
                 '</div>' +
 
-                // Canvas 3D
+                // 3 KPIs de topo
+                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">' +
+                    '<div style="background:linear-gradient(180deg,rgba(59,130,246,0.10),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.30);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(59,130,246,0.10);backdrop-filter:blur(20px);">' +
+                        '<div style="font-size:10px;color:#3b82f6;text-transform:uppercase;letter-spacing:0.10em;font-weight:700;">Faturamento</div>' +
+                        '<div style="font-size:20px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;margin-top:2px;">R$ ' + _finFmt(totalFat) + '</div>' +
+                    '</div>' +
+                    '<div style="background:linear-gradient(180deg,rgba(249,115,22,0.10),rgba(249,115,22,0.02));border:1px solid rgba(249,115,22,0.30);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(249,115,22,0.10);backdrop-filter:blur(20px);">' +
+                        '<div style="font-size:10px;color:#f97316;text-transform:uppercase;letter-spacing:0.10em;font-weight:700;">Custo</div>' +
+                        '<div style="font-size:20px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;margin-top:2px;">R$ ' + _finFmt(totalCusto) + '</div>' +
+                    '</div>' +
+                    '<div style="background:linear-gradient(180deg,rgba(52,211,153,0.10),rgba(52,211,153,0.02));border:1px solid rgba(52,211,153,0.30);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(52,211,153,0.10);backdrop-filter:blur(20px);">' +
+                        '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.10em;font-weight:700;">Lucro Bruto</div>' +
+                        '<div style="font-size:20px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;margin-top:2px;">R$ ' + _finFmt(totalLucroBruto) + '</div>' +
+                    '</div>' +
+                '</div>' +
+
+                // Cards colapsáveis em 3D
                 '<div style="perspective:1600px;perspective-origin:50% 20%;">' +
-                    '<div style="transform-style:preserve-3d;">' +
+                '<div style="transform-style:preserve-3d;">';
 
-                    // ═════ BLOCO 1: ENTRADAS POR NEGÓCIO ═════
-                    '<div style="background:linear-gradient(180deg,rgba(52,211,153,0.10),rgba(52,211,153,0.02));border:1px solid rgba(52,211,153,0.30);border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 20px 60px rgba(52,211,153,0.15),0 0 40px rgba(52,211,153,0.08),inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(60px) rotateX(-1.5deg);">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
-                            '<div style="display:flex;align-items:center;gap:10px;">' +
-                                '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(52,211,153,0.30),rgba(52,211,153,0.10));display:flex;align-items:center;justify-content:center;color:#34d399;border:1px solid rgba(52,211,153,0.30);box-shadow:0 4px 20px rgba(52,211,153,0.20);">' + _FIN_ICONES.entradas + '</div>' +
-                                '<div>' +
-                                    '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">1 · ENTRADAS POR NEGÓCIO</div>' +
-                                    '<div style="font-size:11px;color:var(--text-dim);">Ordenado por lucro operacional · <span style="color:#a78bfa;">clique numa linha pra ver detalhes</span></div>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div style="font-size:10px;color:var(--text-dim);">' + negociosAtivos.length + ' ' + (negociosAtivos.length === 1 ? 'negócio' : 'negócios') + '</div>' +
-                        '</div>';
+            // ═════ CARD 1: VENDAS POR LOJA ═════
+            var vExp = _FIN_EXPANSAO.vendas;
+            html += _finCardCollapse({
+                cor: '#a78bfa', corRgb: '139,92,246',
+                icone: _FIN_ICONES.entradas,
+                titulo: 'Vendas por loja',
+                subtitulo: totalVendas + ' ' + (totalVendas === 1 ? 'venda em ' : 'vendas em ') + cardsLoja.length + ' ' + (cardsLoja.length === 1 ? 'loja' : 'lojas'),
+                valor: 'R$ ' + _finFmt(totalFat),
+                valorCor: '#3b82f6',
+                expandido: vExp,
+                toggle: '_finToggle(\'vendas\')',
+                translateZ: 60,
+                conteudoExp: vExp ? _finRenderConteudoVendas(cardsLoja, agrupadas.semLoja) : ''
+            });
 
-            if (negociosAtivos.length === 0) {
-                html += '<div style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:12px;">Nenhum negócio com receita nesse mês.</div>';
-            } else {
-                // Cabeçalho da tabela
-                html +=
-                    '<div style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:9px;padding:6px 12px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:6px;">' +
-                        '<div></div><div>Negócio</div><div style="text-align:right;">Faturamento</div><div style="text-align:right;">Despesa Op.</div><div style="text-align:right;">Lucro</div><div style="text-align:right;">Margem</div>' +
-                    '</div>' +
-                    '<div style="display:flex;flex-direction:column;gap:5px;">';
+            // ═════ CARD 2: SAÍDAS OPERACIONAIS ═════
+            var opExp = _FIN_EXPANSAO.saidasOp;
+            html += _finCardCollapse({
+                cor: '#f97316', corRgb: '249,115,22',
+                icone: _FIN_ICONES.pessoal,
+                titulo: 'Saídas operacionais',
+                subtitulo: listaSaidasOpPorLoja.length + ' ' + (listaSaidasOpPorLoja.length === 1 ? 'loja' : 'lojas'),
+                valor: '- R$ ' + _finFmt(totalSaidasOp),
+                valorCor: '#f97316',
+                expandido: opExp,
+                toggle: '_finToggle(\'saidasOp\')',
+                translateZ: 45,
+                conteudoExp: opExp ? _finRenderConteudoSaidasOp(listaSaidasOpPorLoja, saidasOp.semLoja, somaSemLoja) : ''
+            });
 
-                negociosAtivos.forEach(function(d, idx){
-                    var medalha = _finMedalha(idx);
-                    var fat  = parseFloat(d.receitaBruta) || 0;
-                    var desp = parseFloat(d.despesasOp)   || 0;
-                    var luc  = parseFloat(d.ebit)         || 0;
-                    var mrg  = parseFloat(d.margem)       || 0;
-                    var corM = _finCorMargem(mrg);
-                    var corLuc = luc >= 0 ? '#34d399' : '#ef4444';
-
-                    // Highlight top 3
-                    var rowBg, rowBorder;
-                    if (idx === 0) {
-                        rowBg = 'linear-gradient(90deg,rgba(255,215,0,0.05),rgba(255,255,255,0.02))';
-                        rowBorder = 'rgba(255,215,0,0.15)';
-                    } else if (idx === 1) {
-                        rowBg = 'linear-gradient(90deg,rgba(192,192,192,0.04),rgba(255,255,255,0.02))';
-                        rowBorder = 'rgba(255,255,255,0.06)';
-                    } else if (idx === 2) {
-                        rowBg = 'linear-gradient(90deg,rgba(205,127,50,0.04),rgba(255,255,255,0.02))';
-                        rowBorder = 'rgba(255,255,255,0.06)';
-                    } else {
-                        rowBg = 'rgba(255,255,255,0.02)';
-                        rowBorder = 'rgba(255,255,255,0.05)';
-                    }
-
-                    var isMedalha = idx < 3;
-                    var isEmp = d.isEmprestimos;
-
-                    html +=
-                        '<div onclick="_finVerDetalheNegocio(\'' + d.lid + '\')" style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:12px;padding:9px 12px;background:' + rowBg + ';border:1px solid ' + rowBorder + ';border-radius:8px;cursor:pointer;transition:transform 0.15s, border-color 0.15s;' + (idx === 0 ? 'box-shadow:0 4px 15px rgba(255,215,0,0.06);' : '') + '" onmouseover="this.style.borderColor=\'rgba(139,92,246,0.4)\';this.style.transform=\'translateX(2px)\'" onmouseout="this.style.borderColor=\'' + rowBorder + '\';this.style.transform=\'translateX(0)\'" title="Clique para ver detalhamento completo">' +
-                            '<div style="font-size:' + (isMedalha ? '16px' : '12px') + ';color:' + (isMedalha ? 'inherit' : 'var(--text-dim)') + ';font-weight:700;text-align:center;">' + medalha + '</div>' +
-                            '<div style="color:var(--text-main);font-weight:700;display:flex;align-items:center;gap:6px;">' + (isEmp ? '<span style="color:#fbbf24;display:inline-flex;">' + _FIN_ICONES.emprestimos + '</span>' : '') + _esc(d.loja && d.loja.nome ? d.loja.nome : '—') + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:700;">R$ ' + _finFmt(fat) + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#f97316;font-weight:600;">R$ ' + _finFmt(desp) + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corLuc + ';font-weight:800;">R$ ' + _finFmt(luc) + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corM.txt + ';font-weight:800;font-size:11px;background:' + corM.bg + ';padding:2px 6px;border-radius:5px;border:1px solid ' + corM.border + ';">' + mrg.toFixed(1) + '%</div>' +
-                        '</div>';
-                });
-
-                // Total
-                var corMargemGeral = _finCorMargem(margemGeral);
-                html +=
-                        '<div style="display:grid;grid-template-columns:22px 1fr 100px 100px 100px 70px;gap:10px;align-items:center;font-size:12px;padding:11px 12px;margin-top:8px;background:linear-gradient(90deg,rgba(52,211,153,0.10),rgba(139,92,246,0.05));border:1px solid rgba(52,211,153,0.30);border-radius:8px;box-shadow:0 4px 20px rgba(52,211,153,0.10);">' +
-                            '<div></div>' +
-                            '<div style="color:var(--text-main);font-weight:800;text-transform:uppercase;font-size:10px;letter-spacing:0.10em;">TOTAL</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:800;">R$ ' + _finFmt(totalFat) + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#ef4444;font-weight:800;">R$ ' + _finFmt(totalDesp) + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#34d399;font-weight:800;font-size:14px;">R$ ' + _finFmt(totalLucro) + '</div>' +
-                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corMargemGeral.txt + ';font-weight:800;font-size:11px;background:' + corMargemGeral.bg + ';padding:2px 6px;border-radius:5px;border:1px solid ' + corMargemGeral.border + ';">' + margemGeral.toFixed(1) + '%</div>' +
-                        '</div>' +
-                    '</div>';
-            }
-
+            // ═════ CARD 3: LUCRO OPERACIONAL (não-colapsável) ═════
+            var corLucroOp = lucroOperacional >= 0 ? '#34d399' : '#ef4444';
             html +=
-                    '</div>' + // fim bloco 1
-
-                    // ═════ BLOCO 2: LUCRO CONSOLIDADO ═════
-                    '<div style="background:linear-gradient(180deg,rgba(59,130,246,0.10),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.30);border-radius:14px;padding:14px 18px;margin-bottom:14px;box-shadow:0 20px 60px rgba(59,130,246,0.12),0 0 40px rgba(59,130,246,0.06),inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(40px) rotateX(-1deg);">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<div style="display:flex;align-items:center;gap:10px;">' +
-                                '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));display:flex;align-items:center;justify-content:center;color:#3b82f6;border:1px solid rgba(59,130,246,0.30);box-shadow:0 4px 20px rgba(59,130,246,0.20);">' + _FIN_ICONES.lucro + '</div>' +
-                                '<div>' +
-                                    '<div style="font-size:10px;color:#3b82f6;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">2 · LUCRO OPERACIONAL CONSOLIDADO</div>' +
-                                    '<div style="font-size:11px;color:var(--text-dim);">O que os negócios geraram esse mês</div>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div style="text-align:right;">' +
-                                '<div style="font-size:24px;font-weight:800;color:' + (totalLucro >= 0 ? '#34d399' : '#ef4444') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;text-shadow:0 0 30px ' + (totalLucro >= 0 ? 'rgba(52,211,153,0.30)' : 'rgba(239,68,68,0.30)') + ';">R$ ' + _finFmt(totalLucro) + '</div>' +
-                                '<div style="font-size:10px;color:' + (totalLucro >= 0 ? '#34d399' : '#ef4444') + ';font-weight:700;">' + margemGeral.toFixed(1) + '% de margem consolidada</div>' +
+                '<div style="background:linear-gradient(180deg,rgba(59,130,246,0.08),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.30);border-radius:14px;padding:14px 18px;margin-bottom:12px;box-shadow:0 15px 40px rgba(59,130,246,0.10);backdrop-filter:blur(20px);transform:translateZ(30px) rotateX(-0.5deg);">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                        '<div style="display:flex;align-items:center;gap:10px;">' +
+                            '<div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));display:flex;align-items:center;justify-content:center;color:#3b82f6;border:1px solid rgba(59,130,246,0.30);">' + _FIN_ICONES.lucro + '</div>' +
+                            '<div>' +
+                                '<div style="font-size:10px;color:#3b82f6;text-transform:uppercase;letter-spacing:0.12em;font-weight:700;">Lucro operacional</div>' +
+                                '<div style="font-size:11px;color:var(--text-dim);">Lucro bruto − saídas operacionais</div>' +
                             '</div>' +
                         '</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:' + corLucroOp + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;text-shadow:0 0 30px ' + (lucroOperacional >= 0 ? 'rgba(52,211,153,0.30)' : 'rgba(239,68,68,0.30)') + ';">R$ ' + _finFmt(lucroOperacional) + '</div>' +
                     '</div>' +
+                '</div>';
 
-                    // ═════ BLOCO 3: FLUXO PESSOAL ═════
-                    '<div style="background:linear-gradient(180deg,rgba(245,158,11,0.08),rgba(245,158,11,0.02));border:1px solid rgba(245,158,11,0.30);border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 20px 60px rgba(245,158,11,0.12),0 0 40px rgba(245,158,11,0.06),inset 0 1px 0 rgba(255,255,255,0.06);backdrop-filter:blur(20px);transform:translateZ(20px) rotateX(-0.5deg);">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-                            '<div style="display:flex;align-items:center;gap:10px;">' +
-                                '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(245,158,11,0.30),rgba(245,158,11,0.10));display:flex;align-items:center;justify-content:center;color:#fbbf24;border:1px solid rgba(245,158,11,0.30);box-shadow:0 4px 20px rgba(245,158,11,0.20);">' + _FIN_ICONES.pessoal + '</div>' +
-                                '<div>' +
-                                    '<div style="font-size:10px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;">3 · FLUXO PESSOAL (CENTRALIZADOR)</div>' +
-                                    '<div style="font-size:11px;color:var(--text-dim);">Saídas via Fluxo de Caixa</div>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div style="font-size:10px;color:var(--text-dim);">' + saidasPessoais.length + ' ' + (saidasPessoais.length === 1 ? 'lançamento' : 'lançamentos') + '</div>' +
-                        '</div>';
+            // ═════ CARD 4: SAÍDAS PESSOAIS ═════
+            var pesExp = _FIN_EXPANSAO.saidasPes;
+            html += _finCardCollapse({
+                cor: '#fbbf24', corRgb: '245,158,11',
+                icone: _FIN_ICONES.pessoal,
+                titulo: 'Saídas pessoais',
+                subtitulo: saidasPessoais.length + ' ' + (saidasPessoais.length === 1 ? 'lançamento' : 'lançamentos') + ' no Fluxo de Caixa',
+                valor: '- R$ ' + _finFmt(totalPessoal),
+                valorCor: '#fbbf24',
+                expandido: pesExp,
+                toggle: '_finToggle(\'saidasPes\')',
+                translateZ: 20,
+                conteudoExp: pesExp ? _finRenderConteudoSaidasPes(saidasPessoais) : ''
+            });
 
-            if (saidasPessoais.length === 0) {
-                html += '<div style="text-align:center;padding:30px 20px;color:var(--text-dim);font-size:12px;font-style:italic;">Nenhuma saída no Fluxo de Caixa nesse mês.<br><span style="font-size:10px;">Dica: crie uma conta chamada "Fluxo de Caixa" pra usar como centralizador.</span></div>';
-            } else {
-                // Mostrar top 8, agrupando o resto
-                var top = saidasPessoais.slice(0, 8);
-                var resto = saidasPessoais.slice(8);
-                var totalResto = resto.reduce(function(s,m){ return s + (parseFloat(m.valor) || 0); }, 0);
-
-                html += '<div style="display:flex;flex-direction:column;gap:5px;">';
-                top.forEach(function(m){
-                    var desc = m.descricao || m.categoria || '(sem descrição)';
-                    html +=
-                        '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:7px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;color:var(--text-muted);gap:10px;">' +
-                            '<div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">' +
-                                '<span style="color:#fbbf24;display:inline-flex;flex-shrink:0;">' + _FIN_ICONES.item + '</span>' +
-                                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(desc) + '</span>' +
-                            '</div>' +
-                            '<div style="font-family:JetBrains Mono,monospace;color:#fbbf24;font-weight:700;flex-shrink:0;">- R$ ' + _finFmt(m.valor) + '</div>' +
-                            '<button onclick="editarMovimentacao(' + m.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 4px;display:flex;align-items:center;" title="Editar">' + _FIN_ICONES.edit + '</button>' +
-                        '</div>';
-                });
-
-                if (resto.length > 0) {
-                    html +=
-                        '<div style="display:flex;justify-content:space-between;font-size:12px;padding:7px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;color:var(--text-dim);font-style:italic;">' +
-                            '<div>+ ' + resto.length + ' outras despesas</div>' +
-                            '<div style="font-family:JetBrains Mono,monospace;color:var(--text-dim);">- R$ ' + _finFmt(totalResto) + '</div>' +
-                        '</div>';
-                }
-
-                html +=
-                    '</div>' +
-                    '<div style="display:flex;justify-content:space-between;font-size:13px;padding:11px 12px;margin-top:8px;background:linear-gradient(90deg,rgba(245,158,11,0.10),rgba(249,115,22,0.05));border:1px solid rgba(245,158,11,0.30);border-radius:8px;">' +
-                        '<div style="color:var(--text-main);font-weight:800;text-transform:uppercase;font-size:10px;letter-spacing:0.10em;">TOTAL PESSOAL</div>' +
-                        '<div style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:800;font-size:16px;">- R$ ' + _finFmt(totalPessoal) + '</div>' +
-                    '</div>';
-            }
-
+            // ═════ BARRA FINAL: SOBROU NO MÊS ═════
+            var corSobra = sobraReal >= 0 ? '#34d399' : '#ef4444';
             html +=
-                    '</div>' + // fim bloco 3
-
-                    // ═════ BLOCO 4: SOBRA REAL ═════
-                    '<div style="background:linear-gradient(135deg,rgba(52,211,153,0.20),rgba(59,130,246,0.10));border:1px solid rgba(52,211,153,0.50);border-radius:14px;padding:20px 22px;box-shadow:0 30px 80px rgba(52,211,153,0.25),0 0 60px rgba(52,211,153,0.15),inset 0 2px 0 rgba(255,255,255,0.10);backdrop-filter:blur(20px);transform:translateZ(80px) rotateX(-2deg);">' +
-                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<div style="display:flex;align-items:center;gap:12px;">' +
-                                '<div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#34d399,#22c55e);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 8px 30px rgba(52,211,153,0.50);">' + _FIN_ICONES.sobra + '</div>' +
-                                '<div>' +
-                                    '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.16em;font-weight:800;">4 · SOBRA REAL DO MÊS</div>' +
-                                    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Lucro operacional − fluxo pessoal</div>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div style="text-align:right;">' +
-                                '<div style="font-size:32px;font-weight:800;color:' + (sobraReal >= 0 ? '#34d399' : '#ef4444') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.03em;text-shadow:0 0 40px ' + (sobraReal >= 0 ? 'rgba(52,211,153,0.50)' : 'rgba(239,68,68,0.50)') + ';">R$ ' + _finFmt(sobraReal) + '</div>' +
-                                '<div style="font-size:11px;color:' + (sobraReal >= 0 ? '#34d399' : '#ef4444') + ';font-weight:700;margin-top:2px;">' + (totalLucro > 0 ? pctSobra.toFixed(0) + '% do lucro sobrou' : (sobraReal < 0 ? 'Prejuízo esse mês' : 'Sem lucro')) + '</div>' +
+                '<div style="background:linear-gradient(135deg,rgba(52,211,153,0.25),rgba(59,130,246,0.10));border:1px solid rgba(52,211,153,0.50);border-radius:14px;padding:18px 22px;box-shadow:0 30px 80px rgba(52,211,153,0.25),0 0 60px rgba(52,211,153,0.15),inset 0 2px 0 rgba(255,255,255,0.10);backdrop-filter:blur(20px);transform:translateZ(80px) rotateX(-2deg);">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                        '<div style="display:flex;align-items:center;gap:12px;">' +
+                            '<div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#34d399,#22c55e);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 8px 30px rgba(52,211,153,0.50);">' + _FIN_ICONES.sobra + '</div>' +
+                            '<div>' +
+                                '<div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:0.16em;font-weight:800;">Sobrou no mês</div>' +
+                                '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Lucro operacional − saídas pessoais</div>' +
                             '</div>' +
                         '</div>' +
+                        '<div style="font-size:30px;font-weight:800;color:' + corSobra + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.03em;text-shadow:0 0 40px ' + (sobraReal >= 0 ? 'rgba(52,211,153,0.50)' : 'rgba(239,68,68,0.50)') + ';">R$ ' + _finFmt(sobraReal) + '</div>' +
                     '</div>' +
+                '</div>' +
 
-                    '</div>' + // fim preserve-3d
-                '</div>'; // fim perspective
+                '</div>' + // preserve-3d
+                '</div>'; // perspective
 
             el.innerHTML = html;
         }
+
+        // Card colapsável genérico com efeito 3D
+        function _finCardCollapse(cfg) {
+            return '<div style="background:linear-gradient(180deg,rgba(' + cfg.corRgb + ',0.08),rgba(' + cfg.corRgb + ',0.02));border:1px solid rgba(' + cfg.corRgb + ',0.30);border-radius:14px;padding:14px 18px;margin-bottom:12px;box-shadow:0 15px 40px rgba(' + cfg.corRgb + ',0.10);backdrop-filter:blur(20px);transform:translateZ(' + cfg.translateZ + 'px) rotateX(-0.5deg);">' +
+                    '<div onclick="' + cfg.toggle + '" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;">' +
+                        '<div style="display:flex;align-items:center;gap:10px;">' +
+                            '<div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,rgba(' + cfg.corRgb + ',0.30),rgba(' + cfg.corRgb + ',0.10));display:flex;align-items:center;justify-content:center;color:' + cfg.cor + ';border:1px solid rgba(' + cfg.corRgb + ',0.30);">' + cfg.icone + '</div>' +
+                            '<div>' +
+                                '<div style="font-size:12px;color:var(--text-main);font-weight:700;">' + cfg.titulo + '</div>' +
+                                '<div style="font-size:10px;color:var(--text-dim);">' + cfg.subtitulo + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;align-items:center;gap:12px;">' +
+                            '<div style="font-size:18px;font-weight:800;color:' + cfg.valorCor + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;">' + cfg.valor + '</div>' +
+                            '<div style="color:var(--text-dim);font-size:12px;transform:rotate(' + (cfg.expandido ? '90' : '0') + 'deg);transition:transform 0.2s;">▸</div>' +
+                        '</div>' +
+                    '</div>' +
+                    cfg.conteudoExp +
+                '</div>';
+        }
+
+        // Conteúdo expandido: VENDAS por loja
+        function _finRenderConteudoVendas(cardsLoja, semLoja) {
+            var html = '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(139,92,246,0.15);display:flex;flex-direction:column;gap:14px;">';
+
+            cardsLoja.forEach(function(cardData){
+                var loja = cardData.loja;
+                var vendas = cardData.vendas.slice().sort(function(a, b){
+                    var da = new Date(a.data + 'T12:00:00');
+                    var db = new Date(b.data + 'T12:00:00');
+                    return db - da;
+                });
+                var corMargem = _finCorMargem(cardData.margem);
+                var corLuc = cardData.lucroTotal >= 0 ? '#34d399' : '#ef4444';
+
+                html += '<div>' +
+                    // Header loja
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding:4px 0;">' +
+                        '<div style="font-size:13px;font-weight:700;color:var(--text-main);">' + _esc(loja.nome) + '</div>' +
+                        '<div style="font-size:10px;color:var(--text-dim);font-family:JetBrains Mono,monospace;">' +
+                            vendas.length + ' vendas · R$ ' + _finFmt(cardData.fatTotal) + ' · lucro <span style="color:' + corLuc + ';font-weight:700;">R$ ' + _finFmt(cardData.lucroTotal) + '</span> · <span style="color:' + corMargem.txt + ';font-weight:700;">' + cardData.margem.toFixed(0) + '%</span>' +
+                        '</div>' +
+                    '</div>' +
+                    // Cabeçalho tabela
+                    '<div style="display:grid;grid-template-columns:60px 1fr 90px 90px 90px 55px;gap:8px;padding:5px 10px;color:var(--text-dim);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;background:rgba(255,255,255,0.02);border-radius:6px;margin-bottom:4px;">' +
+                        '<div>Data</div><div>Produto</div><div style="text-align:right;">Fat</div><div style="text-align:right;">Custo</div><div style="text-align:right;">Lucro</div><div style="text-align:right;">Mrg</div>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:3px;">';
+
+                vendas.forEach(function(v){
+                    var fat   = (parseFloat(v.precoFinal) || 0) * (parseInt(v.quantidade) || 1);
+                    var custo = (parseFloat(v.custoUnitario) || 0) * (parseInt(v.quantidade) || 1);
+                    var lucro = parseFloat(v.lucroTotal);
+                    if (isNaN(lucro)) lucro = fat - custo;
+                    var mrg   = fat > 0 ? (lucro / fat * 100) : 0;
+                    var corM  = _finCorMargem(mrg);
+                    var vCorLuc = lucro >= 0 ? '#34d399' : '#ef4444';
+                    var dt = '';
+                    if (v.data) {
+                        var d = new Date(v.data + (String(v.data).length === 10 ? 'T12:00:00' : ''));
+                        if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+                    }
+                    var nomeProd = v.produtoNome || v.produto || 'Produto';
+                    var qtd = parseInt(v.quantidade) || 1;
+                    if (qtd > 1) nomeProd += ' (' + qtd + 'un)';
+                    if (v.origem === 'livre') nomeProd += ' ⚡';
+
+                    html += '<div style="display:grid;grid-template-columns:60px 1fr 90px 90px 90px 55px;gap:8px;padding:6px 10px;font-size:11px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);border-radius:6px;align-items:center;">' +
+                            '<div style="color:var(--text-dim);font-family:JetBrains Mono,monospace;">' + dt + '</div>' +
+                            '<div style="color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(nomeProd) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:700;">R$ ' + _finFmt(fat) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#f97316;">R$ ' + _finFmt(custo) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + vCorLuc + ';font-weight:800;">R$ ' + _finFmt(lucro) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corM.txt + ';font-weight:700;font-size:10px;">' + mrg.toFixed(0) + '%</div>' +
+                        '</div>';
+                });
+                html += '</div></div>';
+            });
+
+            // Vendas sem loja
+            if (semLoja.length > 0) {
+                var totFat  = semLoja.reduce(function(s,v){ return s + ((parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1)); }, 0);
+                html += '<div style="padding:8px 12px;background:rgba(107,114,128,0.05);border:1px dashed rgba(107,114,128,0.30);border-radius:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);">' +
+                        '<div>⚠️ ' + semLoja.length + ' vendas sem loja vinculada</div>' +
+                        '<div style="font-family:JetBrains Mono,monospace;">R$ ' + _finFmt(totFat) + '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Conteúdo expandido: SAÍDAS OPERACIONAIS
+        function _finRenderConteudoSaidasOp(lista, semLoja, somaSemLoja) {
+            var html = '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(249,115,22,0.15);display:flex;flex-direction:column;gap:10px;">';
+
+            lista.forEach(function(item){
+                var loja = item.loja;
+                var movs = item.movs.slice().sort(function(a,b){ return (parseFloat(b.valor) || 0) - (parseFloat(a.valor) || 0); });
+
+                html += '<div>' +
+                    '<div style="display:flex;justify-content:space-between;padding:5px 0;margin-bottom:6px;">' +
+                        '<div style="font-size:12px;font-weight:700;color:var(--text-main);">' + _esc(loja.nome) + '</div>' +
+                        '<div style="font-size:12px;font-weight:800;color:#f97316;font-family:JetBrains Mono,monospace;">- R$ ' + _finFmt(item.total) + '</div>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:3px;">';
+
+                movs.forEach(function(m){
+                    var dt = '';
+                    if (m.data) {
+                        var d = new Date(m.data + 'T12:00:00');
+                        if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+                    }
+                    var desc = m.descricao || m.categoria || '(sem descrição)';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);border-radius:6px;font-size:11px;gap:8px;">' +
+                            '<div style="display:flex;gap:8px;align-items:center;flex:1;min-width:0;">' +
+                                '<div style="color:var(--text-dim);font-family:JetBrains Mono,monospace;flex-shrink:0;width:44px;">' + dt + '</div>' +
+                                '<div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(desc) + '</div>' +
+                            '</div>' +
+                            '<div style="font-family:JetBrains Mono,monospace;color:#f97316;font-weight:700;flex-shrink:0;">- R$ ' + _finFmt(m.valor) + '</div>' +
+                            '<button onclick="editarMovimentacao(' + m.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px;display:flex;align-items:center;" title="Editar">' + _FIN_ICONES.edit + '</button>' +
+                        '</div>';
+                });
+                html += '</div></div>';
+            });
+
+            if (semLoja.length > 0) {
+                html += '<div style="padding:8px 12px;background:rgba(107,114,128,0.05);border:1px dashed rgba(107,114,128,0.30);border-radius:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);">' +
+                        '<div>⚠️ ' + semLoja.length + ' saídas sem loja vinculada</div>' +
+                        '<div style="font-family:JetBrains Mono,monospace;">- R$ ' + _finFmt(somaSemLoja) + '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        // Conteúdo expandido: SAÍDAS PESSOAIS
+        function _finRenderConteudoSaidasPes(saidasPessoais) {
+            var html = '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(245,158,11,0.15);display:flex;flex-direction:column;gap:3px;">';
+
+            if (saidasPessoais.length === 0) {
+                html += '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:11px;font-style:italic;">Nenhuma saída no Fluxo de Caixa nesse mês.</div>';
+            } else {
+                saidasPessoais.forEach(function(m){
+                    var dt = '';
+                    if (m.data) {
+                        var d = new Date(m.data + 'T12:00:00');
+                        if (!isNaN(d.getTime())) dt = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' });
+                    }
+                    var desc = m.descricao || m.categoria || '(sem descrição)';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);border-radius:6px;font-size:11px;gap:8px;">' +
+                            '<div style="display:flex;gap:8px;align-items:center;flex:1;min-width:0;">' +
+                                '<div style="color:var(--text-dim);font-family:JetBrains Mono,monospace;flex-shrink:0;width:44px;">' + dt + '</div>' +
+                                '<div style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(desc) + '</div>' +
+                            '</div>' +
+                            '<div style="font-family:JetBrains Mono,monospace;color:#fbbf24;font-weight:700;flex-shrink:0;">- R$ ' + _finFmt(m.valor) + '</div>' +
+                            '<button onclick="editarMovimentacao(' + m.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px;display:flex;align-items:center;" title="Editar">' + _FIN_ICONES.edit + '</button>' +
+                        '</div>';
+                });
+            }
+
+            html += '</div>';
+            return html;
+        }
+
 
 
         function importarJSON(event) {
@@ -21878,26 +22053,31 @@
                 const prods = prodPorLoja[lid] || [];
 
                 // ── RECEITA BRUTA (vendas no período) ──
-                // Vincula venda a loja da mesma forma que a aba Vendas:
-                //  - Se v.produtoId E produto tem loja correta → conta pelo produto
-                //  - Senão, se v.caixaId E caixa tem loja correta → conta pelo caixa
-                // (removida a exigência de v.origem === 'livre' — vendas antigas
-                //  cujo produto foi deletado passam a contar via caixa)
+                // Vincula venda a loja usando EXATAMENTE a mesma lógica da aba Vendas:
+                //  - Se v.produtoId tem loja no map → conta pela loja do produto
+                //  - Senão, se v.caixaId tem loja no map → conta pela loja do caixa
+                // Ver _finAgruparVendasPorLoja pra referência.
                 const caixasDaLojaSet = new Set((caixaPorLoja[lid] || []).map(c => String(c.id)));
+                // Pré-indexar produto→loja e caixa→loja (uma vez por loja, ok)
+                const _prodLoja = {};
+                produtos.forEach(p => {
+                    const pl = p.loja || p.lojaId;
+                    if (pl) _prodLoja[String(p.id)] = String(pl);
+                });
+                const _caixaLoja = {};
+                caixas.forEach(c => { if (c.lojaId) _caixaLoja[String(c.id)] = String(c.lojaId); });
+
                 const vendasLoja = vendas.filter(v => {
                     const dv = new Date(v.data);
                     if (dv < corte || dv > hoje) return false;
-                    // Tenta pelo produto primeiro
-                    if (v.produtoId) {
-                        const prod = produtos.find(p => String(p.id) === String(v.produtoId));
-                        if (prod && String(prod.loja || prod.lojaId) === lid) return true;
-                        // Se o produto foi encontrado mas é de outra loja, NÃO cai no fallback
-                        // (evita venda ser contada em duas lojas)
-                        if (prod) return false;
+                    // Descobre em qual loja essa venda entra
+                    let vLoja = null;
+                    if (v.produtoId && _prodLoja[String(v.produtoId)]) {
+                        vLoja = _prodLoja[String(v.produtoId)];
+                    } else if (v.caixaId && _caixaLoja[String(v.caixaId)]) {
+                        vLoja = _caixaLoja[String(v.caixaId)];
                     }
-                    // Fallback: pelo caixa
-                    if (v.caixaId && caixasDaLojaSet.has(String(v.caixaId))) return true;
-                    return false;
+                    return vLoja === lid;
                 });
                 const receitaBruta    = vendasLoja.reduce((s, v) => s + ((parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1)), 0);
                 const custoProdutos   = vendasLoja.reduce((s, v) => s + ((parseFloat(v.custoUnitario)||0) * (parseInt(v.quantidade)||1)), 0);
@@ -21979,15 +22159,15 @@
                 const giro   = capitalEmpregado > 0 ? receitaBruta / capitalEmpregado : 0;
 
                 // ── HISTÓRICO MENSAL para tendência ──
-                // Usa a mesma lógica de filtro (produto OU caixa), mas sem restrição de período
+                // Usa a mesma lógica (produto→loja OU caixa→loja), sem restrição de período
                 const vendasLojaTodas = vendas.filter(v => {
-                    if (v.produtoId) {
-                        const prod = produtos.find(p => String(p.id) === String(v.produtoId));
-                        if (prod && String(prod.loja || prod.lojaId) === lid) return true;
-                        if (prod) return false;
+                    let vLoja = null;
+                    if (v.produtoId && _prodLoja[String(v.produtoId)]) {
+                        vLoja = _prodLoja[String(v.produtoId)];
+                    } else if (v.caixaId && _caixaLoja[String(v.caixaId)]) {
+                        vLoja = _caixaLoja[String(v.caixaId)];
                     }
-                    if (v.caixaId && caixasDaLojaSet.has(String(v.caixaId))) return true;
-                    return false;
+                    return vLoja === lid;
                 });
                 const meses = {};
                 vendasLojaTodas.forEach(v => {
