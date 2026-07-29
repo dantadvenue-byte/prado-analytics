@@ -2722,126 +2722,7 @@
 
             <!-- CONTAS A PAGAR / RECEBER -->
             <div id="sub-fin-obrigacoes" class="sub-content" style="display:none;">
-
-                <!-- Formulário -->
-                <div class="form-section">
-                    <div class="form-title">➕ Nova Obrigação</div>
-                    <div class="form-grid">
-                        <div class="form-group"><label>Tipo *</label>
-                            <select id="obTipo" onchange="atualizarCamposObrigacao()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
-                                <option value="pagar">📤 Conta a Pagar</option>
-                                <option value="receber">📥 Conta a Receber</option>
-                            </select>
-                        </div>
-                        <div class="form-group"><label>Pessoa *</label>
-                            <select id="obPessoaTipo" onchange="atualizarCategoriasObrigacao()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
-                                <option value="fisica">👤 Pessoa Física</option>
-                                <option value="juridica">🏢 Pessoa Jurídica</option>
-                            </select>
-                        </div>
-                        <div class="form-group"><label>Nome *</label>
-                            <input type="text" id="obNome" placeholder="Ex: João Silva ou Empresa Ltda">
-                        </div>
-                        <div class="form-group"><label>Descrição *</label>
-                            <input type="text" id="obDescricao" placeholder="Ex: Mensalidade, Parcela, Serviço...">
-                        </div>
-                        <div class="form-group"><label>Categoria</label>
-                            <select id="obCategoria" onchange="toggleObParcelas()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
-                                <option value="moradia">🏠 Moradia / Aluguel</option>
-                                <option value="alimentacao">🍽️ Alimentação</option>
-                                <option value="transporte">🚗 Transporte</option>
-                                <option value="saude">💊 Saúde</option>
-                                <option value="educacao">📚 Educação</option>
-                                <option value="lazer">🎮 Lazer / Assinatura</option>
-                                <option value="energia">⚡ Energia / Internet</option>
-                                <option value="emprestimo">💳 Empréstimo / Parcela</option>
-                                <option value="outros">📝 Outros</option>
-                            </select>
-                        </div>
-                        <div class="form-group"><label>Valor Total (R$) *</label>
-                            <input type="number" id="obValor" placeholder="0" step="0.01" oninput="calcularCapacidadeObrigacao();atualizarDivisaoResumo()">
-                        </div>
-                        <div class="form-group"><label>Valor já pago/recebido (R$)</label>
-                            <input type="number" id="obPago" placeholder="0" step="0.01" value="0" oninput="calcularCapacidadeObrigacao()">
-                        </div>
-                        <div class="form-group"><label>Divisão por caixas</label>
-                            <div style="background:var(--bg-hover);border:1px solid var(--border);border-radius:10px;padding:10px;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                    <div style="font-size:11px;color:var(--text-muted);">Divida o valor entre os caixas responsáveis</div>
-                                    <button onclick="adicionarCaixaDivisao()" type="button" class="btn-secondary" style="font-size:11px;padding:4px 10px;">+ Caixa</button>
-                                </div>
-                                <div id="ob-caixas-divisao"></div>
-                                <div id="ob-divisao-resumo" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
-                            </div>
-                            <!-- Campo oculto para compatibilidade -->
-                            <select id="obCaixa" style="display:none;"></select>
-                        </div>
-                        <div class="form-group"><label>Vencimento *</label>
-                            <input type="date" id="obVencimento">
-                        </div>
-                        <div class="form-group"><label>Recorrência</label>
-                            <select id="obRecorrencia" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
-                                <option value="unica">Única</option>
-                                <option value="mensal">Mensal</option>
-                                <option value="semanal">Semanal</option>
-                                <option value="anual">Anual</option>
-                            </select>
-                        </div>
-                        <div class="form-group"><label>Observação</label>
-                            <input type="text" id="obObs" placeholder="Informações adicionais...">
-                        </div>
-                    </div>
-
-                    <!-- Campos de parcelamento (aparecem só para cartão/empréstimo) -->
-                    <div id="ob-parcelas-group" style="display:none;background:var(--bg-hover);border:1px solid rgba(255,193,7,0.2);border-radius:10px;padding:14px;margin-bottom:12px;">
-                        <div style="font-size:12px;font-weight:700;color:#ffc107;margin-bottom:10px;">💳 Detalhes do Parcelamento</div>
-                        <div class="form-grid">
-                            <div class="form-group" style="margin:0;"><label>Parcela atual</label>
-                                <input type="number" id="obParcelaAtual" placeholder="Ex: 3" min="1" step="1" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;" oninput="calcularParcelasRestantes()">
-                            </div>
-                            <div class="form-group" style="margin:0;"><label>Total de parcelas</label>
-                                <input type="number" id="obParcelaTotal" placeholder="Ex: 12" min="1" step="1" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;" oninput="calcularParcelasRestantes()">
-                            </div>
-                            <div class="form-group" style="margin:0;"><label>Valor da parcela (R$)</label>
-                                <input type="number" id="obValorParcela" placeholder="Ex: 150,00" step="0.01" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;" oninput="calcularParcelasRestantes()">
-                            </div>
-                            <div class="form-group" style="margin:0;"><label>Restam</label>
-                                <div id="ob-parcelas-restantes" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:#ffc107;min-height:42px;display:flex;align-items:center;">—</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Preview de capacidade -->
-                    <div id="ob-preview" style="display:none;margin-top:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:14px;">
-                        <div id="ob-preview-content"></div>
-                    </div>
-
-                    <button class="btn-primary" onclick="salvarObrigacaoMulti()" style="margin-top:12px;">💾 Salvar</button>
-                    <div id="msg-ob" style="margin-top:8px;"></div>
-                    <div id="msg-obrigacao" style="margin-top:8px;"></div>
-                </div>
-
-                <!-- Filtros e lista -->
-                <div class="form-section">
-                    <div class="form-title">📋 Obrigações</div>
-                    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-                        <input type="text" id="filtro-ob-busca" placeholder="🔍 Buscar..." oninput="renderObrigacoes()" style="flex:1;min-width:160px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:13px;">
-                        <select id="filtro-ob-tipo" onchange="renderObrigacoes()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:13px;">
-                            <option value="">Pagar e Receber</option>
-                            <option value="pagar">📤 A Pagar</option>
-                            <option value="receber">📥 A Receber</option>
-                        </select>
-                        <select id="filtro-ob-status" onchange="renderObrigacoes()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:13px;">
-                            <option value="">Todos</option>
-                            <option value="pendente">⏳ Pendente</option>
-                            <option value="parcial">🟡 Parcial</option>
-                            <option value="quitado">✅ Quitado</option>
-                            <option value="vencido">🔴 Vencido</option>
-                        </select>
-                    </div>
-                    <div id="ob-resumo" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;"></div>
-                    <div id="lista-obrigacoes"></div>
-                </div>
+                <div id="plano-mensal-content"></div>
             </div>
 
             <!-- MOVIMENTAÇÕES -->
@@ -14174,7 +14055,7 @@
             const sub = btn.dataset.finSub;
             if (sub === 'sub-fin-visao')      renderFinVisaoGeral();
             if (sub === 'sub-fin-contas')     { _iniciarSubTabsCC(); mudarSubCC(null, 'cc-contas'); }
-            if (sub === 'sub-fin-obrigacoes') { atualizarSelectsObrigacoes(); atualizarCategoriasObrigacao(); renderObrigacoes(); setTimeout(iniciarDivisaoCaixas, 100); }
+            if (sub === 'sub-fin-obrigacoes') { renderPlanoMensal(); }
             if (sub === 'sub-fin-mov')        { atualizarSelectsFinanceiro(); renderHistoricoMovimentacoes(); }
             if (sub === 'sub-fin-dre')        { atualizarSelectsFinanceiro(); renderDRE(); }
             if (sub === 'sub-fin-compras')    { atualizarSelectsFinanceiro(); renderProximasCompras(); setTimeout(() => { if (document.getElementById('compra-itens-container')?.children.length === 0) adicionarItemCompra(); }, 50); }
@@ -16471,6 +16352,371 @@
             return { porLoja: porLoja, semLoja: semLoja };
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // PLANO MENSAL — A Pagar / A Receber (trimestral)
+        // Estrutura: array de { id, mesKey:'YYYY-MM', tipo:'entrada'|'saida', descricao, valor, realizado }
+        // Tabela: plano-mensal (array)
+        // ═══════════════════════════════════════════════════════════════
+
+        var _PLANO_MES_CENTRAL = null; // YYYY-MM do mês central (padrão: mês atual)
+
+        function _planoLer() {
+            return _ler('plano-mensal') || [];
+        }
+
+        function _planoMesAtual() {
+            var d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
+        function _planoMesAdd(mesKey, delta) {
+            var partes = mesKey.split('-');
+            var d = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1 + delta, 1);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+
+        function _planoMesLabel(mesKey) {
+            var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            var p = mesKey.split('-');
+            return meses[parseInt(p[1]) - 1] + '/' + p[0];
+        }
+
+        function _planoMesLabelCurto(mesKey) {
+            var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            var p = mesKey.split('-');
+            return meses[parseInt(p[1]) - 1];
+        }
+
+        function _planoRangeTrimestre(mesCentral) {
+            return [_planoMesAdd(mesCentral, -1), mesCentral, _planoMesAdd(mesCentral, 1)];
+        }
+
+        function _planoFmt(v) {
+            return (parseFloat(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+        }
+
+        function _planoTrimestreLabel(mesCentral) {
+            var r = _planoRangeTrimestre(mesCentral);
+            var p1 = r[0].split('-'); var p3 = r[2].split('-');
+            return _planoMesLabelCurto(r[0]) + ' – ' + _planoMesLabelCurto(r[2]) + ' ' + (p1[0] === p3[0] ? p1[0] : (p1[0] + '/' + p3[0]));
+        }
+
+        function renderPlanoMensal() {
+            var el = document.getElementById('plano-mensal-content');
+            if (!el) return;
+
+            if (!_PLANO_MES_CENTRAL) _PLANO_MES_CENTRAL = _planoMesAtual();
+            var meses = _planoRangeTrimestre(_PLANO_MES_CENTRAL);
+            var mesHoje = _planoMesAtual();
+            var plano = _planoLer();
+
+            // Agrupar por mês/tipo
+            var porMes = {};
+            meses.forEach(function(m){ porMes[m] = { entrada: [], saida: [] }; });
+            plano.forEach(function(p){
+                if (porMes[p.mesKey]) porMes[p.mesKey][p.tipo].push(p);
+            });
+
+            // Totais do trimestre
+            var trimEnt = 0, trimSai = 0;
+            meses.forEach(function(m){
+                porMes[m].entrada.forEach(function(x){ trimEnt += parseFloat(x.valor) || 0; });
+                porMes[m].saida.forEach(function(x){   trimSai += parseFloat(x.valor) || 0; });
+            });
+            var trimSaldo = trimEnt - trimSai;
+
+            var html =
+                // Header
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:14px;">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ A PAGAR / A RECEBER</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Planejamento trimestral</div>' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:6px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);padding:6px 8px;border-radius:10px;">' +
+                        '<button onclick="_PLANO_MES_CENTRAL=\'' + _planoMesAdd(_PLANO_MES_CENTRAL, -1) + '\';renderPlanoMensal()" style="background:transparent;border:1px solid rgba(139,92,246,0.25);color:#a78bfa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">‹</button>' +
+                        '<div style="font-size:13px;font-weight:700;color:#a78bfa;padding:0 10px;">' + _planoTrimestreLabel(_PLANO_MES_CENTRAL) + '</div>' +
+                        '<button onclick="_PLANO_MES_CENTRAL=\'' + _planoMesAdd(_PLANO_MES_CENTRAL, 1) + '\';renderPlanoMensal()" style="background:transparent;border:1px solid rgba(139,92,246,0.25);color:#a78bfa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">›</button>' +
+                        '<button onclick="_PLANO_MES_CENTRAL=null;renderPlanoMensal()" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:0 10px;height:28px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">Hoje</button>' +
+                    '</div>' +
+                '</div>' +
+
+                // Canvas 3D
+                '<div style="perspective:1600px;perspective-origin:50% 20%;">' +
+                    '<div style="transform-style:preserve-3d;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">';
+
+            meses.forEach(function(mesKey, idx){
+                html += _planoRenderColunaMes(mesKey, porMes[mesKey], mesHoje, idx);
+            });
+
+            html += '</div>' + // fim grid
+                '</div>' + // fim preserve-3d
+                // Rodapé trimestre
+                '<div style="margin-top:14px;background:linear-gradient(135deg,rgba(52,211,153,0.20),rgba(59,130,246,0.10));border:1px solid rgba(52,211,153,0.40);border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 20px 60px rgba(52,211,153,0.15);">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#34d399;text-transform:uppercase;letter-spacing:0.14em;font-weight:800;">SALDO DO TRIMESTRE (orçado)</div>' +
+                        '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Entradas − saídas · ' + _planoTrimestreLabel(_PLANO_MES_CENTRAL) + '</div>' +
+                    '</div>' +
+                    '<div style="font-size:28px;font-weight:800;color:' + (trimSaldo >= 0 ? '#34d399' : '#ef4444') + ';font-family:JetBrains Mono,monospace;letter-spacing:-0.02em;text-shadow:0 0 30px ' + (trimSaldo >= 0 ? 'rgba(52,211,153,0.40)' : 'rgba(239,68,68,0.40)') + ';">' + (trimSaldo >= 0 ? '+ ' : '− ') + 'R$ ' + _planoFmt(Math.abs(trimSaldo)) + '</div>' +
+                '</div>';
+
+            el.innerHTML = html;
+        }
+
+        function _planoRenderColunaMes(mesKey, dados, mesHoje, colIdx) {
+            var isAtual = mesKey === mesHoje;
+            var ehPassado = mesKey < mesHoje;
+            var mesFuturo = mesKey > mesHoje;
+            var vazio = dados.entrada.length === 0 && dados.saida.length === 0;
+            var totalEntOrc = dados.entrada.reduce(function(s,x){ return s + (parseFloat(x.valor) || 0); }, 0);
+            var totalSaiOrc = dados.saida.reduce(function(s,x){   return s + (parseFloat(x.valor) || 0); }, 0);
+            var totalEntReal = dados.entrada.filter(function(x){ return x.realizado; }).reduce(function(s,x){ return s + (parseFloat(x.valor) || 0); }, 0);
+            var totalSaiReal = dados.saida.filter(function(x){ return x.realizado; }).reduce(function(s,x){ return s + (parseFloat(x.valor) || 0); }, 0);
+            var pctEnt = totalEntOrc > 0 ? Math.min(100, totalEntReal / totalEntOrc * 100) : 0;
+            var pctSai = totalSaiOrc > 0 ? Math.min(100, totalSaiReal / totalSaiOrc * 100) : 0;
+            var saldoOrc = totalEntOrc - totalSaiOrc;
+
+            var tz = isAtual ? 60 : 20;
+            var borda = isAtual ? '2px solid rgba(139,92,246,0.50)' : '1px solid var(--border)';
+            var shadow = isAtual ? '0 25px 60px rgba(139,92,246,0.20),0 0 40px rgba(139,92,246,0.10)' : '0 15px 40px rgba(0,0,0,0.15)';
+
+            var html =
+                '<div style="background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:' + borda + ';border-radius:12px;padding:14px;box-shadow:' + shadow + ';backdrop-filter:blur(20px);transform:translateZ(' + tz + 'px) rotateX(-0.5deg);">' +
+                    // Header
+                    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+                        '<div style="font-size:14px;font-weight:800;color:var(--text-main);">' + _planoMesLabelCurto(mesKey) + '/' + mesKey.slice(2,4) + '</div>' +
+                        (isAtual
+                            ? '<div style="font-size:9px;color:#a78bfa;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.30);padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Mês atual</div>'
+                            : (mesFuturo
+                                ? '<div style="font-size:10px;color:var(--text-dim);font-style:italic;">planejado</div>'
+                                : '<div style="font-size:10px;color:var(--text-dim);font-style:italic;">passado</div>'
+                              )
+                        ) +
+                    '</div>';
+
+            // Botão copiar do mês anterior (se estiver vazio E for futuro/atual)
+            if (vazio && !ehPassado) {
+                var mesAnt = _planoMesAdd(mesKey, -1);
+                var plano = _planoLer();
+                var temAnt = plano.some(function(p){ return p.mesKey === mesAnt; });
+                if (temAnt) {
+                    html += '<div style="text-align:center;padding:8px;background:rgba(139,92,246,0.05);border:1px dashed rgba(139,92,246,0.25);border-radius:8px;margin-bottom:10px;">' +
+                        '<button onclick="_planoCopiarMesAnterior(\'' + mesKey + '\')" style="background:transparent;border:none;color:#a78bfa;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">📋 Copiar plano de ' + _planoMesLabelCurto(mesAnt) + '</button>' +
+                    '</div>';
+                }
+            }
+
+            // ── ENTRADAS ──
+            html += '<div style="margin-bottom:12px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                    '<div style="font-size:9px;color:#34d399;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">↓ entradas</div>' +
+                    '<button onclick="_planoAddLinha(\'' + mesKey + '\',\'entrada\')" style="background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;width:22px;height:22px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;padding:0;line-height:1;">+</button>' +
+                '</div>';
+
+            if (dados.entrada.length === 0) {
+                html += '<div style="font-size:10px;color:var(--text-dim);font-style:italic;padding:6px;text-align:center;">Nenhuma prevista</div>';
+            } else {
+                dados.entrada.forEach(function(item){
+                    html += _planoRenderLinha(item);
+                });
+            }
+            html += '</div>';
+
+            // ── SAÍDAS ──
+            html += '<div style="margin-bottom:12px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                    '<div style="font-size:9px;color:#f97316;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">↑ saídas</div>' +
+                    '<button onclick="_planoAddLinha(\'' + mesKey + '\',\'saida\')" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.30);color:#f97316;width:22px;height:22px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;padding:0;line-height:1;">+</button>' +
+                '</div>';
+
+            if (dados.saida.length === 0) {
+                html += '<div style="font-size:10px;color:var(--text-dim);font-style:italic;padding:6px;text-align:center;">Nenhuma prevista</div>';
+            } else {
+                dados.saida.forEach(function(item){
+                    html += _planoRenderLinha(item);
+                });
+            }
+            html += '</div>';
+
+            // ── RODAPÉ com totais ──
+            html += '<div style="padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-size:10px;">';
+            // Entradas
+            html += '<div style="display:flex;justify-content:space-between;color:var(--text-muted);padding:2px 0;">' +
+                '<span>Entradas orçadas</span><span style="font-family:JetBrains Mono,monospace;">R$ ' + _planoFmt(totalEntOrc) + '</span>' +
+            '</div>';
+            if (!mesFuturo && totalEntOrc > 0) {
+                html += '<div style="display:flex;justify-content:space-between;color:#34d399;padding:2px 0;">' +
+                    '<span>Realizado</span><span style="font-family:JetBrains Mono,monospace;font-weight:700;">R$ ' + _planoFmt(totalEntReal) + '</span>' +
+                '</div>' +
+                '<div style="height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin:3px 0;">' +
+                    '<div style="height:100%;width:' + pctEnt + '%;background:#34d399;"></div>' +
+                '</div>';
+            }
+            // Saídas
+            html += '<div style="display:flex;justify-content:space-between;color:var(--text-muted);padding:2px 0;margin-top:4px;">' +
+                '<span>Saídas orçadas</span><span style="font-family:JetBrains Mono,monospace;">R$ ' + _planoFmt(totalSaiOrc) + '</span>' +
+            '</div>';
+            if (!mesFuturo && totalSaiOrc > 0) {
+                html += '<div style="display:flex;justify-content:space-between;color:#f97316;padding:2px 0;">' +
+                    '<span>Realizado</span><span style="font-family:JetBrains Mono,monospace;font-weight:700;">R$ ' + _planoFmt(totalSaiReal) + '</span>' +
+                '</div>' +
+                '<div style="height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin:3px 0;">' +
+                    '<div style="height:100%;width:' + pctSai + '%;background:#f97316;"></div>' +
+                '</div>';
+            }
+            // Saldo
+            html += '<div style="display:flex;justify-content:space-between;padding:6px 0 0;margin-top:4px;border-top:1px dashed rgba(255,255,255,0.08);font-size:12px;">' +
+                '<span style="color:var(--text-main);font-weight:700;">Saldo orçado</span>' +
+                '<span style="font-family:JetBrains Mono,monospace;font-weight:800;color:' + (saldoOrc >= 0 ? '#34d399' : '#ef4444') + ';">' + (saldoOrc >= 0 ? '+ ' : '− ') + 'R$ ' + _planoFmt(Math.abs(saldoOrc)) + '</span>' +
+            '</div>';
+            html += '</div>';
+
+            html += '</div>'; // fim card
+            return html;
+        }
+
+        function _planoRenderLinha(item) {
+            var realizado = !!item.realizado;
+            var cor = item.tipo === 'entrada' ? '#34d399' : '#f97316';
+            var opacity = realizado ? '0.55' : '1';
+            var textDeco = realizado ? 'line-through' : 'none';
+
+            return '<div style="display:grid;grid-template-columns:16px 1fr auto 20px 20px;gap:5px;align-items:center;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:11px;opacity:' + opacity + ';">' +
+                // Checkbox
+                '<div onclick="_planoToggleRealizado(' + item.id + ')" style="width:14px;height:14px;border-radius:3px;border:1px solid ' + (realizado ? cor : 'rgba(255,255,255,0.20)') + ';background:' + (realizado ? cor : 'transparent') + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:900;">' + (realizado ? '✓' : '') + '</div>' +
+                // Descrição (clicável pra editar)
+                '<div onclick="_planoEditarLinha(' + item.id + ')" style="color:var(--text-main);text-decoration:' + textDeco + ';cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(item.descricao || '(sem nome)') + '</div>' +
+                // Valor
+                '<div style="font-family:JetBrains Mono,monospace;color:' + cor + ';font-weight:700;text-decoration:' + textDeco + ';">' + _planoFmt(item.valor) + '</div>' +
+                // Status icon
+                '<div style="text-align:center;color:' + (realizado ? cor : 'var(--text-dim)') + ';font-size:11px;">' + (realizado ? '✓' : '○') + '</div>' +
+                // Excluir
+                '<div onclick="_planoExcluirLinha(' + item.id + ')" style="text-align:center;color:var(--text-dim);cursor:pointer;font-size:13px;" title="Excluir">×</div>' +
+            '</div>';
+        }
+
+        // ── AÇÕES ──
+        function _planoAddLinha(mesKey, tipo) {
+            _planoAbrirModalLinha(null, mesKey, tipo);
+        }
+
+        function _planoEditarLinha(id) {
+            var plano = _planoLer();
+            var item = plano.find(function(x){ return x.id === id; });
+            if (!item) return;
+            _planoAbrirModalLinha(item, item.mesKey, item.tipo);
+        }
+
+        function _planoAbrirModalLinha(item, mesKey, tipo) {
+            var isEdit = !!item;
+            var prev = document.getElementById('plano-linha-modal');
+            if (prev) prev.remove();
+            var cor = tipo === 'entrada' ? '#34d399' : '#f97316';
+            var tipoLbl = tipo === 'entrada' ? 'Entrada' : 'Saída';
+
+            var modal = document.createElement('div');
+            modal.id = 'plano-linha-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:22px;width:100%;max-width:440px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:' + cor + ';text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ ' + tipoLbl.toUpperCase() + ' · ' + _planoMesLabel(mesKey) + '</div>' +
+                            '<div style="font-size:18px;font-weight:800;color:#fff;">' + (isEdit ? 'Editar' : 'Nova ' + tipoLbl.toLowerCase()) + '</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'plano-linha-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:12px;"><label>Descrição *</label>' +
+                        '<input type="text" id="plano-desc" value="' + (item ? _esc(item.descricao || '') : '') + '" placeholder="Ex: Aluguel casa" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                    '</div>' +
+                    '<div class="form-group" style="margin-bottom:16px;"><label>Valor (R$) *</label>' +
+                        '<input type="number" id="plano-valor" value="' + (item ? item.valor : '') + '" step="0.01" min="0" placeholder="0" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
+                    '</div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        (isEdit ? '<button onclick="_planoExcluirLinha(' + item.id + ')" style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.30);color:#ef4444;padding:11px 14px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;">Excluir</button>' : '') +
+                        '<button onclick="document.getElementById(\'plano-linha-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="_planoSalvarLinha(' + (isEdit ? item.id : 'null') + ',\'' + mesKey + '\',\'' + tipo + '\')" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+            setTimeout(function(){ document.getElementById('plano-desc')?.focus(); }, 100);
+        }
+
+        async function _planoSalvarLinha(id, mesKey, tipo) {
+            var desc  = document.getElementById('plano-desc').value.trim();
+            var valor = parseFloat(document.getElementById('plano-valor').value) || 0;
+            if (!desc) { alert('Informe a descrição'); return; }
+            if (!valor || valor <= 0) { alert('Informe um valor válido'); return; }
+            var plano = _planoLer();
+            if (id) {
+                var item = plano.find(function(x){ return x.id === id; });
+                if (item) { item.descricao = desc; item.valor = valor; }
+            } else {
+                plano.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    mesKey: mesKey,
+                    tipo: tipo,
+                    descricao: desc,
+                    valor: valor,
+                    realizado: false,
+                    criadoEm: new Date().toISOString()
+                });
+            }
+            try {
+                await _salvar('plano-mensal', plano);
+                document.getElementById('plano-linha-modal')?.remove();
+                renderPlanoMensal();
+            } catch(err) { alert('Erro ao salvar: ' + err.message); }
+        }
+
+        async function _planoExcluirLinha(id) {
+            if (!confirm('Excluir este lançamento?')) return;
+            var plano = _planoLer();
+            plano = plano.filter(function(x){ return x.id !== id; });
+            try {
+                await _salvar('plano-mensal', plano);
+                document.getElementById('plano-linha-modal')?.remove();
+                renderPlanoMensal();
+            } catch(err) { alert('Erro ao excluir: ' + err.message); }
+        }
+
+        async function _planoToggleRealizado(id) {
+            var plano = _planoLer();
+            var item = plano.find(function(x){ return x.id === id; });
+            if (!item) return;
+            item.realizado = !item.realizado;
+            try {
+                await _salvar('plano-mensal', plano);
+                renderPlanoMensal();
+            } catch(err) { alert('Erro: ' + err.message); }
+        }
+
+        async function _planoCopiarMesAnterior(mesKey) {
+            var mesAnt = _planoMesAdd(mesKey, -1);
+            var plano = _planoLer();
+            var itensAnt = plano.filter(function(p){ return p.mesKey === mesAnt; });
+            if (itensAnt.length === 0) { alert('Nenhum lançamento no mês anterior'); return; }
+            if (!confirm('Copiar ' + itensAnt.length + ' lançamento(s) de ' + _planoMesLabelCurto(mesAnt) + ' para ' + _planoMesLabelCurto(mesKey) + '?')) return;
+            var novos = itensAnt.map(function(p){
+                return {
+                    id: Date.now() + Math.floor(Math.random() * 100000) + Math.floor(Math.random() * 1000),
+                    mesKey: mesKey,
+                    tipo: p.tipo,
+                    descricao: p.descricao,
+                    valor: p.valor,
+                    realizado: false,
+                    criadoEm: new Date().toISOString()
+                };
+            });
+            plano = plano.concat(novos);
+            try {
+                await _salvar('plano-mensal', plano);
+                renderPlanoMensal();
+            } catch(err) { alert('Erro ao copiar: ' + err.message); }
+        }
+
         function renderFinVisaoGeral() {
             var el = document.getElementById('fin-visao-content');
             if (!el) return;
@@ -18339,7 +18585,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano-mensal'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
