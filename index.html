@@ -16359,6 +16359,7 @@
         // ═══════════════════════════════════════════════════════════════
 
         var _PLANO_MES_CENTRAL = null; // YYYY-MM do mês central (padrão: mês atual)
+        var _PLANO_MES_VISIVEL_MOBILE = null; // No mobile, qual mês está visível (padrão: central)
 
         function _planoLer() {
             return _ler('plano-mensal') || [];
@@ -16433,23 +16434,44 @@
                         '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Planejamento trimestral</div>' +
                     '</div>' +
                     '<div style="display:flex;align-items:center;gap:6px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.25);padding:6px 8px;border-radius:10px;">' +
-                        '<button onclick="_PLANO_MES_CENTRAL=\'' + _planoMesAdd(_PLANO_MES_CENTRAL, -1) + '\';renderPlanoMensal()" style="background:transparent;border:1px solid rgba(139,92,246,0.25);color:#a78bfa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">‹</button>' +
+                        '<button onclick="_PLANO_MES_CENTRAL=\'' + _planoMesAdd(_PLANO_MES_CENTRAL, -1) + '\';_PLANO_MES_VISIVEL_MOBILE=null;renderPlanoMensal()" style="background:transparent;border:1px solid rgba(139,92,246,0.25);color:#a78bfa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">‹</button>' +
                         '<div style="font-size:13px;font-weight:700;color:#a78bfa;padding:0 10px;">' + _planoTrimestreLabel(_PLANO_MES_CENTRAL) + '</div>' +
-                        '<button onclick="_PLANO_MES_CENTRAL=\'' + _planoMesAdd(_PLANO_MES_CENTRAL, 1) + '\';renderPlanoMensal()" style="background:transparent;border:1px solid rgba(139,92,246,0.25);color:#a78bfa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">›</button>' +
-                        '<button onclick="_PLANO_MES_CENTRAL=null;renderPlanoMensal()" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:0 10px;height:28px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">Hoje</button>' +
+                        '<button onclick="_PLANO_MES_CENTRAL=\'' + _planoMesAdd(_PLANO_MES_CENTRAL, 1) + '\';_PLANO_MES_VISIVEL_MOBILE=null;renderPlanoMensal()" style="background:transparent;border:1px solid rgba(139,92,246,0.25);color:#a78bfa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">›</button>' +
+                        '<button onclick="_PLANO_MES_CENTRAL=null;_PLANO_MES_VISIVEL_MOBILE=null;renderPlanoMensal()" style="background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:0 10px;height:28px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">Hoje</button>' +
                     '</div>' +
                 '</div>' +
 
-                // Canvas 3D
-                '<div style="perspective:1600px;perspective-origin:50% 20%;">' +
-                    '<div style="transform-style:preserve-3d;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">';
+                // Canvas 3D — detecta mobile e mostra 1 mês por vez
+                '<div style="perspective:1600px;perspective-origin:50% 20%;">';
 
-            meses.forEach(function(mesKey, idx){
-                html += _planoRenderColunaMes(mesKey, porMes[mesKey], mesHoje, idx);
-            });
+            var isMobile = window.innerWidth <= 700;
 
-            html += '</div>' + // fim grid
-                '</div>' + // fim preserve-3d
+            if (isMobile) {
+                // Mini-nav mobile: Ago · Set · Out
+                if (!_PLANO_MES_VISIVEL_MOBILE || meses.indexOf(_PLANO_MES_VISIVEL_MOBILE) === -1) {
+                    _PLANO_MES_VISIVEL_MOBILE = _PLANO_MES_CENTRAL;
+                }
+                html += '<div style="display:flex;gap:6px;margin-bottom:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:5px;">';
+                meses.forEach(function(m){
+                    var ativo = m === _PLANO_MES_VISIVEL_MOBILE;
+                    html += '<button onclick="_PLANO_MES_VISIVEL_MOBILE=\'' + m + '\';renderPlanoMensal()" style="flex:1;background:' + (ativo ? 'var(--purple-light)' : 'transparent') + ';border:none;color:' + (ativo ? '#fff' : 'var(--text-muted)') + ';padding:8px 4px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">' + _planoMesLabelCurto(m) + '/' + m.slice(2,4) + '</button>';
+                });
+                html += '</div>';
+
+                // Renderiza SÓ o mês visível (grid de 1 coluna)
+                html += '<div style="transform-style:preserve-3d;">';
+                html += _planoRenderColunaMes(_PLANO_MES_VISIVEL_MOBILE, porMes[_PLANO_MES_VISIVEL_MOBILE], mesHoje, 0);
+                html += '</div>';
+            } else {
+                // Desktop: 3 colunas lado a lado (comportamento original)
+                html += '<div style="transform-style:preserve-3d;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">';
+                meses.forEach(function(mesKey, idx){
+                    html += _planoRenderColunaMes(mesKey, porMes[mesKey], mesHoje, idx);
+                });
+                html += '</div>';
+            }
+
+            html += '</div>' + // fim perspective
                 // Rodapé trimestre
                 '<div style="margin-top:14px;background:linear-gradient(135deg,rgba(52,211,153,0.20),rgba(59,130,246,0.10));border:1px solid rgba(52,211,153,0.40);border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 20px 60px rgba(52,211,153,0.15);">' +
                     '<div>' +
@@ -18530,6 +18552,7 @@
             'vp-diario':                 { tabela: 'vp_diario',          tipo: 'array'  },
             'vp-metas':                  { tabela: 'vp_metas',           tipo: 'array'  },
             'desafios':                  { tabela: 'desafios',           tipo: 'array'  },
+            'plano-mensal':              { tabela: 'plano_mensal',       tipo: 'array'  },
         };
 
         // ── Cache em memória (fonte primária de leitura) ──
@@ -18606,7 +18629,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano-mensal'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
