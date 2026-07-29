@@ -16515,7 +16515,8 @@
             if (dados.entrada.length === 0) {
                 html += '<div style="font-size:10px;color:var(--text-dim);font-style:italic;padding:6px;text-align:center;">Nenhuma prevista</div>';
             } else {
-                dados.entrada.forEach(function(item){
+                var entradasOrd = dados.entrada.slice().sort(_planoCmpPorDia);
+                entradasOrd.forEach(function(item){
                     html += _planoRenderLinha(item);
                 });
             }
@@ -16531,7 +16532,8 @@
             if (dados.saida.length === 0) {
                 html += '<div style="font-size:10px;color:var(--text-dim);font-style:italic;padding:6px;text-align:center;">Nenhuma prevista</div>';
             } else {
-                dados.saida.forEach(function(item){
+                var saidasOrd = dados.saida.slice().sort(_planoCmpPorDia);
+                saidasOrd.forEach(function(item){
                     html += _planoRenderLinha(item);
                 });
             }
@@ -16579,10 +16581,13 @@
             var cor = item.tipo === 'entrada' ? '#34d399' : '#f97316';
             var opacity = realizado ? '0.55' : '1';
             var textDeco = realizado ? 'line-through' : 'none';
+            var diaLabel = item.dia ? ('dia ' + item.dia) : '';
 
-            return '<div style="display:grid;grid-template-columns:16px 1fr auto 20px 20px;gap:5px;align-items:center;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:11px;opacity:' + opacity + ';">' +
+            return '<div style="display:grid;grid-template-columns:16px 46px 1fr auto 20px 20px;gap:5px;align-items:center;padding:5px 4px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:11px;opacity:' + opacity + ';">' +
                 // Checkbox
                 '<div onclick="_planoToggleRealizado(' + item.id + ')" style="width:14px;height:14px;border-radius:3px;border:1px solid ' + (realizado ? cor : 'rgba(255,255,255,0.20)') + ';background:' + (realizado ? cor : 'transparent') + ';cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:9px;font-weight:900;">' + (realizado ? '✓' : '') + '</div>' +
+                // Dia
+                '<div onclick="_planoEditarLinha(' + item.id + ')" style="font-family:JetBrains Mono,monospace;font-size:10px;color:var(--text-dim);cursor:pointer;text-decoration:' + textDeco + ';">' + diaLabel + '</div>' +
                 // Descrição (clicável pra editar)
                 '<div onclick="_planoEditarLinha(' + item.id + ')" style="color:var(--text-main);text-decoration:' + textDeco + ';cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(item.descricao || '(sem nome)') + '</div>' +
                 // Valor
@@ -16592,6 +16597,15 @@
                 // Excluir
                 '<div onclick="_planoExcluirLinha(' + item.id + ')" style="text-align:center;color:var(--text-dim);cursor:pointer;font-size:13px;" title="Excluir">×</div>' +
             '</div>';
+        }
+
+        // Ordenar por dia asc. Sem-dia (null/0) vai pro fim.
+        function _planoCmpPorDia(a, b) {
+            var da = parseInt(a.dia) || 999;
+            var db = parseInt(b.dia) || 999;
+            if (da !== db) return da - db;
+            // Desempate: por ordem de criação
+            return (a.id || 0) - (b.id || 0);
         }
 
         // ── AÇÕES ──
@@ -16629,8 +16643,11 @@
                     '<div class="form-group" style="margin-bottom:12px;"><label>Descrição *</label>' +
                         '<input type="text" id="plano-desc" value="' + (item ? _esc(item.descricao || '') : '') + '" placeholder="Ex: Aluguel casa" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
                     '</div>' +
-                    '<div class="form-group" style="margin-bottom:16px;"><label>Valor (R$) *</label>' +
-                        '<input type="number" id="plano-valor" value="' + (item ? item.valor : '') + '" step="0.01" min="0" placeholder="0" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;">' +
+                    '<div style="display:grid;grid-template-columns:1fr 100px;gap:10px;margin-bottom:16px;">' +
+                        '<div class="form-group" style="margin:0;"><label>Valor (R$) *</label>' +
+                            '<input type="number" id="plano-valor" value="' + (item ? item.valor : '') + '" step="0.01" min="0" placeholder="0" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;"></div>' +
+                        '<div class="form-group" style="margin:0;"><label>Dia</label>' +
+                            '<input type="number" id="plano-dia" value="' + (item && item.dia ? item.dia : '') + '" min="1" max="31" step="1" placeholder="—" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;text-align:center;"></div>' +
                     '</div>' +
 
                     '<div style="display:flex;gap:8px;">' +
@@ -16647,12 +16664,14 @@
         async function _planoSalvarLinha(id, mesKey, tipo) {
             var desc  = document.getElementById('plano-desc').value.trim();
             var valor = parseFloat(document.getElementById('plano-valor').value) || 0;
+            var dia   = parseInt(document.getElementById('plano-dia').value) || null;
+            if (dia !== null && (dia < 1 || dia > 31)) { alert('Dia deve estar entre 1 e 31'); return; }
             if (!desc) { alert('Informe a descrição'); return; }
             if (!valor || valor <= 0) { alert('Informe um valor válido'); return; }
             var plano = _planoLer();
             if (id) {
                 var item = plano.find(function(x){ return x.id === id; });
-                if (item) { item.descricao = desc; item.valor = valor; }
+                if (item) { item.descricao = desc; item.valor = valor; item.dia = dia; }
             } else {
                 plano.push({
                     id: Date.now() + Math.floor(Math.random() * 1000),
@@ -16660,6 +16679,7 @@
                     tipo: tipo,
                     descricao: desc,
                     valor: valor,
+                    dia: dia,
                     realizado: false,
                     criadoEm: new Date().toISOString()
                 });
@@ -16706,6 +16726,7 @@
                     tipo: p.tipo,
                     descricao: p.descricao,
                     valor: p.valor,
+                    dia: p.dia || null,
                     realizado: false,
                     criadoEm: new Date().toISOString()
                 };
