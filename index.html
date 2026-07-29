@@ -25159,11 +25159,31 @@
         // ── Editar Caixa ──────────────────────────────────
         function abrirEditarConta(contaId) {
             var contas = _ler('fin-contas') || [];
-            var c = contas.find(function(x){ return x.id===contaId; });
-            if (!c) return;
-            _modalBase('modal-editar-conta', '✏️ Editar Conta — ' + c.nome,
+            var c = contas.find(function(x){ return String(x.id) === String(contaId); });
+            var isFantasma = false;
+
+            // Se a conta não existe (fantasma criada a partir de caixas órfãos),
+            // cria um objeto vazio pra usuário poder cadastrar de verdade
+            if (!c) {
+                isFantasma = true;
+                c = {
+                    id: contaId,
+                    nome: '',
+                    tipo: 'corrente',
+                    fotoUrl: '',
+                    criadoEm: new Date().toISOString().slice(0,10)
+                };
+            }
+
+            var titulo = isFantasma ? '✨ Cadastrar Conta' : '✏️ Editar Conta — ' + (c.nome || '');
+            var aviso = isFantasma
+                ? '<div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.30);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#a78bfa;">Essa conta ainda não estava cadastrada no sistema (só existia via caixas). Dê um nome e ela será criada pra você.</div>'
+                : '';
+
+            _modalBase('modal-editar-conta', titulo,
+                aviso +
                 '<div class="form-group"><label>Nome da conta *</label>' +
-                '<input type="text" id="ect-nome" value="' + (c.nome||'') + '" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></div>' +
+                '<input type="text" id="ect-nome" value="' + (c.nome||'') + '" placeholder="Ex: Sicred, Bradesco, Nubank..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></div>' +
                 '<div class="form-group"><label>Tipo</label>' +
                 '<select id="ect-tipo" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
                 '<option value="corrente"' + (c.tipo==='corrente'?' selected':'') + '>Conta Corrente</option>' +
@@ -25175,23 +25195,36 @@
                 '<input type="text" id="ect-foto" value="' + (c.fotoUrl||'') + '" placeholder="https://..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
                 '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Cole a URL de qualquer imagem da internet (logo do banco, foto, etc.)</div></div>' +
                 (c.fotoUrl ? '<div style="text-align:center;margin-top:6px;"><img src="' + c.fotoUrl + '" style="width:60px;height:60px;border-radius:10px;object-fit:cover;border:2px solid var(--border);" ></div>' : ''),
-                '<button onclick="salvarEdicaoConta(' + contaId + ')" class="btn-primary" style="flex:1;padding:10px;">💾 Salvar</button>' +
+                '<button onclick="salvarEdicaoConta(' + contaId + ',' + isFantasma + ')" class="btn-primary" style="flex:1;padding:10px;">💾 Salvar</button>' +
                 '<button onclick="document.getElementById(\x27modal-editar-conta\x27).remove()" class="btn-secondary" style="padding:10px 16px;">Cancelar</button>'
             );
         }
 
-        async function salvarEdicaoConta(contaId) {
+        async function salvarEdicaoConta(contaId, isFantasma) {
             var nome  = document.getElementById('ect-nome')?.value.trim();
             var tipo  = document.getElementById('ect-tipo')?.value || 'corrente';
             var foto  = document.getElementById('ect-foto')?.value.trim() || '';
             if (!nome) { alert('Informe o nome da conta'); return; }
             var contas = _ler('fin-contas') || [];
-            var idx = contas.findIndex(function(c){ return c.id===contaId; });
-            if (idx >= 0) Object.assign(contas[idx], { nome, tipo, fotoUrl: foto });
-            await _salvar('fin-contas', contas);
-            document.getElementById('modal-editar-conta')?.remove();
-            renderContasList();
-            atualizarSelectsFinanceiro();
+            var idx = contas.findIndex(function(c){ return String(c.id) === String(contaId); });
+            if (idx >= 0) {
+                Object.assign(contas[idx], { nome: nome, tipo: tipo, fotoUrl: foto });
+            } else {
+                // Conta fantasma → criar de verdade com o mesmo ID (para não quebrar caixas ligados)
+                contas.push({
+                    id: contaId,
+                    nome: nome,
+                    tipo: tipo,
+                    fotoUrl: foto,
+                    criadoEm: new Date().toISOString().slice(0,10)
+                });
+            }
+            try {
+                await _salvar('fin-contas', contas);
+                document.getElementById('modal-editar-conta')?.remove();
+                if (typeof renderContasList === 'function') renderContasList();
+                if (typeof atualizarSelectsFinanceiro === 'function') atualizarSelectsFinanceiro();
+            } catch(err) { alert('Erro ao salvar: ' + err.message); }
         }
 
         function abrirEditarCaixa(caixaId) {
