@@ -14739,9 +14739,20 @@
             } else {
             // Todos os caixas que têm contaId (qualquer conta)
             const todosOsCaixasComConta = caixas.filter(c => c.contaId && !caixasEspeciais.has(c.id));
-            // Se não há contas mas há caixas com contaId, mostrar mesmo assim
-            const contasParaRender = contasNegocio.length ? contasNegocio :
-                [...new Set(todosOsCaixasComConta.map(c => c.contaId))].map(cid => ({id: cid, nome: 'Conta #' + cid, tipo: 'desconhecida', criadoEm: ''}));
+            // IDs das contas já cadastradas (como strings para comparação segura)
+            const contasCadastradasIds = new Set(contasNegocio.map(c => String(c.id)));
+            // IDs de contas usadas por caixas MAS que NÃO estão em fin-contas → fantasmas
+            const idsFantasmas = [...new Set(
+                todosOsCaixasComConta
+                    .map(c => String(c.contaId))
+                    .filter(cid => !contasCadastradasIds.has(cid))
+            )];
+            const contasFantasmas = idsFantasmas.map(cid => ({
+                id: cid, nome: 'Conta #' + cid + ' — clique ✏️ para nomear',
+                tipo: 'desconhecida', criadoEm: '', _fantasma: true
+            }));
+            // Renderiza AS DUAS: cadastradas primeiro, fantasmas depois
+            const contasParaRender = [...contasNegocio, ...contasFantasmas];
             el.innerHTML = htmlSemConta + contasParaRender.map(conta => {
                 const caixasConta = caixas.filter(c => String(c.contaId) === String(conta.id) && !caixasEspeciais.has(c.id));
                 const saldoTotal  = caixasConta.reduce((s,c) => s + calcularSaldoCaixa(c.id).saldo, 0);
