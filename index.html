@@ -4748,7 +4748,7 @@
             var labels = {
                 dashboard:     ['Dashboard',   'Aqui está o seu panorama de vendas hoje.'],
                 financeiro:    ['Financeiro',  'Contas, caixas, movimentações e análise'],
-                operacoes:     ['Operações',   'Vendas, produtos, estoque e simulador'],
+                operacoes:     ['Operações',   'Checklists, lojas, laboratório e notas'],
                 gestao:        ['Gestão',      'Tarefas, projetos, equipe e métricas'],
                 'mapa-fontes': ['Mapa de Fontes','Visão 3D dos seus fluxos de renda'],
                 agenda:        ['Agenda',      'Calendário de eventos e compromissos'],
@@ -19180,13 +19180,12 @@
         function _opRenderChecklists() {
             var el = document.getElementById('op-checklists-tab');
             if (!el) return;
-            // Reusa a função de gestão-checklists — mas o conteúdo tá lá dentro de #checklists (Gestão)
-            // Solução temporária: mover DOM do original pra cá
-            var orig = document.getElementById('checklists');
-            if (orig && el.children.length === 0) {
+            // Mover o container real de checklists (gs-checklists) pra dentro do wrap novo
+            var orig = document.getElementById('gs-checklists');
+            if (orig && orig.parentElement !== el) {
                 el.appendChild(orig);
-                orig.style.display = 'block';
             }
+            if (orig) orig.style.display = 'block';
             if (typeof renderGsChecklists === 'function') renderGsChecklists();
         }
 
@@ -19320,7 +19319,7 @@
         }
 
         function iniciarOperacoes() {
-            var btn = document.querySelector('[data-op-sub="op-vendas"]');
+            var btn = document.querySelector('[data-op-sub="op-checklists-tab"]');
             if (btn) mudarSubOp(btn);
         }
 
