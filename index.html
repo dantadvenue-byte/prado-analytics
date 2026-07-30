@@ -1114,10 +1114,10 @@
                 💼 Financeiro
             </button>
             <button class="nav-btn" data-tab="operacoes" onclick="ativarAba('operacoes')">
-                <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
-                🛒 Operações
+                <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                🔧 Operações
             </button>
-            <button class="nav-btn" data-tab="gestao" onclick="ativarAba('gestao')">
+            <button class="nav-btn" data-tab="gestao" onclick="ativarAba('gestao')" style="display:none;">
                 <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                 🎯 Gestão
             </button>
@@ -2025,13 +2025,19 @@
         <!-- TAB: OPERAÇÕES -->
         <div id="operacoes" class="tab-content">
             <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px;">
-                <button class="sub-btn active" data-op-sub="op-vendas" onclick="mudarSubOp(this)">🛒 Vendas</button>
-                <button class="sub-btn" data-op-sub="op-cadastro" onclick="mudarSubOp(this)">📦 Produtos / Cadastro</button>
-                <button class="sub-btn" data-op-sub="op-estoque" onclick="mudarSubOp(this)">📊 Estoque</button>
-                <button class="sub-btn" data-op-sub="op-compras" onclick="mudarSubOp(this)">🛍️ Próximas Compras</button>
-                <button class="sub-btn" data-op-sub="op-simulador" onclick="mudarSubOp(this)">📈 Simulador</button>
+                <button class="sub-btn active" data-op-sub="op-checklists-tab" onclick="mudarSubOp(this)">✅ Checklists</button>
+                <button class="sub-btn" data-op-sub="op-lojas-tab" onclick="mudarSubOp(this)">🏪 Lojas</button>
+                <button class="sub-btn" data-op-sub="op-laboratorio-tab" onclick="mudarSubOp(this)">🧪 Laboratório</button>
+                <button class="sub-btn" data-op-sub="op-notas-tab" onclick="mudarSubOp(this)">📝 Notas</button>
             </div>
-            <div id="op-vendas"    class="sub-content-op"></div>
+            <!-- Novas sub-abas -->
+            <div id="op-checklists-tab" class="sub-content-op"></div>
+            <div id="op-lojas-tab"      class="sub-content-op" style="display:none;"></div>
+            <div id="op-laboratorio-tab" class="sub-content-op" style="display:none;"></div>
+            <div id="op-notas-tab"      class="sub-content-op" style="display:none;"></div>
+
+            <!-- Sub-abas ANTIGAS (mantidas escondidas para preservar código) -->
+            <div id="op-vendas"    class="sub-content-op" style="display:none;"></div>
             <div id="op-cadastro"  class="sub-content-op" style="display:none;"></div>
             <div id="op-estoque"   class="sub-content-op" style="display:none;"></div>
             <div id="op-compras"   class="sub-content-op" style="display:none;"></div>
@@ -19168,12 +19174,51 @@
         // Sub-abas de Operações: cada uma aponta para a aba original que já existe no DOM
         // CORREÇÃO ARQUITETURA: Não mover DOM, não chamar ativarAba (que desativa #operacoes).
         // Apenas controlar visibilidade das abas reais via display:block/none.
+        // ═══════════════════════════════════════════════════════════════
+        // NOVAS SUB-ABAS DE OPERAÇÕES — placeholders (implementação em blocos futuros)
+        // ═══════════════════════════════════════════════════════════════
+        function _opRenderChecklists() {
+            var el = document.getElementById('op-checklists-tab');
+            if (!el) return;
+            // Reusa a função de gestão-checklists — mas o conteúdo tá lá dentro de #checklists (Gestão)
+            // Solução temporária: mover DOM do original pra cá
+            var orig = document.getElementById('checklists');
+            if (orig && el.children.length === 0) {
+                el.appendChild(orig);
+                orig.style.display = 'block';
+            }
+            if (typeof renderGsChecklists === 'function') renderGsChecklists();
+        }
+
+        function _opRenderLojas() {
+            var el = document.getElementById('op-lojas-tab');
+            if (!el) return;
+            el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">🏪 Lojas</div><div style="font-size:12px;">Em construção — próximo bloco</div></div>';
+        }
+
+        function _opRenderLaboratorio() {
+            var el = document.getElementById('op-laboratorio-tab');
+            if (!el) return;
+            el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">🧪 Laboratório</div><div style="font-size:12px;">Em construção — próximo bloco (Simulador · Validação · Projetos)</div></div>';
+        }
+
+        function _opRenderNotas() {
+            var el = document.getElementById('op-notas-tab');
+            if (!el) return;
+            el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">📝 Notas</div><div style="font-size:12px;">Em construção — próximo bloco (estilo iPhone)</div></div>';
+        }
+
         var _OP_TAB = {
             'op-vendas':    'vendas',
             'op-cadastro':  'cadastro',
             'op-estoque':   'estoque',
-            'op-compras':   null,    // op-compras é o único que tem conteúdo próprio (clonado)
+            'op-compras':   null,
             'op-simulador': 'simulador',
+            // Novas abas: '__self__' = conteúdo dentro do próprio container op-*-tab
+            'op-checklists-tab':  '__self__',
+            'op-lojas-tab':       '__self__',
+            'op-laboratorio-tab': '__self__',
+            'op-notas-tab':       '__self__',
         };
         var _OP_INIT = {
             'op-vendas':    function(){ if (typeof atualizarSelects === 'function') atualizarSelects(); },
@@ -19181,6 +19226,11 @@
             'op-estoque':   function(){ if (typeof renderEstoque === 'function') renderEstoque(); },
             'op-compras':   function(){ vpRenderComprasOp(); },
             'op-simulador': function(){ if (typeof calcularSimulador === 'function') calcularSimulador(); if (typeof renderEvolucao === 'function') renderEvolucao(); if (typeof renderComparativoLojas === 'function') renderComparativoLojas(); },
+            // Novas
+            'op-checklists-tab':  function(){ _opRenderChecklists(); },
+            'op-lojas-tab':       function(){ _opRenderLojas(); },
+            'op-laboratorio-tab': function(){ _opRenderLaboratorio(); },
+            'op-notas-tab':       function(){ _opRenderNotas(); },
         };
         var _GS_TAB = {
             'gs-tarefas':      'tarefas',
@@ -19290,12 +19340,16 @@
             _ocultarTodasSubAbasOpGs();
             // Mostrar o que precisa
             var tabReal = _OP_TAB[sub];
-            if (tabReal) {
-                // Caso normal: a sub-aba é uma tab-content real (vendas/cadastro/estoque/simulador)
+            if (tabReal === '__self__') {
+                // Nova aba: conteúdo está no próprio container op-*-tab
+                var container = document.getElementById(sub);
+                if (container) container.style.display = 'block';
+            } else if (tabReal) {
+                // Sub-aba mapeada pra tab-content externa
                 var real = document.getElementById(tabReal);
                 if (real) real.style.display = 'block';
             } else {
-                // Caso especial: op-compras (conteúdo próprio dentro do container)
+                // op-compras (conteúdo próprio dentro do container)
                 var elContainer = document.getElementById(sub);
                 if (elContainer) elContainer.style.display = 'block';
             }
