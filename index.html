@@ -5703,6 +5703,10 @@
             document.getElementById('modal-editar-produto')?.remove();
             atualizarListaProdutos();
             atualizarSelects();
+            // Se a aba Operações → Lojas está visível, re-renderiza pra refletir mudanças
+            if (typeof _opRenderLojas === 'function' && document.getElementById('op-lojas-tab')?.style.display !== 'none') {
+                _opRenderLojas();
+            }
         }
 
 
@@ -19189,10 +19193,272 @@
             if (typeof renderGsChecklists === 'function') renderGsChecklists();
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // OPERAÇÕES → LOJAS (visão consolidada com produtos + metas)
+        // ═══════════════════════════════════════════════════════════════
+        var _opLojasExpandido = {}; // { lojaId: bool } — mostrar todos produtos ou só 3
+
         function _opRenderLojas() {
             var el = document.getElementById('op-lojas-tab');
             if (!el) return;
-            el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">🏪 Lojas</div><div style="font-size:12px;">Em construção — próximo bloco</div></div>';
+
+            var lojas    = _ler('lojas')       || [];
+            var produtos = _ler('produtos')    || [];
+            var estoque  = _ler('estoque')     || {};
+            var metas    = _ler('metas-lojas') || {};
+            var vendas   = _ler('vendas')      || [];
+            var caixas   = _ler('fin-caixas')  || [];
+
+            var listaLojas = Object.values(lojas);
+            if (listaLojas.length === 0) {
+                el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">🏪 Nenhuma loja cadastrada</div><div style="font-size:12px;">Vá em Financeiro → Contas e Caixas pra criar sua primeira loja.</div></div>';
+                return;
+            }
+
+            // Mês atual
+            var hj = new Date();
+            var mesKey = hj.getFullYear() + '-' + String(hj.getMonth()+1).padStart(2,'0');
+            var diasNoMes = new Date(hj.getFullYear(), hj.getMonth()+1, 0).getDate();
+            var diasRestantes = diasNoMes - hj.getDate();
+
+            var html =
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ OPERAÇÕES · LOJAS</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Minhas lojas</div>' +
+                    '</div>' +
+                    '<div style="font-size:11px;color:var(--text-muted);">' + listaLojas.length + ' loja' + (listaLojas.length > 1 ? 's' : '') + ' · Meta ' + _opLojasMesLabel(mesKey) + '</div>' +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:14px;">';
+
+            listaLojas.forEach(function(loja){
+                var lid = String(loja.id);
+                var prodsLoja = produtos.filter(function(p){ return String(p.loja) === lid; });
+                var meta = metas[lid] || { unidades: 0, faturamento: 0, lucro: 0 };
+
+                // Vendas do mês
+                var vendasMes = vendas.filter(function(v){
+                    if (!v.data) return false;
+                    var d = new Date(v.data + 'T12:00:00');
+                    if (isNaN(d.getTime())) return false;
+                    return d.getFullYear() === hj.getFullYear() && d.getMonth() === hj.getMonth() && String(v.lojaId || v.loja || '') === lid;
+                });
+                var totalVendasMes = vendasMes.reduce(function(s,v){ return s + (parseInt(v.quantidade) || 1); }, 0);
+
+                // Saldo total dos caixas dessa loja
+                var saldoTotal = caixas.filter(function(c){ return String(c.lojaId) === lid; })
+                    .reduce(function(s,c){ return s + (calcularSaldoCaixa(c.id).saldo || 0); }, 0);
+
+                var pctMeta = meta.unidades > 0 ? Math.min(100, (totalVendasMes / meta.unidades) * 100) : 0;
+                var corBarra = pctMeta >= 80 ? '#34d399' : (pctMeta >= 50 ? '#fbbf24' : '#ef4444');
+                var faltamVendas = Math.max(0, meta.unidades - totalVendasMes);
+
+                var expandido = !!_opLojasExpandido[lid];
+                var prodsMostrar = expandido ? prodsLoja : prodsLoja.slice(0, 3);
+
+                html += '<div style="background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 10px 30px rgba(0,0,0,0.15);backdrop-filter:blur(20px);">' +
+                    // Header
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.05);">' +
+                        '<div>' +
+                            '<div style="font-size:15px;font-weight:800;color:var(--text-main);">🏪 ' + _esc(loja.nome) + '</div>' +
+                            '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">' + prodsLoja.length + ' produto' + (prodsLoja.length !== 1 ? 's' : '') + (meta.unidades ? ' · Meta ' + meta.unidades + '/mês' : ' · Sem meta') + '</div>' +
+                        '</div>' +
+                        '<div style="text-align:right;">' +
+                            '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Saldo</div>' +
+                            '<div style="font-size:16px;font-weight:800;color:#34d399;font-family:JetBrains Mono,monospace;">R$ ' + _opLojasFmt(saldoTotal) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Bloco produtos
+                    '<div style="margin-bottom:12px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                            '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">📦 Produtos (' + prodsLoja.length + ')</div>' +
+                            '<button onclick="_opLojasAbrirModalProduto(null,\'' + lid + '\')" style="background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:3px 10px;border-radius:6px;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;">+ Novo</button>' +
+                        '</div>';
+
+                if (prodsLoja.length === 0) {
+                    html += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;padding:8px;text-align:center;">Sem produtos cadastrados</div>';
+                } else {
+                    // Cabeçalho de colunas
+                    html += '<div style="display:grid;grid-template-columns:1fr 62px 62px 62px 46px 30px;gap:5px;padding:0 8px 4px;font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">' +
+                        '<div>Produto</div>' +
+                        '<div style="text-align:right;">Custo</div>' +
+                        '<div style="text-align:right;">Venda</div>' +
+                        '<div style="text-align:right;">Lucro</div>' +
+                        '<div style="text-align:right;">Mrg</div>' +
+                        '<div></div>' +
+                    '</div>';
+                    prodsMostrar.forEach(function(p){
+                        var qtd = (estoque[p.id] && estoque[p.id].quantidade) || 0;
+                        var custoCompra = parseFloat(p.precoCusto) || 0;
+                        // Custos adicionais: podem ser objeto {nome:valor} ou array
+                        var custosAdic = 0;
+                        if (p.custos) {
+                            if (Array.isArray(p.custos)) {
+                                custosAdic = p.custos.reduce(function(s,c){ return s + (parseFloat(c.valor) || 0); }, 0);
+                            } else {
+                                custosAdic = Object.values(p.custos).reduce(function(s,v){ return s + (parseFloat(v) || 0); }, 0);
+                            }
+                        }
+                        var custoReal = custoCompra + custosAdic;
+                        var venda = parseFloat(p.precoVenda) || 0;
+                        var lucro = venda - custoReal;
+                        var margem = venda > 0 ? (lucro / venda * 100) : 0;
+                        var corMrg = margem >= 30 ? '#34d399' : (margem >= 15 ? '#fbbf24' : '#ef4444');
+                        var corLuc = lucro >= 0 ? '#34d399' : '#ef4444';
+
+                        html += '<div onclick="abrirModalEdicao(' + p.id + ')" style="display:grid;grid-template-columns:1fr 62px 62px 62px 46px 30px;gap:5px;align-items:center;padding:6px 8px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);border-radius:6px;font-size:11px;margin-bottom:3px;cursor:pointer;">' +
+                            '<div style="color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(p.nome) + (qtd > 0 ? ' <span style="color:var(--text-dim);font-size:10px;">(' + qtd + 'un)</span>' : '') + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#f97316;" title="Custo real (compra + custos adicionais)">R$' + _opLojasFmt(custoReal) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:#3b82f6;font-weight:700;" title="Preço de venda">R$' + _opLojasFmt(venda) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corLuc + ';font-weight:800;" title="Lucro por unidade">R$' + _opLojasFmt(lucro) + '</div>' +
+                            '<div style="text-align:right;font-family:JetBrains Mono,monospace;color:' + corMrg + ';font-weight:700;font-size:10px;" title="Margem">' + margem.toFixed(0) + '%</div>' +
+                            '<div style="text-align:center;color:var(--text-dim);font-size:12px;">✏️</div>' +
+                        '</div>';
+                    });
+
+                    if (prodsLoja.length > 3) {
+                        html += '<div style="text-align:center;margin-top:4px;">' +
+                            '<button onclick="_opLojasToggleExpandir(\'' + lid + '\')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:4px 10px;">' +
+                            (expandido ? '▾ Recolher' : '▸ Ver mais ' + (prodsLoja.length - 3)) +
+                            '</button>' +
+                        '</div>';
+                    }
+                }
+
+                html += '</div>'; // fim produtos
+
+                // Bloco meta
+                html += '<div>' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                            '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">🎯 Meta do mês</div>' +
+                            '<button onclick="_opLojasAbrirModalMeta(\'' + lid + '\')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;padding:0;">✏️ editar</button>' +
+                        '</div>';
+
+                if (!meta.unidades) {
+                    html += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;padding:8px;text-align:center;">Nenhuma meta definida <button onclick="_opLojasAbrirModalMeta(\'' + lid + '\')" style="background:none;border:none;color:#a78bfa;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;text-decoration:underline;padding:0;">definir</button></div>';
+                } else {
+                    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+                            '<div style="flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;">' +
+                                '<div style="height:100%;background:' + corBarra + ';border-radius:99px;width:' + pctMeta + '%;transition:width 0.3s;box-shadow:0 0 12px ' + corBarra + '80;"></div>' +
+                            '</div>' +
+                            '<div style="font-size:11px;color:' + corBarra + ';font-family:JetBrains Mono,monospace;font-weight:800;min-width:36px;text-align:right;">' + pctMeta.toFixed(0) + '%</div>' +
+                        '</div>' +
+                        '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);font-family:JetBrains Mono,monospace;">' +
+                            '<span>' + totalVendasMes + ' de ' + meta.unidades + ' vendas</span>' +
+                            (faltamVendas > 0
+                                ? '<span>Falta: ' + faltamVendas + ' · ' + diasRestantes + ' dias</span>'
+                                : '<span style="color:#34d399;font-weight:700;">✓ Meta atingida</span>'
+                            ) +
+                        '</div>';
+                }
+                html += '</div>'; // fim meta
+
+                html += '</div>'; // fim card
+            });
+            html += '</div>';
+
+            el.innerHTML = html;
+        }
+
+        function _opLojasToggleExpandir(lid) {
+            _opLojasExpandido[lid] = !_opLojasExpandido[lid];
+            _opRenderLojas();
+        }
+
+        function _opLojasFmt(v) {
+            return (parseFloat(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+        }
+
+        function _opLojasMesLabel(mesKey) {
+            var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+            var p = mesKey.split('-');
+            return meses[parseInt(p[1]) - 1] + '/' + p[0].slice(2);
+        }
+
+        // ─── Modal Novo Produto (completo) ───
+        // Reusa exatamente a estrutura do modal de edição (ep-*) mas para criar novo
+        function _opLojasAbrirModalProduto(prodId, lojaIdPreset) {
+            // Se é edição: chama o modal de edição já existente (completo)
+            if (prodId) {
+                if (typeof abrirModalEdicao === 'function') abrirModalEdicao(prodId);
+                return;
+            }
+
+            // Novo produto: cria produto placeholder e abre modal de edição
+            var lojas = _ler('lojas') || [];
+            var produtos = _ler('produtos') || [];
+            var estoque = { ...(_ler('estoque') || {}) };
+
+            var lid = String(lojaIdPreset || (lojas[0] && lojas[0].id) || '');
+            var novoId = Date.now() + Math.floor(Math.random() * 1000);
+            var novoProduto = {
+                id: novoId,
+                nome: 'Novo produto',
+                loja: lid,
+                data: new Date().toISOString().slice(0,10),
+                quantidade: 0,
+                precoCusto: 0,
+                precoVenda: 0,
+                comissao: 0, desconto: 0, playbook: '',
+                sociedade: 'solo', nomeSocio: '', percentualSocio: 50,
+                meuEstoquePct: 100, meuLucroPct: 100,
+                custos: {}, cores: [], foto: null
+            };
+            produtos.push(novoProduto);
+            estoque[novoId] = { quantidade: 0, historico: [] };
+
+            _salvar('produtos', produtos).then(function(){
+                _salvar('estoque', estoque);
+                // Abre modal completo pra editar/preencher
+                if (typeof abrirModalEdicao === 'function') abrirModalEdicao(novoId);
+            }).catch(function(err){ alert('Erro ao criar produto: ' + err.message); });
+        }
+
+        // ─── Modal Meta ───
+        function _opLojasAbrirModalMeta(lojaId) {
+            var metas = _ler('metas-lojas') || {};
+            var meta = metas[lojaId] || { unidades: 0, faturamento: 0, lucro: 0 };
+            var lojas = _ler('lojas') || [];
+            var lojaNome = lojas[lojaId] ? lojas[lojaId].nome : '';
+
+            var prev = document.getElementById('op-meta-modal');
+            if (prev) prev.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'op-meta-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:22px;width:100%;max-width:420px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ META · ' + _esc(lojaNome).toUpperCase() + '</div>' +
+                            '<div style="font-size:18px;font-weight:800;color:#fff;">Meta mensal</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'op-meta-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+                    '<div class="form-group" style="margin-bottom:14px;"><label>Meta de vendas por mês *</label>' +
+                        '<input type="number" id="op-meta-unidades" value="' + (meta.unidades || '') + '" min="0" step="1" placeholder="Ex: 15" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;width:100%;font-weight:700;font-size:16px;text-align:center;">' +
+                    '</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'op-meta-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="_opLojasSalvarMeta(\'' + lojaId + '\')" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+            setTimeout(function(){ document.getElementById('op-meta-unidades')?.focus(); }, 100);
+        }
+
+        async function _opLojasSalvarMeta(lojaId) {
+            var unidades = parseInt(document.getElementById('op-meta-unidades').value) || 0;
+            var metas = { ...(_ler('metas-lojas') || {}) };
+            metas[lojaId] = { ...(metas[lojaId] || {}), unidades: unidades };
+            try {
+                await _salvar('metas-lojas', metas);
+                document.getElementById('op-meta-modal')?.remove();
+                _opRenderLojas();
+            } catch(err) { alert('Erro ao salvar: ' + err.message); }
         }
 
         function _opRenderLaboratorio() {
@@ -20312,6 +20578,63 @@
         }
 
 
+        // Estado UI: qual checklist mostra concluídos
+        var _clMostrarConcluidos = {};
+        // Estado do drag&drop
+        var _clDragCtx = null; // { checklistId, itemId }
+
+        function _clToggleVerConcluidos(clId) {
+            _clMostrarConcluidos[clId] = !_clMostrarConcluidos[clId];
+            renderGsChecklists();
+        }
+
+        function _clRenderItem(clId, it, ehArrastando) {
+            var draggable = 'draggable="true"';
+            var estilos = 'display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:12px;cursor:grab;background:' + (ehArrastando ? 'rgba(59,130,246,0.10)' : 'transparent') + ';border:1px solid ' + (ehArrastando ? 'rgba(59,130,246,0.30)' : 'transparent') + ';';
+            return '<div ' + draggable +
+                ' ondragstart="_clDragStart(event,' + clId + ',' + it.id + ')"' +
+                ' ondragover="event.preventDefault();this.style.borderTop=\'2px solid #3b82f6\';"' +
+                ' ondragleave="this.style.borderTop=\'1px solid transparent\';"' +
+                ' ondrop="_clDrop(event,' + clId + ',' + it.id + ');this.style.borderTop=\'1px solid transparent\';"' +
+                ' ondragend="this.style.opacity=1;"' +
+                ' style="' + estilos + '">' +
+                '<span style="color:var(--text-dim);cursor:grab;user-select:none;font-size:11px;flex-shrink:0;" title="Arrastar">⋮⋮</span>' +
+                '<input type="checkbox" ' + (it.feito ? 'checked' : '') + ' onchange="clToggleItem(' + clId + ',' + it.id + ')" style="cursor:pointer;accent-color:#3b82f6;flex-shrink:0;">' +
+                '<span style="flex:1;color:' + (it.feito ? '#7a7a96' : '#e4e4ea') + ';' + (it.feito ? 'text-decoration:line-through;' : '') + '">' + _esc(it.texto) + '</span>' +
+                '<button onclick="clRemoverItem(' + clId + ',' + it.id + ')" style="background:none;border:none;color:#4a4d60;cursor:pointer;font-size:13px;padding:0 3px;" title="Remover">×</button>' +
+            '</div>';
+        }
+
+        function _clDragStart(ev, clId, itemId) {
+            _clDragCtx = { clId: clId, itemId: itemId };
+            ev.dataTransfer.effectAllowed = 'move';
+            if (ev.currentTarget) ev.currentTarget.style.opacity = '0.5';
+        }
+
+        async function _clDrop(ev, clId, alvoItemId) {
+            ev.preventDefault();
+            if (!_clDragCtx || _clDragCtx.clId !== clId) { _clDragCtx = null; return; }
+            var origItemId = _clDragCtx.itemId;
+            _clDragCtx = null;
+            if (origItemId === alvoItemId) return;
+
+            var checklists = _ler('checklists') || [];
+            var cl = checklists.find(function(c){ return c.id === clId; });
+            if (!cl || !cl.itens) return;
+
+            var origIdx = cl.itens.findIndex(function(x){ return x.id === origItemId; });
+            var alvoIdx = cl.itens.findIndex(function(x){ return x.id === alvoItemId; });
+            if (origIdx === -1 || alvoIdx === -1) return;
+
+            var moved = cl.itens.splice(origIdx, 1)[0];
+            cl.itens.splice(alvoIdx, 0, moved);
+
+            try {
+                await _salvar('checklists', checklists);
+                renderGsChecklists();
+            } catch(err) { console.error('Erro ao reordenar:', err); }
+        }
+
         function renderGsChecklists() {
             var el = document.getElementById('gs-checklists');
             if (!el) return;
@@ -20403,16 +20726,32 @@
                             '<div style="font-size:10px;color:#7a7a96;font-family:JetBrains Mono,monospace;font-weight:700;">' + prog.pct + '%</div>' +
                         '</div>' +
 
-                        // Itens
-                        '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px;">' +
-                            (cl.itens || []).map(function(it){
-                                return '<div style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:12px;">' +
-                                    '<input type="checkbox" ' + (it.feito ? 'checked' : '') + ' onchange="clToggleItem(' + cl.id + ',' + it.id + ')" style="cursor:pointer;accent-color:#3b82f6;flex-shrink:0;">' +
-                                    '<span style="flex:1;color:' + (it.feito ? '#7a7a96' : '#e4e4ea') + ';' + (it.feito ? 'text-decoration:line-through;' : '') + '">' + _esc(it.texto) + '</span>' +
-                                    '<button onclick="clRemoverItem(' + cl.id + ',' + it.id + ')" style="background:none;border:none;color:#4a4d60;cursor:pointer;font-size:13px;padding:0 3px;" title="Remover">×</button>' +
-                                '</div>';
-                            }).join('') +
-                        '</div>' +
+                        // Itens (pendentes primeiro; concluídos ocultos por padrão)
+                        (function(){
+                            var todosItens = cl.itens || [];
+                            var pendentes = todosItens.filter(function(x){ return !x.feito; });
+                            var concluidos = todosItens.filter(function(x){ return x.feito; });
+                            var mostrarConcluidos = _clMostrarConcluidos[cl.id] === true;
+
+                            return '<div id="cl-lista-' + cl.id + '" style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px;">' +
+                                pendentes.map(function(it){
+                                    return _clRenderItem(cl.id, it, false);
+                                }).join('') +
+                                (concluidos.length > 0
+                                    ? '<div style="display:flex;justify-content:center;padding:6px 0;">' +
+                                        '<button onclick="_clToggleVerConcluidos(' + cl.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:4px 10px;">' +
+                                        (mostrarConcluidos
+                                            ? '▾ Ocultar ' + concluidos.length + ' concluído' + (concluidos.length > 1 ? 's' : '')
+                                            : '▸ Ver ' + concluidos.length + ' concluído' + (concluidos.length > 1 ? 's' : '')
+                                        ) +
+                                        '</button>' +
+                                    '</div>'
+                                    : '') +
+                                (mostrarConcluidos ? concluidos.map(function(it){
+                                    return _clRenderItem(cl.id, it, false);
+                                }).join('') : '') +
+                            '</div>';
+                        })() +
 
                         // Adicionar item
                         '<div style="display:flex;gap:6px;">' +
