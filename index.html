@@ -18614,6 +18614,7 @@
             'desafios':                  { tabela: 'desafios',           tipo: 'array'  },
             'plano-mensal':              { tabela: 'plano_mensal',       tipo: 'array'  },
             'proximas-compras':          { tabela: 'proximas_compras',   tipo: 'dict'   },
+            'notas':                     { tabela: 'notas',              tipo: 'array'  },
         };
 
         // ── Cache em memória (fonte primária de leitura) ──
@@ -18690,7 +18691,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
@@ -19715,16 +19716,302 @@
             } catch(err) { alert('Erro: ' + err.message); }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // OPERAÇÕES → LABORATÓRIO (Simulador · Validação · Projetos)
+        // ═══════════════════════════════════════════════════════════════
+        var _opLabAtivo = 'simulador'; // aba interna ativa
+
         function _opRenderLaboratorio() {
             var el = document.getElementById('op-laboratorio-tab');
             if (!el) return;
-            el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">🧪 Laboratório</div><div style="font-size:12px;">Em construção — próximo bloco (Simulador · Validação · Projetos)</div></div>';
+
+            // Renderiza o esqueleto uma vez (mini-tabs + wrappers vazios)
+            if (!el.querySelector('#op-lab-mini-tabs')) {
+                el.innerHTML =
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ OPERAÇÕES · LABORATÓRIO</div>' +
+                            '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Simulações e experimentos</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div id="op-lab-mini-tabs" style="display:flex;gap:6px;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:5px;">' +
+                        '<button data-lab="simulador" onclick="_opLabTrocar(\'simulador\')" style="flex:1;background:transparent;border:none;color:var(--text-muted);padding:8px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">📈 Simulador</button>' +
+                        '<button data-lab="validacao" onclick="_opLabTrocar(\'validacao\')" style="flex:1;background:transparent;border:none;color:var(--text-muted);padding:8px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">🔬 Validação</button>' +
+                        '<button data-lab="projetos" onclick="_opLabTrocar(\'projetos\')" style="flex:1;background:transparent;border:none;color:var(--text-muted);padding:8px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">🎯 Projetos</button>' +
+                    '</div>' +
+                    '<div id="op-lab-wrap"></div>';
+            }
+            _opLabTrocar(_opLabAtivo || 'simulador');
+        }
+
+        function _opLabTrocar(aba) {
+            _opLabAtivo = aba;
+            // Atualiza estilo dos mini-tabs
+            document.querySelectorAll('#op-lab-mini-tabs [data-lab]').forEach(function(btn){
+                var ativo = btn.dataset.lab === aba;
+                btn.style.background = ativo ? 'var(--purple-light)' : 'transparent';
+                btn.style.color = ativo ? '#fff' : 'var(--text-muted)';
+            });
+
+            var wrap = document.getElementById('op-lab-wrap');
+            if (!wrap) return;
+
+            // Mover o container correto pra dentro do wrap
+            var containerId = { simulador: 'simulador', validacao: 'gs-validacao', projetos: 'gs-projetos' }[aba];
+            var orig = document.getElementById(containerId);
+            if (orig && orig.parentElement !== wrap) {
+                wrap.appendChild(orig);
+            }
+            if (orig) orig.style.display = 'block';
+
+            // Chamar função de renderização apropriada
+            try {
+                if (aba === 'simulador' && typeof calcularSimulador === 'function') {
+                    calcularSimulador();
+                    if (typeof renderEvolucao === 'function') renderEvolucao();
+                    if (typeof renderComparativoLojas === 'function') renderComparativoLojas();
+                } else if (aba === 'validacao' && typeof renderValidacao === 'function') {
+                    renderValidacao();
+                } else if (aba === 'projetos' && typeof renderProjetos === 'function') {
+                    renderProjetos();
+                }
+            } catch(e) { console.warn('[Lab]', aba, e); }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // OPERAÇÕES → NOTAS (estilo iPhone)
+        // ═══════════════════════════════════════════════════════════════
+        var _opNotaAtivaId = null;
+        var _opNotasSaveTimer = null;
+        var _opNotasBuscar = ''; // filtro de busca
+
+        function _opNotasLer() {
+            return _ler('notas') || [];
+        }
+
+        function _opNotasTituloDe(nota) {
+            var corpo = (nota.corpo || '').trim();
+            if (!corpo) return 'Nova nota';
+            var primeiraLinha = corpo.split('\n')[0].trim();
+            return primeiraLinha || 'Nova nota';
+        }
+
+        function _opNotasPreviewDe(nota) {
+            var corpo = (nota.corpo || '').trim();
+            var linhas = corpo.split('\n');
+            // Pega da segunda linha em diante
+            var preview = linhas.slice(1).join(' ').trim();
+            return preview || 'Sem texto adicional';
+        }
+
+        function _opNotasDataRelativa(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            if (isNaN(d)) return '';
+            var agora = new Date();
+            var diff = (agora - d) / 1000;
+            if (diff < 60) return 'Agora';
+            if (diff < 3600) return Math.floor(diff/60) + ' min';
+            if (diff < 86400) {
+                // Mesmo dia
+                if (d.toDateString() === agora.toDateString()) {
+                    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                }
+                return 'Hoje';
+            }
+            var ontem = new Date(agora); ontem.setDate(agora.getDate() - 1);
+            if (d.toDateString() === ontem.toDateString()) return 'Ontem';
+            if (diff < 86400 * 7) return d.toLocaleDateString('pt-BR', { weekday: 'short' });
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
         }
 
         function _opRenderNotas() {
             var el = document.getElementById('op-notas-tab');
             if (!el) return;
-            el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-muted);"><div style="font-size:14px;margin-bottom:8px;">📝 Notas</div><div style="font-size:12px;">Em construção — próximo bloco (estilo iPhone)</div></div>';
+
+            var notas = _opNotasLer().slice().sort(function(a,b){
+                return new Date(b.atualizadoEm || 0) - new Date(a.atualizadoEm || 0);
+            });
+
+            // Se não tem nota ativa, seleciona a primeira (ou nenhuma)
+            if (_opNotaAtivaId && !notas.find(function(n){ return n.id === _opNotaAtivaId; })) {
+                _opNotaAtivaId = null;
+            }
+            if (!_opNotaAtivaId && notas.length > 0) {
+                _opNotaAtivaId = notas[0].id;
+            }
+
+            var isMobile = window.innerWidth <= 700;
+            var notaAtiva = notas.find(function(n){ return n.id === _opNotaAtivaId; });
+
+            // Filtro de busca
+            var notasFiltradas = notas;
+            if (_opNotasBuscar) {
+                var q = _opNotasBuscar.toLowerCase();
+                notasFiltradas = notas.filter(function(n){
+                    return (n.corpo || '').toLowerCase().includes(q);
+                });
+            }
+
+            // Header
+            var html =
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ OPERAÇÕES · NOTAS</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">' + notas.length + ' nota' + (notas.length !== 1 ? 's' : '') + '</div>' +
+                    '</div>' +
+                    '<button onclick="_opNotasNova()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:10px 16px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">+ Nova nota</button>' +
+                '</div>';
+
+            // Mobile: mostra ou lista OU editor (não os dois)
+            if (isMobile) {
+                if (_opNotaAtivaId && notaAtiva) {
+                    html += _opNotasRenderEditor(notaAtiva, true);
+                } else {
+                    html += _opNotasRenderLista(notasFiltradas, true);
+                }
+                el.innerHTML = html;
+                return;
+            }
+
+            // Desktop: 2 colunas
+            html += '<div style="display:grid;grid-template-columns:320px 1fr;gap:16px;min-height:500px;">' +
+                _opNotasRenderLista(notasFiltradas, false) +
+                (notaAtiva ? _opNotasRenderEditor(notaAtiva, false) : _opNotasRenderVazio()) +
+            '</div>';
+
+            el.innerHTML = html;
+        }
+
+        function _opNotasRenderLista(notas, mobile) {
+            var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;' + (mobile ? '' : 'max-height:70vh;overflow-y:auto;') + '">' +
+                '<div style="position:relative;margin-bottom:8px;">' +
+                    '<input type="text" id="op-notas-busca" value="' + _esc(_opNotasBuscar) + '" placeholder="🔍 Buscar" oninput="_opNotasFiltrar(this.value)" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:8px 12px;border-radius:8px;font-family:inherit;font-size:12px;">' +
+                '</div>';
+
+            if (notas.length === 0) {
+                html += '<div style="text-align:center;padding:40px 20px;color:var(--text-dim);font-size:12px;font-style:italic;">' + (_opNotasBuscar ? 'Nenhuma nota encontrada' : 'Nenhuma nota ainda.<br>Crie a primeira acima.') + '</div>';
+            } else {
+                notas.forEach(function(n){
+                    var isAtiva = n.id === _opNotaAtivaId;
+                    var titulo = _opNotasTituloDe(n);
+                    var preview = _opNotasPreviewDe(n);
+                    var data = _opNotasDataRelativa(n.atualizadoEm);
+                    html += '<div onclick="_opNotasSelecionar(' + n.id + ')" style="cursor:pointer;padding:10px 12px;border-radius:8px;background:' + (isAtiva ? 'rgba(139,92,246,0.15)' : 'transparent') + ';border:1px solid ' + (isAtiva ? 'rgba(139,92,246,0.35)' : 'transparent') + ';transition:background 0.15s;">' +
+                        '<div style="font-size:12px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px;">' + _esc(titulo) + '</div>' +
+                        '<div style="display:flex;gap:8px;font-size:10px;color:var(--text-dim);align-items:center;">' +
+                            '<span style="flex-shrink:0;">' + data + '</span>' +
+                            '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + _esc(preview.slice(0, 60)) + '</span>' +
+                        '</div>' +
+                    '</div>';
+                });
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function _opNotasRenderEditor(nota, mobile) {
+            var backButton = mobile
+                ? '<button onclick="_opNotaAtivaId=null;_opRenderNotas()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:var(--text-muted);padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;">← Notas</button>'
+                : '';
+            return '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;' + (mobile ? '' : 'min-height:500px;') + '">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">' +
+                    backButton +
+                    '<div style="font-size:10px;color:var(--text-dim);flex:1;text-align:' + (mobile ? 'center' : 'left') + ';">Editando · Autosalvando</div>' +
+                    '<button onclick="_opNotasExcluir(' + nota.id + ')" style="background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.30);color:#ef4444;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;">🗑 Excluir</button>' +
+                '</div>' +
+                '<textarea id="op-notas-editor" oninput="_opNotasDigitou(' + nota.id + ',this.value)" placeholder="Digite aqui... A primeira linha vira o título." style="flex:1;width:100%;background:transparent;border:none;color:var(--text-main);font-family:inherit;font-size:14px;line-height:1.6;resize:none;outline:none;min-height:400px;padding:8px 0;">' + _esc(nota.corpo || '') + '</textarea>' +
+            '</div>';
+        }
+
+        function _opNotasRenderVazio() {
+            return '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:60px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--text-dim);">' +
+                '<div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📝</div>' +
+                '<div style="font-size:13px;">Selecione ou crie uma nota</div>' +
+            '</div>';
+        }
+
+        // ─── Ações ───
+        function _opNotasNova() {
+            var notas = _opNotasLer();
+            var nova = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                corpo: '',
+                atualizadoEm: new Date().toISOString(),
+                criadoEm: new Date().toISOString()
+            };
+            notas.push(nova);
+            _opNotaAtivaId = nova.id;
+            _salvar('notas', notas).then(function(){
+                _opRenderNotas();
+                setTimeout(function(){ document.getElementById('op-notas-editor')?.focus(); }, 100);
+            }).catch(function(err){ alert('Erro ao criar nota: ' + err.message); });
+        }
+
+        function _opNotasSelecionar(id) {
+            _opNotaAtivaId = id;
+            _opRenderNotas();
+            setTimeout(function(){
+                var ed = document.getElementById('op-notas-editor');
+                if (ed) ed.focus();
+            }, 100);
+        }
+
+        function _opNotasDigitou(id, valor) {
+            // Debounce salvar
+            clearTimeout(_opNotasSaveTimer);
+            _opNotasSaveTimer = setTimeout(function(){
+                _opNotasSalvar(id, valor);
+            }, 800);
+        }
+
+        async function _opNotasSalvar(id, valor) {
+            var notas = _opNotasLer();
+            var nota = notas.find(function(n){ return n.id === id; });
+            if (!nota) return;
+            nota.corpo = valor;
+            nota.atualizadoEm = new Date().toISOString();
+            try {
+                await _salvar('notas', notas);
+                // Re-renderiza SÓ a lista pra atualizar título/preview/data
+                var lista = document.querySelector('#op-notas-tab > div:not(:first-child) > div:first-child');
+                // Simplificação: re-render leve — mas cuidando pra não perder foco
+                var editor = document.getElementById('op-notas-editor');
+                var pos = editor ? editor.selectionStart : null;
+                var scroll = editor ? editor.scrollTop : 0;
+                _opRenderNotas();
+                var novoEd = document.getElementById('op-notas-editor');
+                if (novoEd && pos !== null) {
+                    novoEd.focus();
+                    novoEd.setSelectionRange(pos, pos);
+                    novoEd.scrollTop = scroll;
+                }
+            } catch(err) { console.warn('Erro ao autosalvar nota:', err); }
+        }
+
+        async function _opNotasExcluir(id) {
+            if (!confirm('Excluir esta nota? Esta ação não pode ser desfeita.')) return;
+            var notas = _opNotasLer();
+            notas = notas.filter(function(n){ return n.id !== id; });
+            if (_opNotaAtivaId === id) _opNotaAtivaId = null;
+            try {
+                await _salvar('notas', notas);
+                _opRenderNotas();
+            } catch(err) { alert('Erro ao excluir: ' + err.message); }
+        }
+
+        function _opNotasFiltrar(valor) {
+            _opNotasBuscar = valor;
+            // Re-render SÓ a lista (evitar perder foco do input)
+            var busca = document.getElementById('op-notas-busca');
+            var pos = busca ? busca.selectionStart : null;
+            _opRenderNotas();
+            var novoBusca = document.getElementById('op-notas-busca');
+            if (novoBusca && pos !== null) {
+                novoBusca.focus();
+                novoBusca.setSelectionRange(pos, pos);
+            }
         }
 
         var _OP_TAB = {
