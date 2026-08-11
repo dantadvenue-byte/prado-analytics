@@ -2812,9 +2812,9 @@
             <div id="sub-fin-analise" class="sub-content" style="display:none;">
                 <!-- Seletor interno de análise -->
                 <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
-                    <button id="analise-btn-visao" onclick="mudarSubAnalise('visao')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--purple-light);border:1px solid var(--purple-light);color:#fff;">📊 Visão Geral</button>
-                    <button id="analise-btn-dre" onclick="mudarSubAnalise('dre')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">📋 DRE Mensal</button>
-                    <button id="analise-btn-roce" onclick="mudarSubAnalise('roce')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">📈 ROCE</button>
+                    <button id="analise-btn-visao" onclick="mudarSubAnalise('visao')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--purple-light);border:1px solid var(--purple-light);color:#fff;">Visão Geral</button>
+                    <button id="analise-btn-dre" onclick="mudarSubAnalise('dre')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">DRE Mensal</button>
+                    <button id="analise-btn-roce" onclick="mudarSubAnalise('roce')" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);">ROCE</button>
                 </div>
 
                 <!-- Visão Geral (conteúdo do sub-fin-visao espelhado) -->
@@ -14574,6 +14574,8 @@
                     })() : '') +
                     // Contas a pagar
                     htmlObrig +
+                    // ═════ ANOTAÇÕES ═════
+                    _cxRenderAnotacoes(cx.id) +
                     // Botões secundários
                     '<div style="display:flex;gap:5px;margin-top:10px;flex-wrap:wrap;">' +
                         '<button onclick="abrirEmprestimoCaixa('+cx.id+')" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;">🔄 Empréstimo</button>' +
@@ -14591,6 +14593,157 @@
             var aberto = el.style.display !== 'none';
             el.style.display  = aberto ? 'none' : 'block';
             if (btn) btn.textContent = aberto ? '▾' : '▴';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ANOTAÇÕES POR CAIXA (Financeiro → Contas e Caixas)
+        // ═══════════════════════════════════════════════════════════════
+        var _cxVerTodasNotas = {}; // { caixaId: bool } — expandir todas
+
+        function _cxLerNotas() {
+            return _ler('caixa-anotacoes') || [];
+        }
+
+        function _cxNotasDoCaixa(caixaId) {
+            var todas = _cxLerNotas();
+            return todas.filter(function(n){ return String(n.caixaId) === String(caixaId); })
+                        .sort(function(a,b){ return new Date(b.criadoEm || 0) - new Date(a.criadoEm || 0); });
+        }
+
+        function _cxFormatarData(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            if (isNaN(d)) return '';
+            var dia = String(d.getDate()).padStart(2, '0');
+            var mes = String(d.getMonth() + 1).padStart(2, '0');
+            var hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return dia + '/' + mes + ' · ' + hora;
+        }
+
+        function _cxRenderAnotacoes(caixaId) {
+            var notas = _cxNotasDoCaixa(caixaId);
+            var verTodas = !!_cxVerTodasNotas[caixaId];
+            var mostrar = verTodas ? notas : notas.slice(0, 2);
+
+            var html = '<div style="margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.06);">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                    '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:flex;align-items:center;gap:6px;">' +
+                        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+                        'Anotações' + (notas.length ? ' (' + notas.length + ')' : '') +
+                    '</div>' +
+                    '<button onclick="_cxAbrirModalNota(' + caixaId + ',null)" style="background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:3px 10px;border-radius:6px;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer;">+ Nova</button>' +
+                '</div>';
+
+            if (notas.length === 0) {
+                html += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;padding:6px;text-align:center;">Nenhuma anotação</div>';
+            } else {
+                mostrar.forEach(function(n){
+                    html += '<div style="background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);border-radius:6px;padding:8px 10px;margin-bottom:5px;font-size:11px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:3px;">' +
+                            '<span style="font-size:10px;color:var(--text-dim);font-family:JetBrains Mono,monospace;font-weight:600;">' + _cxFormatarData(n.criadoEm) + '</span>' +
+                            '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+                                '<button onclick="_cxAbrirModalNota(' + caixaId + ',' + n.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:10px;padding:0;">✏️</button>' +
+                                '<button onclick="_cxExcluirNota(' + n.id + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:10px;padding:0;">🗑</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="color:var(--text-main);line-height:1.5;white-space:pre-wrap;word-wrap:break-word;">' + _esc(n.texto || '') + '</div>' +
+                    '</div>';
+                });
+
+                if (notas.length > 2) {
+                    html += '<div style="text-align:center;margin-top:4px;">' +
+                        '<button onclick="_cxToggleVerTodasNotas(' + caixaId + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;padding:4px 8px;">' +
+                            (verTodas ? '▾ Recolher' : '▸ Ver todas (' + notas.length + ')') +
+                        '</button>' +
+                    '</div>';
+                }
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function _cxToggleVerTodasNotas(caixaId) {
+            _cxVerTodasNotas[caixaId] = !_cxVerTodasNotas[caixaId];
+            if (typeof renderContasList === 'function') renderContasList();
+        }
+
+        function _cxAbrirModalNota(caixaId, notaId) {
+            var prev = document.getElementById('cx-nota-modal');
+            if (prev) prev.remove();
+
+            var nota = null;
+            if (notaId) {
+                var todas = _cxLerNotas();
+                nota = todas.find(function(n){ return n.id === notaId; });
+            }
+
+            var caixas = _ler('fin-caixas') || [];
+            var caixa = caixas.find(function(c){ return c.id === caixaId; });
+            var nomeCaixa = caixa ? caixa.nome : '';
+
+            var modal = document.createElement('div');
+            modal.id = 'cx-nota-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:22px;width:100%;max-width:480px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ ANOTAÇÃO · ' + _esc(nomeCaixa).toUpperCase() + '</div>' +
+                            '<div style="font-size:18px;font-weight:800;color:#fff;">' + (nota ? 'Editar anotação' : 'Nova anotação') + '</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'cx-nota-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:14px;">' +
+                        '<textarea id="cx-nota-texto" placeholder="Digite sua anotação..." style="width:100%;min-height:140px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:12px;border-radius:8px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;">' + (nota ? _esc(nota.texto || '') : '') + '</textarea>' +
+                    '</div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'cx-nota-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="_cxSalvarNota(' + caixaId + ',' + (notaId || 'null') + ')" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+            setTimeout(function(){ document.getElementById('cx-nota-texto')?.focus(); }, 100);
+        }
+
+        async function _cxSalvarNota(caixaId, notaId) {
+            var texto = document.getElementById('cx-nota-texto').value.trim();
+            if (!texto) { alert('Digite algum texto'); return; }
+
+            var todas = _cxLerNotas();
+            if (notaId) {
+                var n = todas.find(function(x){ return x.id === notaId; });
+                if (n) {
+                    n.texto = texto;
+                    n.atualizadoEm = new Date().toISOString();
+                }
+            } else {
+                todas.push({
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    caixaId: caixaId,
+                    texto: texto,
+                    criadoEm: new Date().toISOString(),
+                    atualizadoEm: new Date().toISOString()
+                });
+            }
+            try {
+                await _salvar('caixa-anotacoes', todas);
+                document.getElementById('cx-nota-modal')?.remove();
+                if (typeof renderContasList === 'function') renderContasList();
+            } catch(err) { alert('Erro ao salvar: ' + err.message); }
+        }
+
+        async function _cxExcluirNota(notaId) {
+            if (!confirm('Excluir esta anotação?')) return;
+            var todas = _cxLerNotas();
+            todas = todas.filter(function(n){ return n.id !== notaId; });
+            try {
+                await _salvar('caixa-anotacoes', todas);
+                if (typeof renderContasList === 'function') renderContasList();
+            } catch(err) { alert('Erro: ' + err.message); }
         }
         function renderContasList() {
             const contas  = _ler('fin-contas')  || [];
@@ -15305,7 +15458,7 @@
             const mesesNomes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
             el.innerHTML = `
             <div class="form-section">
-                <div class="form-title">📋 DRE — ${mesesNomes[mes]} ${ano} ${filtCaixa ? '— '+caixas.find(c=>c.id==filtCaixa)?.nome : ''}</div>
+                <div class="form-title">DRE — ${mesesNomes[mes]} ${ano} ${filtCaixa ? '— '+caixas.find(c=>c.id==filtCaixa)?.nome : ''}</div>
                 <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
                     ${row('(+) Receita Bruta',           receitaBruta,   'var(--green)', true)}
                     ${row('(-) Custo do Estoque',         -custosEstoque, custosEstoque>0?'var(--red)':'var(--text-dim)', false, true)}
@@ -16194,14 +16347,35 @@
         // Ícones SVG inline (sem emojis exceto medalhas)
         var _FIN_ICONES = {
             entradas: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>',
+            saidas:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
             lucro:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
             pessoal:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
             sobra:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+            trofeu:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+            grafico:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>',
+            clipboard:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
             emprestimos: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9l4 4-4 4M10 15l-4-4 4-4"/></svg>',
             calendar: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
             edit:     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+            trash:    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+            plus:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+            check:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+            copy:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
             item:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+            diamond:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9z"/></svg>',
+            carteira: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+            cart:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+            target:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
         };
+
+        // Helper: monta um "quadrado colorido" com ícone dentro (estilo Visão Geral)
+        // uso: _iconeQuadrado('entradas', '#3b82f6', '59,130,246', 24) → HTML
+        function _iconeQuadrado(nomeIcone, corHex, corRgb, tamanho) {
+            var t = tamanho || 24;
+            var svg = _FIN_ICONES[nomeIcone] || '';
+            return '<span style="width:' + t + 'px;height:' + t + 'px;border-radius:' + (t <= 26 ? 7 : 8) + 'px;background:linear-gradient(135deg,rgba(' + corRgb + ',0.30),rgba(' + corRgb + ',0.10));border:1px solid rgba(' + corRgb + ',0.30);color:' + corHex + ';display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-' + Math.floor(t/4) + 'px;flex-shrink:0;">' + svg + '</span>';
+        }
+
 
         function _finFmt(v) {
             return (parseFloat(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
@@ -16522,7 +16696,7 @@
                 var temAnt = plano.some(function(p){ return p.mesKey === mesAnt; });
                 if (temAnt) {
                     html += '<div style="text-align:center;padding:8px;background:rgba(139,92,246,0.05);border:1px dashed rgba(139,92,246,0.25);border-radius:8px;margin-bottom:10px;">' +
-                        '<button onclick="_planoCopiarMesAnterior(\'' + mesKey + '\')" style="background:transparent;border:none;color:#a78bfa;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;">📋 Copiar plano de ' + _planoMesLabelCurto(mesAnt) + '</button>' +
+                        '<button onclick="_planoCopiarMesAnterior(\'' + mesKey + '\')" style="background:transparent;border:none;color:#a78bfa;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar plano de ' + _planoMesLabelCurto(mesAnt) + '</button>' +
                     '</div>';
                 }
             }
@@ -16530,7 +16704,7 @@
             // ── ENTRADAS ──
             html += '<div style="margin-bottom:12px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                    '<div style="font-size:9px;color:#34d399;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">↓ entradas</div>' +
+                    '<div style="font-size:9px;color:#34d399;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:flex;align-items:center;gap:5px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>entradas</div>' +
                     '<button onclick="_planoAddLinha(\'' + mesKey + '\',\'entrada\')" style="background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;width:22px;height:22px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;padding:0;line-height:1;">+</button>' +
                 '</div>';
 
@@ -16547,7 +16721,7 @@
             // ── SAÍDAS ──
             html += '<div style="margin-bottom:12px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                    '<div style="font-size:9px;color:#f97316;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">↑ saídas</div>' +
+                    '<div style="font-size:9px;color:#f97316;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;display:flex;align-items:center;gap:5px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>saídas</div>' +
                     '<button onclick="_planoAddLinha(\'' + mesKey + '\',\'saida\')" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.30);color:#f97316;width:22px;height:22px;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;padding:0;line-height:1;">+</button>' +
                 '</div>';
 
@@ -16907,7 +17081,7 @@
             var opExp = _FIN_EXPANSAO.saidasOp;
             html += _finCardCollapse({
                 cor: '#f97316', corRgb: '249,115,22',
-                icone: _FIN_ICONES.pessoal,
+                icone: _FIN_ICONES.saidas,
                 titulo: 'Saídas operacionais',
                 subtitulo: listaSaidasOpPorLoja.length + ' ' + (listaSaidasOpPorLoja.length === 1 ? 'loja' : 'lojas'),
                 valor: '- R$ ' + _finFmt(totalSaidasOp),
@@ -16969,8 +17143,8 @@
             var roceExp = !!_FIN_EXPANSAO.roce;
             html += _finCardCollapse({
                 cor: '#fbbf24', corRgb: '245,158,11',
-                icone: _FIN_ICONES.sobra,
-                titulo: '🏆 ROCE — Ranking por retorno',
+                icone: _FIN_ICONES.trofeu,
+                titulo: 'ROCE — Ranking por retorno',
                 subtitulo: 'Qual negócio dá mais retorno pelo capital investido',
                 valor: '',
                 valorCor: '#fbbf24',
@@ -16984,8 +17158,8 @@
             var dreExp = !!_FIN_EXPANSAO.dre;
             html += _finCardCollapse({
                 cor: '#a78bfa', corRgb: '139,92,246',
-                icone: _FIN_ICONES.lucro,
-                titulo: '📋 DRE Mensal',
+                icone: _FIN_ICONES.clipboard,
+                titulo: 'DRE Mensal',
                 subtitulo: 'Demonstração de Resultado formal (contábil)',
                 valor: '',
                 valorCor: '#a78bfa',
@@ -18616,6 +18790,7 @@
             'proximas-compras':          { tabela: 'proximas_compras',   tipo: 'dict'   },
             'notas':                     { tabela: 'notas',              tipo: 'array'  },
             'notas-pastas':              { tabela: 'notas_pastas',       tipo: 'dict'   },
+            'caixa-anotacoes':           { tabela: 'caixa_anotacoes',    tipo: 'array'  },
         };
 
         // ── Cache em memória (fonte primária de leitura) ──
@@ -18692,7 +18867,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
