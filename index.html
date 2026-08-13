@@ -1125,6 +1125,10 @@
                 <span style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,rgba(52,211,153,0.30),rgba(52,211,153,0.10));border:1px solid rgba(52,211,153,0.30);color:#34d399;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0;vertical-align:middle;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2a10 10 0 0 1 0 20M12 2a10 10 0 0 0 0 20"/></svg></span>
                 Mapa de Fontes
             </button>
+            <button class="nav-btn" data-tab="assistente" onclick="ativarAba('assistente')">
+                <span style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0;vertical-align:middle;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="12" width="16" height="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>
+                Assistente IA
+            </button>
             <div class="sidebar-section-label" style="margin-top:12px;">Pessoal</div>
             <button class="nav-btn" data-tab="agenda" onclick="ativarAba('agenda')">
                 <span style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,rgba(251,191,36,0.30),rgba(251,191,36,0.10));border:1px solid rgba(251,191,36,0.30);color:#fbbf24;display:inline-flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0;vertical-align:middle;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
@@ -3239,6 +3243,12 @@
         </div>
         <!-- FIM TAB MAPA FONTES -->
 
+        <!-- TAB: ASSISTENTE IA -->
+        <div id="assistente" class="tab-content">
+            <div id="assistente-container"></div>
+        </div>
+        <!-- FIM TAB ASSISTENTE -->
+
         <!-- TAB: AGENDA -->
         <div id="agenda" class="tab-content">
         <style>
@@ -4751,6 +4761,7 @@
                 operacoes:     ['Operações',   'Checklists, lojas, laboratório e notas'],
                 gestao:        ['Gestão',      'Tarefas, projetos, equipe e métricas'],
                 'mapa-fontes': ['Mapa de Fontes','Visão 3D dos seus fluxos de renda'],
+                'assistente':  ['Assistente IA','Análise financeira e sugestões estratégicas'],
                 agenda:        ['Agenda',      'Calendário de eventos e compromissos'],
                 desafios:      ['Desafios',    'Seus desafios pessoais de evolução'],
                 conhecimento:  ['Conhecimento','Livros, cursos e Palácio da Memória'],
@@ -4770,6 +4781,7 @@
                 if (tab === 'operacoes')    iniciarOperacoes();
                 if (tab === 'gestao')       iniciarGestao();
                 if (tab === 'mapa-fontes')  { if (typeof renderMapaFontes === 'function') renderMapaFontes(); }
+                if (tab === 'assistente')   { if (typeof renderAssistente === 'function') renderAssistente(); }
                 if (tab === 'agenda')       iniciarAgenda();
                 if (tab === 'desafios') {
                     var elDes = document.getElementById('desafios-lista');
@@ -18791,6 +18803,8 @@
             'notas':                     { tabela: 'notas',              tipo: 'array'  },
             'notas-pastas':              { tabela: 'notas_pastas',       tipo: 'dict'   },
             'caixa-anotacoes':           { tabela: 'caixa_anotacoes',    tipo: 'array'  },
+            'assistente-config':         { tabela: 'assistente_config',  tipo: 'dict'   },
+            'assistente-conversas':      { tabela: 'assistente_conversas', tipo: 'array' },
         };
 
         // ── Cache em memória (fonte primária de leitura) ──
@@ -18867,7 +18881,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes', 'assistente_config', 'assistente_conversas'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
@@ -19390,16 +19404,23 @@
             var caixas   = _ler('fin-caixas')  || [];
 
             // Auto-arquivar produtos ATIVOS com estoque 0 (silencioso)
+            // MAS não arquivar produtos criados nas últimas 24h (evita arquivar recém-criados que ainda não têm estoque preenchido)
             var auto_arquivados = false;
+            var agora = Date.now();
+            var UM_DIA_MS = 24 * 60 * 60 * 1000;
             produtos.forEach(function(p){
                 if (p.arquivado) return;
                 var qtd = (estoque[p.id] && estoque[p.id].quantidade) || 0;
-                if (qtd <= 0) {
-                    p.arquivado = true;
-                    p.arquivadoEm = new Date().toISOString();
-                    p.arquivadoAuto = true;
-                    auto_arquivados = true;
-                }
+                if (qtd > 0) return;
+
+                // Se foi criado nas últimas 24h, dá tempo pro usuário preencher
+                var criadoEm = p.data ? new Date(p.data + 'T12:00:00').getTime() : (p.id && p.id > 1000000000000 ? p.id : 0);
+                if (criadoEm && (agora - criadoEm) < UM_DIA_MS) return;
+
+                p.arquivado = true;
+                p.arquivadoEm = new Date().toISOString();
+                p.arquivadoAuto = true;
+                auto_arquivados = true;
             });
             if (auto_arquivados) {
                 _salvar('produtos', produtos).catch(function(e){ console.warn('Auto-arquivar falhou:', e); });
@@ -30302,7 +30323,481 @@
     
     
     
-    </script>
+    
+        // ═══════════════════════════════════════════════════════════════
+        // ASSISTENTE IA — Análise financeira via Claude API
+        // ═══════════════════════════════════════════════════════════════
+        var _asstConversaAtiva = null; // id da conversa atual
+        var _asstEnviando = false;
+
+        function _asstLerConfig() {
+            var cfgs = _ler('assistente-config') || {};
+            return cfgs['main'] || {};
+        }
+
+        async function _asstSalvarConfig(cfg) {
+            var cfgs = _ler('assistente-config') || {};
+            cfgs['main'] = { ...cfg, atualizadoEm: new Date().toISOString() };
+            await _salvar('assistente-config', cfgs);
+        }
+
+        function _asstLerConversas() {
+            return _ler('assistente-conversas') || [];
+        }
+
+        function renderAssistente() {
+            var el = document.getElementById('assistente-container');
+            if (!el) return;
+
+            var cfg = _asstLerConfig();
+
+            // Se não tem API key configurada, mostra setup
+            if (!cfg.apiKey) {
+                el.innerHTML = _asstRenderSetup();
+                return;
+            }
+
+            var conversas = _asstLerConversas().slice().sort(function(a,b){
+                return new Date(b.atualizadoEm || 0) - new Date(a.atualizadoEm || 0);
+            });
+
+            var conversaAtual = _asstConversaAtiva
+                ? conversas.find(function(c){ return c.id === _asstConversaAtiva; })
+                : null;
+
+            var isMobile = window.innerWidth <= 700;
+
+            var html =
+                '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;">' +
+                    '<div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ ASSISTENTE IA</div>' +
+                        '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;">Análise inteligente do seu negócio</div>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:6px;">' +
+                        '<button onclick="_asstNovaConversa()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:10px 16px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">+ Nova análise</button>' +
+                        '<button onclick="_asstAbrirConfig()" title="Configurações" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:var(--text-muted);width:38px;height:38px;border-radius:9px;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>' +
+                    '</div>' +
+                '</div>';
+
+            // Análises rápidas (botões grandes)
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px;">' +
+                _asstCardAnalise('financas', 'Finanças', 'Fluxo de caixa, DRE, obrigações', '52,211,153', '#34d399',
+                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>') +
+                _asstCardAnalise('estoque', 'Estoque', 'Giro, produtos parados, oportunidades', '251,191,36', '#fbbf24',
+                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M5 9v11h14V9"/></svg>') +
+                _asstCardAnalise('cortes', 'Sugerir cortes', 'Reduções sem perder qualidade', '249,115,22', '#f97316',
+                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>') +
+                _asstCardAnalise('diagnostico', 'Diagnóstico geral', 'Análise completa do negócio', '139,92,246', '#a78bfa',
+                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>') +
+            '</div>';
+
+            // Área principal: histórico à esquerda, chat à direita
+            if (isMobile) {
+                if (conversaAtual) {
+                    html += _asstRenderChat(conversaAtual, true);
+                } else {
+                    html += _asstRenderHistorico(conversas, true);
+                }
+            } else {
+                html += '<div style="display:grid;grid-template-columns:260px 1fr;gap:14px;min-height:500px;">' +
+                    _asstRenderHistorico(conversas, false) +
+                    (conversaAtual ? _asstRenderChat(conversaAtual, false) : _asstRenderVazio()) +
+                '</div>';
+            }
+
+            el.innerHTML = html;
+        }
+
+        function _asstCardAnalise(id, titulo, subtitulo, corRgb, corHex, svg) {
+            return '<button onclick="_asstIniciarAnalise(\'' + id + '\')" style="background:linear-gradient(180deg,rgba(' + corRgb + ',0.10),rgba(' + corRgb + ',0.03));border:1px solid rgba(' + corRgb + ',0.30);border-radius:12px;padding:14px 16px;cursor:pointer;text-align:left;font-family:inherit;transition:transform 0.15s;color:inherit;" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'translateY(0)\'">' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+                    '<div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,rgba(' + corRgb + ',0.30),rgba(' + corRgb + ',0.10));border:1px solid rgba(' + corRgb + ',0.30);color:' + corHex + ';display:flex;align-items:center;justify-content:center;">' + svg + '</div>' +
+                    '<div style="font-size:14px;font-weight:800;color:var(--text-main);">' + titulo + '</div>' +
+                '</div>' +
+                '<div style="font-size:11px;color:var(--text-dim);">' + subtitulo + '</div>' +
+            '</button>';
+        }
+
+        function _asstRenderHistorico(conversas, mobile) {
+            var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:12px;' + (mobile ? '' : 'max-height:70vh;overflow-y:auto;') + '">' +
+                '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;padding:4px 8px 8px;">Histórico</div>';
+
+            if (conversas.length === 0) {
+                html += '<div style="text-align:center;padding:30px 10px;color:var(--text-dim);font-size:11px;font-style:italic;">Nenhuma análise ainda.<br>Clica em um card acima pra começar.</div>';
+            } else {
+                conversas.forEach(function(c){
+                    var isAtiva = c.id === _asstConversaAtiva;
+                    var titulo = c.titulo || 'Análise';
+                    var data = c.atualizadoEm ? new Date(c.atualizadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '';
+                    html += '<div onclick="_asstSelecionar(' + c.id + ')" style="cursor:pointer;padding:8px 10px;border-radius:7px;background:' + (isAtiva ? 'rgba(139,92,246,0.15)' : 'transparent') + ';border:1px solid ' + (isAtiva ? 'rgba(139,92,246,0.35)' : 'transparent') + ';margin-bottom:3px;">' +
+                        '<div style="font-size:12px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(titulo) + '</div>' +
+                        '<div style="font-size:10px;color:var(--text-dim);margin-top:2px;">' + data + ' · ' + (c.mensagens || []).length + ' msg</div>' +
+                    '</div>';
+                });
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function _asstRenderChat(conversa, mobile) {
+            var msgs = conversa.mensagens || [];
+            var backButton = mobile
+                ? '<button onclick="_asstConversaAtiva=null;renderAssistente()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:var(--text-muted);padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;margin-bottom:8px;">← Voltar</button>'
+                : '';
+
+            var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;' + (mobile ? '' : 'max-height:70vh;') + '">' +
+                backButton +
+                '<div style="flex:1;overflow-y:auto;padding-right:4px;margin-bottom:10px;' + (mobile ? 'min-height:400px;' : 'min-height:400px;max-height:55vh;') + '">' +
+                    '<div id="asst-msgs">';
+
+            msgs.forEach(function(m){
+                html += _asstRenderMsg(m);
+            });
+
+            if (_asstEnviando) {
+                html += '<div style="padding:12px;color:var(--text-dim);font-size:12px;font-style:italic;">🤔 Analisando...</div>';
+            }
+
+            html += '</div></div>' +
+                // Input
+                '<div style="display:flex;gap:6px;border-top:1px solid var(--border);padding-top:10px;">' +
+                    '<textarea id="asst-input" placeholder="Faça uma pergunta sobre seu negócio..." style="flex:1;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;font-size:13px;resize:none;min-height:44px;max-height:120px;" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_asstEnviar();}"></textarea>' +
+                    '<button onclick="_asstEnviar()" ' + (_asstEnviando ? 'disabled' : '') + ' style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:0 18px;border-radius:8px;cursor:' + (_asstEnviando ? 'not-allowed' : 'pointer') + ';font-family:inherit;font-size:13px;font-weight:700;opacity:' + (_asstEnviando ? 0.5 : 1) + ';">Enviar</button>' +
+                '</div>' +
+            '</div>';
+
+            // Auto-scroll pro fim
+            setTimeout(function(){
+                var container = document.querySelector('#asst-msgs')?.parentElement;
+                if (container) container.scrollTop = container.scrollHeight;
+                document.getElementById('asst-input')?.focus();
+            }, 100);
+
+            return html;
+        }
+
+        function _asstRenderMsg(m) {
+            var isUser = m.role === 'user';
+            var bg = isUser ? 'rgba(59,130,246,0.10)' : 'rgba(139,92,246,0.06)';
+            var borda = isUser ? 'rgba(59,130,246,0.25)' : 'rgba(139,92,246,0.20)';
+            var label = isUser ? 'Você' : 'Claude';
+            var labelCor = isUser ? '#60a5fa' : '#a78bfa';
+
+            // Renderiza conteúdo com quebras de linha
+            var conteudo = _esc(m.content || '')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            return '<div style="background:' + bg + ';border:1px solid ' + borda + ';border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
+                '<div style="font-size:10px;color:' + labelCor + ';font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">' + label + '</div>' +
+                '<div style="font-size:13px;color:var(--text-main);line-height:1.6;">' + conteudo + '</div>' +
+            '</div>';
+        }
+
+        function _asstRenderVazio() {
+            return '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:60px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);text-align:center;">' +
+                '<div style="width:60px;height:60px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="12" width="16" height="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></div>' +
+                '<div style="font-size:14px;font-weight:700;color:var(--text-main);margin-bottom:6px;">Escolha uma análise ou faça uma pergunta</div>' +
+                '<div style="font-size:12px;">Clique em um dos cards acima para começar</div>' +
+            '</div>';
+        }
+
+        function _asstRenderSetup() {
+            return '<div style="max-width:520px;margin:60px auto;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;">' +
+                '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">◆ ASSISTENTE IA · SETUP</div>' +
+                '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;margin-bottom:18px;">Configure sua API key</div>' +
+
+                '<div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.20);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--text-muted);line-height:1.6;">' +
+                    '<strong style="color:#60a5fa;">Como conseguir:</strong><br>' +
+                    '1. Vai em <a href="https://console.anthropic.com" target="_blank" style="color:#60a5fa;">console.anthropic.com</a><br>' +
+                    '2. Faz login → clica em <strong>API Keys</strong> no menu esquerdo<br>' +
+                    '3. Clica em <strong>Create Key</strong>, copia a chave (começa com <code>sk-ant-...</code>)<br>' +
+                    '4. Vai em <strong>Billing</strong> e coloca crédito (mínimo $5)<br>' +
+                '</div>' +
+
+                '<div class="form-group" style="margin-bottom:16px;"><label>API Key</label>' +
+                    '<input type="password" id="asst-key-input" placeholder="sk-ant-api03-..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:12px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:12px;">' +
+                '</div>' +
+
+                '<button onclick="_asstSalvarKey()" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:12px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar e começar</button>' +
+
+                '<div style="font-size:10px;color:var(--text-dim);margin-top:12px;text-align:center;">Sua chave é salva só no seu Supabase, ninguém mais vê.</div>' +
+            '</div>';
+        }
+
+        async function _asstSalvarKey() {
+            var key = document.getElementById('asst-key-input').value.trim();
+            if (!key || !key.startsWith('sk-ant-')) {
+                alert('Chave inválida. Deve começar com "sk-ant-".');
+                return;
+            }
+            try {
+                await _asstSalvarConfig({ apiKey: key });
+                renderAssistente();
+            } catch(err) { alert('Erro: ' + err.message); }
+        }
+
+        function _asstAbrirConfig() {
+            var cfg = _asstLerConfig();
+            var prev = document.getElementById('asst-cfg-modal');
+            if (prev) prev.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'asst-cfg-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:22px;width:100%;max-width:460px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ CONFIGURAÇÕES</div>' +
+                            '<div style="font-size:18px;font-weight:800;color:#fff;">Assistente IA</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'asst-cfg-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:14px;"><label>API Key</label>' +
+                        '<input type="password" id="asst-cfg-key" value="' + _esc(cfg.apiKey || '') + '" placeholder="sk-ant-..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:12px;">' +
+                    '</div>' +
+
+                    '<div class="form-group" style="margin-bottom:16px;"><label>Modelo</label>' +
+                        '<select id="asst-cfg-model" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                            '<option value="claude-haiku-4-5-20251001"' + (cfg.model === 'claude-haiku-4-5-20251001' || !cfg.model ? ' selected' : '') + '>Claude Haiku 4.5 (rápido e barato ~R$0,10/análise)</option>' +
+                            '<option value="claude-sonnet-4-6"' + (cfg.model === 'claude-sonnet-4-6' ? ' selected' : '') + '>Claude Sonnet 4.6 (mais inteligente ~R$1/análise)</option>' +
+                        '</select>' +
+                    '</div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'asst-cfg-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button onclick="_asstSalvarCfgModal()" style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Salvar</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+        }
+
+        async function _asstSalvarCfgModal() {
+            var key = document.getElementById('asst-cfg-key').value.trim();
+            var model = document.getElementById('asst-cfg-model').value;
+            if (!key || !key.startsWith('sk-ant-')) { alert('Chave inválida'); return; }
+            try {
+                await _asstSalvarConfig({ apiKey: key, model: model });
+                document.getElementById('asst-cfg-modal')?.remove();
+                renderAssistente();
+            } catch(err) { alert('Erro: ' + err.message); }
+        }
+
+        function _asstNovaConversa() {
+            _asstConversaAtiva = null;
+            renderAssistente();
+        }
+
+        function _asstSelecionar(id) {
+            _asstConversaAtiva = id;
+            renderAssistente();
+        }
+
+        // Monta snapshot financeiro do negócio pra enviar pro Claude
+        function _asstMontarContexto() {
+            var lojas = _ler('lojas') || {};
+            var caixas = _ler('fin-caixas') || [];
+            var contas = _ler('fin-contas') || [];
+            var produtos = _ler('produtos') || [];
+            var estoque = _ler('estoque') || {};
+            var vendas = _ler('vendas') || [];
+            var movs = _ler('fin-movs') || [];
+            var obrigacoes = _ler('fin-obrigacoes') || [];
+            var metas = _ler('metas-lojas') || {};
+
+            var hj = new Date();
+            var mesAtual = hj.getFullYear() + '-' + String(hj.getMonth()+1).padStart(2,'0');
+
+            // Saldos por caixa
+            var saldos = caixas.map(function(c){
+                var s = (typeof calcularSaldoCaixa === 'function') ? calcularSaldoCaixa(c.id) : { saldo: 0 };
+                return { nome: c.nome, tipo: c.tipo, saldo: s.saldo, lojaId: c.lojaId };
+            });
+
+            // Vendas do mês por loja
+            var vendasMes = vendas.filter(function(v){
+                if (!v.data) return false;
+                return v.data.startsWith(mesAtual);
+            });
+
+            // Produtos ativos (não arquivados) com valor de estoque
+            var estoqueValor = produtos.filter(function(p){ return !p.arquivado; }).map(function(p){
+                var qtd = (estoque[p.id] && estoque[p.id].quantidade) || 0;
+                var custo = parseFloat(p.precoCusto) || 0;
+                var venda = parseFloat(p.precoVenda) || 0;
+                var custosAdic = 0;
+                if (p.custos) {
+                    custosAdic = Array.isArray(p.custos)
+                        ? p.custos.reduce(function(s,c){ return s + (parseFloat(c.valor) || 0); }, 0)
+                        : Object.values(p.custos).reduce(function(s,v){ return s + (parseFloat(v) || 0); }, 0);
+                }
+                var custoReal = custo + custosAdic;
+                var lucro = venda - custoReal;
+                var margem = venda > 0 ? (lucro / venda * 100) : 0;
+                return { nome: p.nome, loja: p.loja, qtd: qtd, custoReal: custoReal, venda: venda, lucro: lucro, margem: margem, valorEstoque: qtd * venda };
+            }).filter(function(p){ return p.qtd > 0 || p.valorEstoque > 0; });
+
+            // Obrigações não pagas
+            var obPagar = obrigacoes.filter(function(o){ return o.tipo === 'pagar' && !o.pago; });
+            var obReceber = obrigacoes.filter(function(o){ return o.tipo === 'receber' && !o.pago; });
+
+            return {
+                data: hj.toISOString().slice(0,10),
+                mesAtual: mesAtual,
+                lojas: Object.values(lojas).map(function(l){ return { id: l.id, nome: l.nome }; }),
+                caixas: saldos,
+                vendasMesQtd: vendasMes.length,
+                vendasMesTotal: vendasMes.reduce(function(s,v){ return s + ((parseFloat(v.precoFinal) || 0) * (parseInt(v.quantidade) || 1)); }, 0),
+                estoque: estoqueValor,
+                obrigacoesPagar: obPagar.slice(0, 20).map(function(o){ return { desc: o.descricao, valor: o.valor, venc: o.vencimento }; }),
+                obrigacoesReceber: obReceber.slice(0, 20).map(function(o){ return { desc: o.descricao, valor: o.valor, venc: o.vencimento }; }),
+                metas: metas
+            };
+        }
+
+        function _asstPromptSistema() {
+            return 'Você é um CFO virtual especializado em pequenos negócios brasileiros de motos elétricas e produtos de tecnologia. ' +
+                'Você tem acesso aos dados financeiros e operacionais do usuário (Dant) em tempo real. ' +
+                'Seja direto, prático e específico. Use dados numéricos quando possível. ' +
+                'Fale em português brasileiro informal. ' +
+                'Priorize sugestões de alto impacto e baixo esforço. ' +
+                'Quando sugerir cortes, respeite o padrão de vida do usuário. ' +
+                'Estruture respostas com bullets ou seções curtas quando fizer sentido. ' +
+                'Use **negrito** para destacar pontos chave. ' +
+                'Não inventar dados: se algo não está no snapshot, diga que não tem essa informação.';
+        }
+
+        function _asstPromptAnalise(tipo) {
+            var prompts = {
+                'financas': 'Analisa minhas finanças agora. Olha saldos por caixa, vendas do mês, obrigações a pagar/receber. Me diz: (1) situação atual em 3 pontos, (2) 2-3 alertas ou oportunidades, (3) próxima ação prática.',
+                'estoque': 'Analisa meu estoque. Olha valor parado, giro provável (baseado no que vendo), produtos com margem ruim ou baixa. Me diz: (1) o que está parado demais, (2) o que dá mais lucro por unidade, (3) quais produtos investir mais / cortar.',
+                'cortes': 'Sugira reduções de custo do meu negócio SEM tocar no meu padrão de vida (aluguel, escola, mercado, lazer, saúde). Foca em custos operacionais, ineficiências, gastos duplicados, produtos com margem ruim, obrigações que podem ser renegociadas. Estruture: (1) 3 cortes de maior impacto, (2) valor mensal estimado que economiza, (3) risco de cada corte.',
+                'diagnostico': 'Faz um diagnóstico completo do meu negócio agora. Estruture: (1) o que está indo bem, (2) o que preocupa, (3) 3 ações prioritárias pros próximos 30 dias.'
+            };
+            return prompts[tipo] || 'Faça uma análise geral.';
+        }
+
+        function _asstIniciarAnalise(tipo) {
+            var titulos = {
+                financas: 'Análise financeira',
+                estoque: 'Análise de estoque',
+                cortes: 'Sugestão de cortes',
+                diagnostico: 'Diagnóstico geral'
+            };
+            var novaConversa = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                titulo: titulos[tipo] + ' · ' + new Date().toLocaleDateString('pt-BR'),
+                tipo: tipo,
+                mensagens: [],
+                criadoEm: new Date().toISOString(),
+                atualizadoEm: new Date().toISOString()
+            };
+            var conversas = _asstLerConversas();
+            conversas.push(novaConversa);
+            _asstConversaAtiva = novaConversa.id;
+            _salvar('assistente-conversas', conversas).then(function(){
+                renderAssistente();
+                setTimeout(function(){ _asstEnviarMensagem(_asstPromptAnalise(tipo), tipo); }, 200);
+            });
+        }
+
+        function _asstEnviar() {
+            var input = document.getElementById('asst-input');
+            if (!input) return;
+            var txt = input.value.trim();
+            if (!txt || _asstEnviando) return;
+            input.value = '';
+
+            // Se não tem conversa ativa, cria uma nova
+            if (!_asstConversaAtiva) {
+                var novaConversa = {
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    titulo: txt.slice(0, 40),
+                    mensagens: [],
+                    criadoEm: new Date().toISOString(),
+                    atualizadoEm: new Date().toISOString()
+                };
+                var conversas = _asstLerConversas();
+                conversas.push(novaConversa);
+                _asstConversaAtiva = novaConversa.id;
+                _salvar('assistente-conversas', conversas).then(function(){
+                    _asstEnviarMensagem(txt);
+                });
+            } else {
+                _asstEnviarMensagem(txt);
+            }
+        }
+
+        async function _asstEnviarMensagem(texto, tipoAnalise) {
+            var conversas = _asstLerConversas();
+            var conv = conversas.find(function(c){ return c.id === _asstConversaAtiva; });
+            if (!conv) return;
+
+            // Adiciona msg do user
+            conv.mensagens = conv.mensagens || [];
+            conv.mensagens.push({ role: 'user', content: texto, ts: new Date().toISOString() });
+            conv.atualizadoEm = new Date().toISOString();
+            _asstEnviando = true;
+            renderAssistente();
+
+            try {
+                var cfg = _asstLerConfig();
+                var model = cfg.model || 'claude-haiku-4-5-20251001';
+                var contexto = _asstMontarContexto();
+
+                // Montar mensagens com system + snapshot na primeira msg
+                var mensagensParaApi = [];
+                var eh_primeiraMsg = conv.mensagens.length === 1;
+                var conteudoUser = texto;
+                if (eh_primeiraMsg) {
+                    conteudoUser = 'CONTEXTO DO MEU NEGÓCIO (snapshot atual):\n' + JSON.stringify(contexto, null, 2) + '\n\n---\n\nMEU PEDIDO:\n' + texto;
+                }
+                // Reconstruir mensagens: substituir última pela versão com contexto
+                conv.mensagens.forEach(function(m, i){
+                    if (i === conv.mensagens.length - 1 && eh_primeiraMsg) {
+                        mensagensParaApi.push({ role: 'user', content: conteudoUser });
+                    } else {
+                        mensagensParaApi.push({ role: m.role, content: m.content });
+                    }
+                });
+
+                var resp = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': cfg.apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        max_tokens: 2000,
+                        system: _asstPromptSistema(),
+                        messages: mensagensParaApi
+                    })
+                });
+
+                var data = await resp.json();
+                if (data.error) throw new Error(data.error.message || 'Erro da API');
+                var assistantMsg = (data.content || []).map(function(c){ return c.text || ''; }).join('\n');
+
+                conv.mensagens.push({ role: 'assistant', content: assistantMsg, ts: new Date().toISOString() });
+                conv.atualizadoEm = new Date().toISOString();
+
+                await _salvar('assistente-conversas', conversas);
+            } catch(err) {
+                conv.mensagens.push({ role: 'assistant', content: '❌ Erro: ' + err.message + '\n\nVerifique sua API key e créditos em console.anthropic.com', ts: new Date().toISOString() });
+                await _salvar('assistente-conversas', conversas);
+            }
+            _asstEnviando = false;
+            renderAssistente();
+        }
+
+</script>
 
         <!-- TAB: DESAFIOS -->
         <div id="desafios" class="tab-content">
