@@ -30479,12 +30479,32 @@
 
         function _asstRenderMsg(m) {
             var isUser = m.role === 'user';
+
+            // Análise estruturada do assistente → cards visuais
+            if (!isUser && m.estruturada && m.dados) {
+                return _asstRenderAnaliseEstruturada(m);
+            }
+
+            // Análise pré-definida do usuário → mostra label da análise, não o prompt cheio
+            if (isUser && m.estruturada) {
+                var labelsAnalise = {
+                    financas: 'Análise financeira',
+                    estoque: 'Análise de estoque',
+                    cortes: 'Sugestão de cortes',
+                    diagnostico: 'Diagnóstico geral'
+                };
+                var lbl = labelsAnalise[m.tipo] || 'Análise';
+                return '<div style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
+                    '<div style="font-size:10px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Você solicitou</div>' +
+                    '<div style="font-size:13px;color:var(--text-main);line-height:1.6;font-weight:700;">' + _esc(lbl) + '</div>' +
+                '</div>';
+            }
+
             var bg = isUser ? 'rgba(59,130,246,0.10)' : 'rgba(139,92,246,0.06)';
             var borda = isUser ? 'rgba(59,130,246,0.25)' : 'rgba(139,92,246,0.20)';
             var label = isUser ? 'Você' : 'Claude';
             var labelCor = isUser ? '#60a5fa' : '#a78bfa';
 
-            // Renderiza conteúdo com quebras de linha
             var conteudo = _esc(m.content || '')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\n/g, '<br>');
@@ -30493,6 +30513,63 @@
                 '<div style="font-size:10px;color:' + labelCor + ';font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">' + label + '</div>' +
                 '<div style="font-size:13px;color:var(--text-main);line-height:1.6;">' + conteudo + '</div>' +
             '</div>';
+        }
+
+        // Renderiza análise estruturada como cards (título · prioridade · contexto · ação · impacto)
+        function _asstRenderAnaliseEstruturada(m) {
+            var d = m.dados;
+            var titulos = {
+                financas: 'Análise financeira',
+                estoque: 'Análise de estoque',
+                cortes: 'Sugestão de cortes',
+                diagnostico: 'Diagnóstico geral'
+            };
+            var tituloAnalise = titulos[m.tipo] || 'Análise';
+
+            var html = '<div style="background:linear-gradient(180deg,rgba(139,92,246,0.05),rgba(139,92,246,0.01));border:1px solid rgba(139,92,246,0.20);border-radius:14px;padding:14px;margin-bottom:12px;">' +
+                // Header
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+                    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L14 8L19 9L15.5 13L16.5 18L12 15.5L7.5 18L8.5 13L5 9L10 8L12 3Z"/></svg>' +
+                    '<div style="font-size:14px;font-weight:800;color:var(--text-main);">' + _esc(tituloAnalise) + '</div>' +
+                '</div>' +
+                '<div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Análise baseada nos seus dados</div>';
+
+            // Resumo
+            if (d.resumo) {
+                html += '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--text-main);line-height:1.6;">' +
+                    _esc(d.resumo) +
+                '</div>';
+            }
+
+            // Pontos
+            var pontos = Array.isArray(d.pontos) ? d.pontos : [];
+            pontos.forEach(function(p){
+                var prio = (p.prioridade || 'media').toLowerCase();
+                var badgeCor = { alta: '#ef4444', media: '#fbbf24', baixa: '#34d399' }[prio] || '#fbbf24';
+                var badgeBg = { alta: 'rgba(239,68,68,0.15)', media: 'rgba(251,191,36,0.15)', baixa: 'rgba(52,211,153,0.15)' }[prio] || 'rgba(251,191,36,0.15)';
+                var badgeLabel = { alta: 'ALTA', media: 'MÉDIA', baixa: 'BAIXA' }[prio] || 'MÉDIA';
+
+                html += '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;margin-bottom:8px;">' +
+                    // Header do ponto: título + prioridade
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">' +
+                        '<div style="font-size:13px;font-weight:800;color:var(--text-main);line-height:1.4;flex:1;">' + _esc(p.titulo || '') + '</div>' +
+                        '<div style="background:' + badgeBg + ';color:' + badgeCor + ';padding:2px 8px;border-radius:5px;font-size:9px;font-weight:800;letter-spacing:0.06em;flex-shrink:0;">' + badgeLabel + '</div>' +
+                    '</div>' +
+                    // Contexto
+                    (p.contexto ? '<div style="font-size:12px;color:var(--text-muted);font-style:italic;line-height:1.6;margin-bottom:8px;">' + _esc(p.contexto) + '</div>' : '') +
+                    // Ação
+                    (p.acao ? '<div style="font-size:12px;color:var(--text-main);line-height:1.6;">' +
+                        '<span style="color:#34d399;font-weight:800;">✓ Ação:</span> ' + _esc(p.acao) +
+                    '</div>' : '') +
+                    // Impacto R$
+                    (typeof p.impacto_rs === 'number' && p.impacto_rs > 0
+                        ? '<div style="display:inline-block;margin-top:8px;background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.30);color:#34d399;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;font-family:JetBrains Mono,monospace;">💰 Impacto: R$ ' + p.impacto_rs.toLocaleString('pt-BR') + '/mês</div>'
+                        : '') +
+                '</div>';
+            });
+
+            html += '</div>';
+            return html;
         }
 
         function _asstRenderVazio() {
@@ -30672,13 +30749,29 @@
         }
 
         function _asstPromptAnalise(tipo) {
-            var prompts = {
-                'financas': 'Analisa minhas finanças agora. Olha saldos por caixa, vendas do mês, obrigações a pagar/receber. Me diz: (1) situação atual em 3 pontos, (2) 2-3 alertas ou oportunidades, (3) próxima ação prática.',
-                'estoque': 'Analisa meu estoque. Olha valor parado, giro provável (baseado no que vendo), produtos com margem ruim ou baixa. Me diz: (1) o que está parado demais, (2) o que dá mais lucro por unidade, (3) quais produtos investir mais / cortar.',
-                'cortes': 'Sugira reduções de custo do meu negócio SEM tocar no meu padrão de vida (aluguel, escola, mercado, lazer, saúde). Foca em custos operacionais, ineficiências, gastos duplicados, produtos com margem ruim, obrigações que podem ser renegociadas. Estruture: (1) 3 cortes de maior impacto, (2) valor mensal estimado que economiza, (3) risco de cada corte.',
-                'diagnostico': 'Faz um diagnóstico completo do meu negócio agora. Estruture: (1) o que está indo bem, (2) o que preocupa, (3) 3 ações prioritárias pros próximos 30 dias.'
+            var focos = {
+                'financas': 'Foque em: saldos por caixa, vendas do mês vs mês anterior, obrigações críticas (a vencer em 7 dias), risco de fluxo de caixa.',
+                'estoque': 'Foque em: produtos parados (muito valor, pouco giro), produtos com margem ruim (<15%), o que investir mais / cortar, valor total parado por loja.',
+                'cortes': 'Foque em: reduções de custo operacional (NÃO tocar em padrão de vida: aluguel, escola Aurora, mercado, lazer, saúde). Prioridade em: obrigações renegociáveis, ineficiências, produtos com margem ruim, gastos duplicados.',
+                'diagnostico': 'Análise completa: o que está indo bem, o que preocupa, ações prioritárias pros próximos 30 dias.'
             };
-            return prompts[tipo] || 'Faça uma análise geral.';
+
+            return 'Faça uma análise estruturada. ' + (focos[tipo] || focos.diagnostico) + '\n\n' +
+                'RESPONDA APENAS EM JSON VÁLIDO (sem markdown, sem ```json, sem texto antes/depois), no formato:\n' +
+                '{\n' +
+                '  "resumo": "2-3 linhas resumindo a situação geral",\n' +
+                '  "pontos": [\n' +
+                '    {\n' +
+                '      "titulo": "Título curto do ponto (máx 60 chars)",\n' +
+                '      "prioridade": "alta" | "media" | "baixa",\n' +
+                '      "contexto": "O que está acontecendo (1-3 frases)",\n' +
+                '      "acao": "O que fazer especificamente (frase prática)",\n' +
+                '      "impacto_rs": 3400\n' +
+                '    }\n' +
+                '  ]\n' +
+                '}\n\n' +
+                'O campo "impacto_rs" é OPCIONAL — inclua APENAS quando puder estimar valor mensal em reais (economia, receita adicional ou risco). Omita quando não fizer sentido.\n' +
+                'Retorne entre 3 e 6 pontos, ordenados por prioridade (alta primeiro). Seja específico, use números do meu snapshot quando possível.';
         }
 
         function _asstIniciarAnalise(tipo) {
@@ -30737,16 +30830,26 @@
             var conv = conversas.find(function(c){ return c.id === _asstConversaAtiva; });
             if (!conv) return;
 
+            // Detecta se é análise estruturada (uma das 4 pré-definidas)
+            var ehEstruturada = !!tipoAnalise && ['financas','estoque','cortes','diagnostico'].indexOf(tipoAnalise) >= 0;
+
             // Adiciona msg do user
             conv.mensagens = conv.mensagens || [];
-            conv.mensagens.push({ role: 'user', content: texto, ts: new Date().toISOString() });
+            conv.mensagens.push({
+                role: 'user',
+                content: texto,
+                ts: new Date().toISOString(),
+                estruturada: ehEstruturada,
+                tipo: tipoAnalise || null
+            });
             conv.atualizadoEm = new Date().toISOString();
             _asstEnviando = true;
             renderAssistente();
 
             try {
                 var cfg = _asstLerConfig();
-                var model = cfg.model || 'claude-haiku-4-5-20251001';
+                // Análises estruturadas usam Sonnet (mais confiável pra JSON); chat livre usa o modelo configurado
+                var model = ehEstruturada ? 'claude-sonnet-4-6' : (cfg.model || 'claude-haiku-4-5-20251001');
                 var contexto = _asstMontarContexto();
 
                 // Montar mensagens com system + snapshot na primeira msg
@@ -30775,7 +30878,7 @@
                     },
                     body: JSON.stringify({
                         model: model,
-                        max_tokens: 2000,
+                        max_tokens: 3000,
                         system: _asstPromptSistema(),
                         messages: mensagensParaApi
                     })
@@ -30785,7 +30888,20 @@
                 if (data.error) throw new Error(data.error.message || 'Erro da API');
                 var assistantMsg = (data.content || []).map(function(c){ return c.text || ''; }).join('\n');
 
-                conv.mensagens.push({ role: 'assistant', content: assistantMsg, ts: new Date().toISOString() });
+                // Se é estruturada, tenta parsear JSON
+                var msgEstruturada = null;
+                if (ehEstruturada) {
+                    msgEstruturada = _asstParsearJson(assistantMsg);
+                }
+
+                conv.mensagens.push({
+                    role: 'assistant',
+                    content: assistantMsg,
+                    ts: new Date().toISOString(),
+                    estruturada: !!msgEstruturada,
+                    dados: msgEstruturada,
+                    tipo: tipoAnalise || null
+                });
                 conv.atualizadoEm = new Date().toISOString();
 
                 await _salvar('assistente-conversas', conversas);
@@ -30795,6 +30911,23 @@
             }
             _asstEnviando = false;
             renderAssistente();
+        }
+
+        // Extrai JSON da resposta do Claude (tolerante a markdown/texto envolvente)
+        function _asstParsearJson(texto) {
+            if (!texto) return null;
+            // 1. Tenta parse direto
+            try { return JSON.parse(texto); } catch(_) {}
+            // 2. Remove ```json ... ```
+            var semFence = texto.replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim();
+            try { return JSON.parse(semFence); } catch(_) {}
+            // 3. Pega primeiro { até último }
+            var i = texto.indexOf('{');
+            var j = texto.lastIndexOf('}');
+            if (i >= 0 && j > i) {
+                try { return JSON.parse(texto.slice(i, j + 1)); } catch(_) {}
+            }
+            return null;
         }
 
 </script>
