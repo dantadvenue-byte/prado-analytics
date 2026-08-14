@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.3';
+        window.APP_VERSION = '2026.08.13.4';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -19109,7 +19109,9 @@
                     return; // não propagar — tabela ainda não criada
                 }
                 console.error('[Supabase] Detalhes do erro:', e);
-                mostrarAlertaDB(`⚠️ Erro ao salvar "${chave}". Verifique o console para detalhes.`);
+                // Mostra o erro real (limitado a 200 chars) pra facilitar debug
+                var detalhe = msg.length > 200 ? msg.slice(0, 200) + '...' : msg;
+                mostrarAlertaDB(`⚠️ Erro ao salvar "${chave}": ${detalhe}`);
                 throw e;
             }
         }
@@ -29141,11 +29143,19 @@
                 });
             }
 
-            await _salvar('fin-parcelas', parcelas);
-            document.getElementById('modal-lancamento')?.remove();
-            renderCartoes();
-            renderContasList();
-            renderFinVisaoGeral();
+            try {
+                console.log('[SalvarLancamento] Enviando', parcelas.length, 'parcelas ao Supabase');
+                await _salvar('fin-parcelas', parcelas);
+                console.log('[SalvarLancamento] ✅ Salvo com sucesso');
+                document.getElementById('modal-lancamento')?.remove();
+                renderCartoes();
+                renderContasList();
+                renderFinVisaoGeral();
+            } catch(err) {
+                console.error('[SalvarLancamento] ❌ Erro detalhado:', err);
+                console.error('[SalvarLancamento] Payload que tentou salvar:', parcelas);
+                alert('❌ Erro ao salvar: ' + (err.message || 'desconhecido') + '\n\nAbra F12 → Console pra ver detalhes completos.');
+            }
         }
 
         // Decide se a saída deduz do lucro ou do faturamento
