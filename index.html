@@ -20,6 +20,13 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configurar worker do PDF.js
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
@@ -1063,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.1';
+        window.APP_VERSION = '2026.08.13.3';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -2751,6 +2758,7 @@
                 <button class="sub-btn" data-fin-sub="sub-fin-contas" onclick="mudarSubFin(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>Contas e Caixas</button>
                 <button class="sub-btn" data-fin-sub="sub-fin-obrigacoes" onclick="mudarSubFin(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>A Pagar/Receber</button>
                 <button class="sub-btn" data-fin-sub="sub-fin-emprestimos" onclick="mudarSubFin(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9l4 4-4 4M10 15l-4-4 4-4"/></svg></span>Empréstimos</button>
+                <button class="sub-btn" data-fin-sub="sub-fin-cartoes" onclick="mudarSubFin(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>Cartões</button>
             </div>
 
             <!-- VISÃO GERAL -->
@@ -3218,6 +3226,7 @@
             <!-- Toolbar -->
             <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
                 <button onclick="abrirFormCartao()" class="btn-primary" style="font-size:12px;padding:8px 16px;">+ Novo Cartão</button>
+                <button onclick="abrirImportarFatura()" style="background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Importar fatura</button>
                 <input type="month" id="ccMes" onchange="renderCartoes()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:7px 12px;border-radius:8px;font-family:inherit;font-size:13px;margin-left:auto;">
             </div>
 
@@ -19014,7 +19023,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes', 'assistente_config', 'assistente_conversas'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes', 'assistente_config', 'assistente_conversas', 'fin_cartoes', 'fin_parcelas', 'fin_cc_metas'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
@@ -28549,6 +28558,269 @@
             const el = document.getElementById('ccMes');
             if (el && !el.value) el.value = new Date().toISOString().slice(0, 7);
             renderCartoes();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // IMPORTAR FATURA (PDF OU TEXTO)
+        // ═══════════════════════════════════════════════════════════════
+        var _impLinhas = []; // linhas detectadas pra preview
+
+        function abrirImportarFatura() {
+            var cartoes = _ler('fin-cartoes') || [];
+            if (cartoes.length === 0) {
+                alert('Cadastre um cartão primeiro pra poder importar fatura.');
+                return;
+            }
+            _impLinhas = [];
+            var prev = document.getElementById('imp-fatura-modal');
+            if (prev) prev.remove();
+
+            var modal = document.createElement('div');
+            modal.id = 'imp-fatura-modal';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+
+            var cartoesOpts = cartoes.map(function(c){
+                return '<option value="' + c.id + '">' + _esc(c.nome) + '</option>';
+            }).join('');
+
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:22px;width:100%;max-width:720px;margin:auto;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">' +
+                        '<div>' +
+                            '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ IMPORTAR FATURA</div>' +
+                            '<div style="font-size:18px;font-weight:800;color:#fff;">PDF ou texto colado</div>' +
+                        '</div>' +
+                        '<button onclick="document.getElementById(\'imp-fatura-modal\').remove()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#b4b4cc;width:34px;height:34px;border-radius:10px;cursor:pointer;font-size:16px;">✕</button>' +
+                    '</div>' +
+
+                    // Cartão + Mês de destino
+                    '<div style="display:grid;grid-template-columns:1fr 160px;gap:8px;margin-bottom:14px;">' +
+                        '<div class="form-group" style="margin:0;"><label>Cartão *</label>' +
+                            '<select id="imp-cartao" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' + cartoesOpts + '</select>' +
+                        '</div>' +
+                        '<div class="form-group" style="margin:0;"><label>Fatura do mês</label>' +
+                            '<input type="month" id="imp-mes" value="' + new Date().toISOString().slice(0,7) + '" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Zona de upload / colar
+                    '<div style="background:rgba(255,255,255,0.02);border:2px dashed rgba(139,92,246,0.30);border-radius:12px;padding:20px;text-align:center;margin-bottom:14px;" id="imp-drop-zone">' +
+                        '<div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Arraste o PDF aqui ou clique pra escolher</div>' +
+                        '<input type="file" id="imp-file-input" accept=".pdf" style="display:none;" onchange="_impProcessarPDF(this.files[0])">' +
+                        '<button onclick="document.getElementById(\'imp-file-input\').click()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">Escolher PDF</button>' +
+                        '<div style="font-size:11px;color:var(--text-dim);margin:10px 0 6px;">OU cole o texto abaixo:</div>' +
+                        '<textarea id="imp-texto" placeholder="Abre o PDF, seleciona tudo (Cmd+A), copia (Cmd+C) e cola aqui..." style="width:100%;min-height:100px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:11px;resize:vertical;text-align:left;"></textarea>' +
+                        '<button onclick="_impProcessarTexto()" style="margin-top:8px;background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;">Analisar texto colado</button>' +
+                    '</div>' +
+
+                    // Preview + importar
+                    '<div id="imp-preview" style="max-height:340px;overflow-y:auto;margin-bottom:14px;"></div>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'imp-fatura-modal\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Cancelar</button>' +
+                        '<button id="imp-btn-importar" onclick="_impConfirmarImportacao()" disabled style="flex:2;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px;border-radius:9px;cursor:not-allowed;font-family:inherit;font-size:13px;font-weight:700;opacity:0.5;">Importar</button>' +
+                    '</div>' +
+                '</div>';
+
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+
+            // Drag & drop
+            var dropZone = document.getElementById('imp-drop-zone');
+            if (dropZone) {
+                dropZone.addEventListener('dragover', function(e){
+                    e.preventDefault();
+                    dropZone.style.borderColor = 'rgba(139,92,246,0.80)';
+                    dropZone.style.background = 'rgba(139,92,246,0.05)';
+                });
+                dropZone.addEventListener('dragleave', function(e){
+                    e.preventDefault();
+                    dropZone.style.borderColor = 'rgba(139,92,246,0.30)';
+                    dropZone.style.background = 'rgba(255,255,255,0.02)';
+                });
+                dropZone.addEventListener('drop', function(e){
+                    e.preventDefault();
+                    dropZone.style.borderColor = 'rgba(139,92,246,0.30)';
+                    dropZone.style.background = 'rgba(255,255,255,0.02)';
+                    var f = e.dataTransfer.files[0];
+                    if (f && f.type === 'application/pdf') _impProcessarPDF(f);
+                    else alert('Solte um arquivo PDF');
+                });
+            }
+        }
+
+        async function _impProcessarPDF(file) {
+            if (!file) return;
+            var preview = document.getElementById('imp-preview');
+            if (preview) preview.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Lendo PDF...</div>';
+
+            if (!window.pdfjsLib) {
+                alert('PDF.js não carregou. Recarregue a página.');
+                return;
+            }
+            try {
+                var arrayBuffer = await file.arrayBuffer();
+                var pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                var textoTotal = '';
+                for (var i = 1; i <= pdf.numPages; i++) {
+                    var page = await pdf.getPage(i);
+                    var content = await page.getTextContent();
+                    var textoPagina = content.items.map(function(item){ return item.str; }).join(' ');
+                    textoTotal += textoPagina + '\n';
+                }
+                _impParseTexto(textoTotal);
+            } catch(err) {
+                if (preview) preview.innerHTML = '<div style="padding:14px;color:#ef4444;font-size:12px;">Erro ao ler PDF: ' + _esc(err.message) + '</div>';
+            }
+        }
+
+        function _impProcessarTexto() {
+            var texto = document.getElementById('imp-texto')?.value || '';
+            if (!texto.trim()) { alert('Cole o texto antes'); return; }
+            _impParseTexto(texto);
+        }
+
+        // Parser: detecta linhas de gasto no formato PicPay/genérico
+        function _impParseTexto(texto) {
+            var linhas = [];
+            // Normaliza espaços múltiplos
+            var linhasBrutas = texto.split(/\r?\n|(?=\d{2}\/\d{2})/); // quebra por newline OU por data DD/MM
+            linhasBrutas.forEach(function(linha){
+                linha = linha.replace(/\s+/g, ' ').trim();
+                if (!linha) return;
+
+                // Regex flexível: DATA (DD/MM ou DD/MM/AA) + DESCRIÇÃO + VALOR (R$ opcional, com , ou .)
+                var m = linha.match(/(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+(.+?)\s+(?:R\$\s*)?(-?[\d.]+,\d{2})/);
+                if (!m) return;
+
+                var data = m[1];
+                var desc = m[2].trim();
+                var valorStr = m[3];
+                // Converte "1.234,56" → 1234.56
+                var valor = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+                if (isNaN(valor) || valor === 0) return;
+
+                // Detecta parcela (ex "Parcela 3/12" ou "3/12")
+                var parcInfo = { atual: 1, total: 1 };
+                var parcMatch = desc.match(/(\d+)\s*\/\s*(\d+)/);
+                if (parcMatch) {
+                    parcInfo.atual = parseInt(parcMatch[1]);
+                    parcInfo.total = parseInt(parcMatch[2]);
+                    desc = desc.replace(parcMatch[0], '').replace(/parcela/i, '').trim();
+                }
+
+                // Ignora linhas que parecem "TOTAL", "PAGAMENTO", "IOF", etc
+                if (/^(total|pagamento efetu|pgto|iof|encargos|saldo anterior|resumo|multa|juros)/i.test(desc)) return;
+
+                linhas.push({
+                    data: data,
+                    descricao: desc,
+                    valor: Math.abs(valor),
+                    isCredito: valor < 0, // pagamento/estorno
+                    parcelaAtual: parcInfo.atual,
+                    totalParcelas: parcInfo.total,
+                    incluir: true, // por padrão vem marcado
+                    categoria: 'Outros'
+                });
+            });
+
+            _impLinhas = linhas;
+            _impRenderPreview();
+        }
+
+        function _impRenderPreview() {
+            var preview = document.getElementById('imp-preview');
+            var btnImp = document.getElementById('imp-btn-importar');
+            if (!preview) return;
+
+            if (_impLinhas.length === 0) {
+                preview.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-dim);font-size:12px;font-style:italic;">Nenhum gasto detectado. Confirme se o texto tem linhas no formato "DD/MM Descrição R$ 12,34"</div>';
+                if (btnImp) { btnImp.disabled = true; btnImp.style.opacity = 0.5; btnImp.style.cursor = 'not-allowed'; }
+                return;
+            }
+
+            var categorias = ['Alimentação','Transporte','Lazer','Assinaturas','Mercado','Saúde','Vestuário','Outros'];
+
+            var total = _impLinhas.filter(function(l){ return l.incluir; }).reduce(function(s,l){ return s + (l.isCredito ? -l.valor : l.valor); }, 0);
+            var qtdMarcados = _impLinhas.filter(function(l){ return l.incluir; }).length;
+
+            var html = '<div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.20);border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">' +
+                '<span style="color:var(--text-main);font-weight:700;">' + qtdMarcados + ' de ' + _impLinhas.length + ' selecionados</span>' +
+                '<span style="font-family:JetBrains Mono,monospace;font-weight:800;color:#a78bfa;">Total: R$ ' + total.toFixed(2).replace('.', ',') + '</span>' +
+            '</div>';
+
+            html += '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;overflow:hidden;">';
+
+            _impLinhas.forEach(function(l, i){
+                var catOpts = categorias.map(function(c){
+                    return '<option value="' + c + '"' + (c === l.categoria ? ' selected' : '') + '>' + c + '</option>';
+                }).join('');
+                html += '<div style="display:grid;grid-template-columns:24px 60px 1fr 80px 100px;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px;' + (l.incluir ? '' : 'opacity:0.4;') + '">' +
+                    '<input type="checkbox" ' + (l.incluir ? 'checked' : '') + ' onchange="_impLinhas[' + i + '].incluir=this.checked;_impRenderPreview()" style="accent-color:#8b5cf6;cursor:pointer;">' +
+                    '<div style="color:var(--text-dim);font-family:JetBrains Mono,monospace;">' + _esc(l.data) + '</div>' +
+                    '<div style="color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _esc(l.descricao) + (l.totalParcelas > 1 ? ' <span style="color:var(--text-dim);">(' + l.parcelaAtual + '/' + l.totalParcelas + ')</span>' : '') + '</div>' +
+                    '<div style="text-align:right;font-family:JetBrains Mono,monospace;font-weight:700;color:' + (l.isCredito ? '#34d399' : '#f97316') + ';">' + (l.isCredito ? '-' : '') + 'R$' + l.valor.toFixed(2).replace('.', ',') + '</div>' +
+                    '<select onchange="_impLinhas[' + i + '].categoria=this.value" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-muted);padding:2px 4px;border-radius:5px;font-family:inherit;font-size:10px;">' + catOpts + '</select>' +
+                '</div>';
+            });
+            html += '</div>';
+
+            preview.innerHTML = html;
+            if (btnImp) {
+                var podeImportar = qtdMarcados > 0;
+                btnImp.disabled = !podeImportar;
+                btnImp.style.opacity = podeImportar ? 1 : 0.5;
+                btnImp.style.cursor = podeImportar ? 'pointer' : 'not-allowed';
+                btnImp.textContent = 'Importar ' + qtdMarcados + ' gasto' + (qtdMarcados !== 1 ? 's' : '');
+            }
+        }
+
+        async function _impConfirmarImportacao() {
+            var cartaoId = parseInt(document.getElementById('imp-cartao').value);
+            var mesFatura = document.getElementById('imp-mes').value; // YYYY-MM
+            if (!cartaoId || !mesFatura) { alert('Selecione cartão e mês'); return; }
+
+            var marcados = _impLinhas.filter(function(l){ return l.incluir; });
+            if (marcados.length === 0) { alert('Nenhum item marcado'); return; }
+
+            if (!confirm('Importar ' + marcados.length + ' gastos pra este cartão?')) return;
+
+            var parcelas = _ler('fin-parcelas') || [];
+            var anoBase = parseInt(mesFatura.split('-')[0]);
+            var mesBase = parseInt(mesFatura.split('-')[1]) - 1; // 0-indexed
+
+            marcados.forEach(function(l){
+                var totalP = l.totalParcelas || 1;
+                var parcelaAtualBase = l.parcelaAtual || 1;
+                // Se for parcelado, cria da parcela atual até a última, cada uma no mês seguinte
+                for (var p = parcelaAtualBase; p <= totalP; p++) {
+                    var offset = p - parcelaAtualBase;
+                    var d = new Date(anoBase, mesBase + offset, 1);
+                    var mesP = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                    parcelas.push({
+                        id: Date.now() + Math.floor(Math.random() * 100000) + p,
+                        cartaoId: cartaoId,
+                        descricao: l.descricao,
+                        valor: l.valor,
+                        categoria: l.categoria,
+                        parcelaAtual: p,
+                        totalParcelas: totalP,
+                        mesParcela: mesP,
+                        dataCompra: l.data,
+                        paga: false,
+                        importado: true
+                    });
+                }
+            });
+
+            try {
+                await _salvar('fin-parcelas', parcelas);
+                document.getElementById('imp-fatura-modal')?.remove();
+                if (typeof renderCartoes === 'function') renderCartoes();
+                alert('✓ ' + marcados.length + ' gastos importados!');
+            } catch(err) {
+                alert('Erro ao importar: ' + err.message);
+            }
         }
 
         function renderCartoes() {
