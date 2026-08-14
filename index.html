@@ -1058,6 +1058,128 @@
             } catch(_){}
             location.reload();
         };
+
+        // ═══════════════════════════════════════════════════
+        // APP_VERSION + verificação de nova versão
+        // ═══════════════════════════════════════════════════
+        // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
+        window.APP_VERSION = '2026.08.13.1';
+
+        // Helper de escape local (não depende de _esc que é definido depois)
+        function _escVer(s) {
+            return String(s || '').replace(/[&<>"']/g, function(c){
+                return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+            });
+        }
+
+        window.forcarAtualizacao = async function() {
+            try {
+                if ('caches' in window) {
+                    var chaves = await caches.keys();
+                    await Promise.all(chaves.map(function(k){ return caches.delete(k); }));
+                }
+            } catch(_){}
+            // reload com cache-busting
+            location.href = location.pathname + '?v=' + Date.now();
+        };
+
+        // Busca no servidor a versão atual do index.html e compara com a rodando
+        window._verificandoVersao = false;
+        window._novaVersaoDetectada = null;
+        window.verificarNovaVersao = async function() {
+            if (window._verificandoVersao) return;
+            if (window._novaVersaoDetectada) return; // já detectada
+            window._verificandoVersao = true;
+            try {
+                var url = location.pathname + '?_v=' + Date.now();
+                var resp = await fetch(url, { cache: 'no-store' });
+                if (!resp.ok) return;
+                var texto = await resp.text();
+                var m = texto.match(/window\.APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+                if (!m) return;
+                var remota = m[1];
+                if (remota !== window.APP_VERSION) {
+                    window._novaVersaoDetectada = remota;
+                    _mostrarBannerNovaVersao(remota);
+                }
+            } catch(_){} finally {
+                window._verificandoVersao = false;
+            }
+        };
+
+        function _mostrarBannerNovaVersao(versaoNova) {
+            if (document.getElementById('banner-nova-versao')) return;
+            var banner = document.createElement('div');
+            banner.id = 'banner-nova-versao';
+            banner.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,rgba(139,92,246,0.95),rgba(59,130,246,0.95));border:1px solid rgba(255,255,255,0.20);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.40);backdrop-filter:blur(12px);font-family:inherit;animation:slideDownBanner 0.4s ease-out;';
+            banner.innerHTML =
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
+                    '<div style="color:#fff;font-size:13px;font-weight:700;">Nova versão disponível <span style="opacity:0.7;font-weight:500;">(' + _escVer(versaoNova) + ')</span></div>' +
+                '</div>' +
+                '<button onclick="forcarAtualizacao()" style="background:#fff;border:none;color:#5b21b6;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;">Atualizar</button>' +
+                '<button onclick="document.getElementById(\'banner-nova-versao\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:14px;">✕</button>';
+
+            // Inserir @keyframes uma vez só
+            if (!document.getElementById('css-banner-versao')) {
+                var st = document.createElement('style');
+                st.id = 'css-banner-versao';
+                st.innerHTML = '@keyframes slideDownBanner { from { transform: translate(-50%, -60px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }';
+                document.head.appendChild(st);
+            }
+            document.body.appendChild(banner);
+        }
+
+        // Verificar quando aba volta ao foco
+        document.addEventListener('visibilitychange', function(){
+            if (document.visibilityState === 'visible') {
+                setTimeout(function(){ window.verificarNovaVersao(); }, 800);
+            }
+        });
+        // E a cada 5 minutos
+        setInterval(function(){ window.verificarNovaVersao(); }, 5 * 60 * 1000);
+        // Primeira verificação após 10s (dá tempo do app carregar)
+        setTimeout(function(){ window.verificarNovaVersao(); }, 10000);
+
+        // ═══════════════════════════════════════════════════
+        // MODAL DE CONTA (versão + forçar atualização + sair)
+        // ═══════════════════════════════════════════════════
+        window.abrirModalConta = function() {
+            var prev = document.getElementById('modal-conta');
+            if (prev) { prev.remove(); return; }
+            var modal = document.createElement('div');
+            modal.id = 'modal-conta';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;';
+            var novaVersao = window._novaVersaoDetectada;
+            modal.innerHTML =
+                '<div style="background:linear-gradient(180deg, rgba(28,28,58,0.95), rgba(19,19,38,0.95));border:1px solid rgba(139,92,246,0.30);border-radius:18px;padding:22px;width:100%;max-width:460px;margin:auto;">' +
+                    '<div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">◆ CONTA</div>' +
+                    '<div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;">Conta</div>' +
+                    '<div style="font-size:12px;color:var(--text-muted);margin-bottom:18px;">Dant Prado · Administrador</div>' +
+
+                    '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">' +
+                        '<span style="color:var(--text-muted);font-size:12px;">Versão do app</span>' +
+                        '<span style="color:' + (novaVersao ? '#fbbf24' : '#34d399') + ';font-family:JetBrains Mono,monospace;font-weight:700;font-size:12px;">' + _escVer(window.APP_VERSION) + (novaVersao ? ' → ' + _escVer(novaVersao) : '') + '</span>' +
+                    '</div>' +
+
+                    (novaVersao
+                        ? '<div style="background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.30);border-radius:10px;padding:10px 14px;margin-bottom:10px;color:#fbbf24;font-size:12px;font-weight:600;">🔔 Nova versão disponível — atualize pra pegar as últimas melhorias.</div>'
+                        : ''
+                    ) +
+
+                    '<button onclick="forcarAtualizacao()" style="width:100%;background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:12px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+                        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>' +
+                        'Forçar atualização (limpar cache)' +
+                    '</button>' +
+
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="document.getElementById(\'modal-conta\').remove()" style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:#b4b4cc;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;">Fechar</button>' +
+                        '<button onclick="fazerLogout()" style="flex:1;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.40);color:#fca5a5;padding:11px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Sair da conta</button>' +
+                    '</div>' +
+                '</div>';
+            modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+        };
     })();
 
     // ═══════════════════════════════════════════════════
@@ -1155,14 +1277,13 @@
                     <strong>Dant Prado</strong>
                     <span>Administrador</span>
                 </div>
-                <button onclick="fazerLogout()" title="Sair"
+                <button onclick="abrirModalConta()" title="Conta"
                         style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:6px;border-radius:6px;transition:all 0.2s;margin-left:auto;display:flex;align-items:center;justify-content:center;"
-                        onmouseover="this.style.color='var(--red)';this.style.background='rgba(239,68,68,0.1)'"
+                        onmouseover="this.style.color='var(--purple-light)';this.style.background='rgba(139,92,246,0.1)'"
                         onmouseout="this.style.color='var(--text-dim)';this.style.background='none'">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
             </div>
@@ -2033,6 +2154,7 @@
                 <button class="sub-btn" data-op-sub="op-lojas-tab" onclick="mudarSubOp(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));border:1px solid rgba(59,130,246,0.30);color:#60a5fa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M5 9v11h14V9"/><path d="M9 22V12h6v10"/></svg></span>Lojas</button>
                 <button class="sub-btn" data-op-sub="op-laboratorio-tab" onclick="mudarSubOp(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));border:1px solid rgba(59,130,246,0.30);color:#60a5fa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/></svg></span>Laboratório</button>
                 <button class="sub-btn" data-op-sub="op-notas-tab" onclick="mudarSubOp(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));border:1px solid rgba(59,130,246,0.30);color:#60a5fa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>Notas</button>
+                <button class="sub-btn" data-op-sub="op-cadastro" onclick="mudarSubOp(this)"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,rgba(59,130,246,0.30),rgba(59,130,246,0.10));border:1px solid rgba(59,130,246,0.30);color:#60a5fa;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;vertical-align:-6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-9 9-5-5"/></svg></span>Cadastro</button>
             </div>
             <!-- Novas sub-abas -->
             <div id="op-checklists-tab" class="sub-content-op"></div>
@@ -5711,7 +5833,18 @@
                 custos,
             };
 
+            // Sincronizar quantidade no estoque também (senão card das Lojas mostra 0)
+            var estoque = _ler('estoque') || {};
+            var qtdSet  = produtos[idx].quantidade;
+            var pid     = produtos[idx].id;
+            // Preserva quaisquer atributos existentes (cores, historico)
+            var entradaExistente = estoque[pid] || estoque[String(pid)] || {};
+            estoque[pid] = { ...entradaExistente, quantidade: qtdSet };
+            // Remove versão com id string se existia diferente (evita duplicação)
+            if (estoque[String(pid)] && String(pid) !== String(pid)) delete estoque[String(pid)];
+
             await _salvar('produtos', produtos);
+            await _salvar('estoque', estoque);
             document.getElementById('modal-editar-produto')?.remove();
             atualizarListaProdutos();
             atualizarSelects();
@@ -19392,6 +19525,13 @@
         var _opLojasVerArquivados = {}; // { lojaId: bool } — mostrar arquivados no lugar dos ativos
         var _opLojasVerEstoque = {}; // { lojaId: bool } — mostrar detalhamento do estoque
 
+        // Helper: lê quantidade do estoque tolerante a id string OU int
+        function _opQtdEstoque(estoque, prodId) {
+            if (!estoque) return 0;
+            var entry = estoque[prodId] || estoque[String(prodId)] || estoque[parseInt(prodId)];
+            return (entry && entry.quantidade) || 0;
+        }
+
         function _opRenderLojas() {
             var el = document.getElementById('op-lojas-tab');
             if (!el) return;
@@ -19410,7 +19550,7 @@
             var UM_DIA_MS = 24 * 60 * 60 * 1000;
             produtos.forEach(function(p){
                 if (p.arquivado) return;
-                var qtd = (estoque[p.id] && estoque[p.id].quantidade) || 0;
+                var qtd = _opQtdEstoque(estoque, p.id);
                 if (qtd > 0) return;
 
                 // Se foi criado nas últimas 24h, dá tempo pro usuário preencher
@@ -19457,12 +19597,28 @@
                 var prodsLoja = mostrarArquivados ? prodsArquivados : prodsAtivos;
                 var meta = metas[lid] || { unidades: 0, faturamento: 0, lucro: 0 };
 
-                // Vendas do mês
+                // Mapa auxiliar produto→loja e caixa→loja
+                var mapaProdLoja = {};
+                produtos.forEach(function(p){ mapaProdLoja[String(p.id)] = String(p.loja || ''); });
+                var mapaCaixaLoja = {};
+                caixas.forEach(function(c){ mapaCaixaLoja[String(c.id)] = String(c.lojaId || ''); });
+
+                // Vendas do mês DESSA loja — infere loja de várias formas
                 var vendasMes = vendas.filter(function(v){
                     if (!v.data) return false;
                     var d = new Date(v.data + 'T12:00:00');
                     if (isNaN(d.getTime())) return false;
-                    return d.getFullYear() === hj.getFullYear() && d.getMonth() === hj.getMonth() && String(v.lojaId || v.loja || '') === lid;
+                    if (d.getFullYear() !== hj.getFullYear() || d.getMonth() !== hj.getMonth()) return false;
+
+                    // Tenta identificar loja da venda por múltiplas formas
+                    var lojaVenda = String(v.lojaId || v.loja || '');
+                    if (!lojaVenda && v.produtoId) {
+                        lojaVenda = mapaProdLoja[String(v.produtoId)] || '';
+                    }
+                    if (!lojaVenda && v.caixaId) {
+                        lojaVenda = mapaCaixaLoja[String(v.caixaId)] || '';
+                    }
+                    return lojaVenda === lid;
                 });
                 var totalVendasMes = vendasMes.reduce(function(s,v){ return s + (parseInt(v.quantidade) || 1); }, 0);
 
@@ -19479,7 +19635,7 @@
 
                 // Valor total em estoque (a preço de venda) — apenas ativos
                 var valorEstoque = prodsAtivos.reduce(function(s, p){
-                    var qtd = (estoque[p.id] && estoque[p.id].quantidade) || 0;
+                    var qtd = _opQtdEstoque(estoque, p.id);
                     var venda = parseFloat(p.precoVenda) || 0;
                     return s + (qtd * venda);
                 }, 0);
@@ -19506,7 +19662,7 @@
                 // Detalhamento do estoque (se expandido)
                 if (_opLojasVerEstoque[lid] && prodsAtivos.length > 0) {
                     var itensEstoque = prodsAtivos.map(function(p){
-                        var qtdItem = (estoque[p.id] && estoque[p.id].quantidade) || 0;
+                        var qtdItem = _opQtdEstoque(estoque, p.id);
                         var vendaItem = parseFloat(p.precoVenda) || 0;
                         return { nome: p.nome, qtd: qtdItem, venda: vendaItem, total: qtdItem * vendaItem };
                     }).filter(function(x){ return x.qtd > 0; })
@@ -19555,7 +19711,7 @@
                         '<div></div>' +
                     '</div>';
                     prodsMostrar.forEach(function(p){
-                        var qtd = (estoque[p.id] && estoque[p.id].quantidade) || 0;
+                        var qtd = _opQtdEstoque(estoque, p.id);
                         var custoCompra = parseFloat(p.precoCusto) || 0;
                         // Custos adicionais: podem ser objeto {nome:valor} ou array
                         var custosAdic = 0;
