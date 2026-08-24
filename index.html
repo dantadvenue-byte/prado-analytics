@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.6';
+        window.APP_VERSION = '2026.08.13.7';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -4892,7 +4892,7 @@
                 operacoes:     ['Operações',   'Checklists, lojas, laboratório e notas'],
                 gestao:        ['Gestão',      'Tarefas, projetos, equipe e métricas'],
                 'mapa-fontes': ['Mapa de Fontes','Visão 3D dos seus fluxos de renda'],
-                'assistente':  ['Assistente IA','Análise financeira e sugestões estratégicas'],
+                'assistente':  ['Central de Inteligência','Uma equipe de agentes de IA trabalhando por você'],
                 agenda:        ['Agenda',      'Calendário de eventos e compromissos'],
                 desafios:      ['Desafios',    'Seus desafios pessoais de evolução'],
                 conhecimento:  ['Conhecimento','Livros, cursos e Palácio da Memória'],
@@ -31027,6 +31027,16 @@
         }
 
         function renderAssistente() {
+            // NOVA implementação: Central de Inteligência
+            // A antiga renderização virou "modo legacy" e não é mais usada por padrão
+            if (typeof renderCentralInteligencia === 'function') {
+                return renderCentralInteligencia();
+            }
+            // fallback (não deve entrar aqui)
+            var el = document.getElementById('assistente-container');
+            if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);">Carregando...</div>';
+        }
+        function _renderAssistenteLegacy() {
             var el = document.getElementById('assistente-container');
             if (!el) return;
 
@@ -31610,6 +31620,445 @@
             }
             return null;
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CENTRAL DE INTELIGÊNCIA — arquitetura de múltiplos agentes
+        // ═══════════════════════════════════════════════════════════════
+        // Cada agente tem: id, nome, emoji, cor (hex), corRgb, funcao, descricao, promptSistema
+        // O promptSistema fica vazio agora — plugado na Sessão B/C
+
+        var _AGENTES = [
+            {
+                id: 'ceo',
+                nome: 'CEO IA',
+                titulo: 'Seu estrategista e comandante empresarial',
+                emoji: '🧠',
+                cor: '#a78bfa',
+                corRgb: '139,92,246',
+                funcao: 'Estratégia, decisões e coordenação dos agentes',
+                descricao: 'Entende objetivos, consulta especialistas, cruza informações e transforma análises em planos de ação.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>',
+                promptSistema: '',
+                isCEO: true
+            },
+            {
+                id: 'cmo',
+                nome: 'CMO IA',
+                titulo: 'Marketing, ofertas e posicionamento',
+                emoji: '📣',
+                cor: '#ec4899',
+                corRgb: '236,72,153',
+                funcao: 'Marketing, ofertas, posicionamento e crescimento',
+                descricao: 'Constrói ofertas irresistíveis, comunicação de valor e posicionamento de marca.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+                promptSistema: ''
+            },
+            {
+                id: 'trafego',
+                nome: 'Gestor de Tráfego IA',
+                titulo: 'Meta Ads, campanhas e performance',
+                emoji: '🎯',
+                cor: '#f97316',
+                corRgb: '249,115,22',
+                funcao: 'Meta Ads, campanhas, criativos, públicos, CPL, CPA e ROAS',
+                descricao: 'Analisa campanhas, otimiza CPL, sugere realocação de verba e testes de criativos.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+                promptSistema: ''
+            },
+            {
+                id: 'comercial',
+                nome: 'Gestor Comercial IA',
+                titulo: 'Leads, conversão e vendas',
+                emoji: '🤝',
+                cor: '#3b82f6',
+                corRgb: '59,130,246',
+                funcao: 'Leads, conversão, vendas, atendimento e follow-up',
+                descricao: 'Diagnostica taxa de conversão, identifica gargalos no funil e otimiza abordagens.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+                promptSistema: ''
+            },
+            {
+                id: 'cfo',
+                nome: 'CFO IA',
+                titulo: 'Fluxo de caixa, lucro e capital',
+                emoji: '💰',
+                cor: '#34d399',
+                corRgb: '52,211,153',
+                funcao: 'Fluxo de caixa, lucro, margem, capital, ROI e decisões financeiras',
+                descricao: 'Vigia break-even, obrigações críticas, margem e capital de giro. Antecipa riscos.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+                promptSistema: ''
+            },
+            {
+                id: 'operacoes',
+                nome: 'Operações IA',
+                titulo: 'Estoque, giro e processos',
+                emoji: '📦',
+                cor: '#fbbf24',
+                corRgb: '251,191,36',
+                funcao: 'Estoque, giro, fornecedores, logística e processos',
+                descricao: 'Detecta produtos parados, sugere reposição e melhora eficiência operacional.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M5 9v11h14V9"/></svg>',
+                promptSistema: ''
+            },
+            {
+                id: 'mercado',
+                nome: 'Analista de Mercado IA',
+                titulo: 'Mercado, concorrência e tendências',
+                emoji: '🔎',
+                cor: '#22d3ee',
+                corRgb: '34,211,238',
+                funcao: 'Mercado, concorrentes, produtos, oportunidades e tendências',
+                descricao: 'Monitora preços de concorrentes, oportunidades de novos produtos e movimentos do mercado.',
+                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+                promptSistema: ''
+            }
+        ];
+
+        function _getAgente(id) {
+            return _AGENTES.find(function(a){ return a.id === id; });
+        }
+
+        // Estado da UI
+        var _ciTabAtiva = 'visao';       // 'visao' | 'equipe' | 'sala' | 'decisoes' | 'historico'
+        var _ciAgenteAberto = null;       // id do agente aberto (Sessão C)
+
+        // ═══════════════════════════════════════════════════════════════
+        // RENDER PRINCIPAL DA CENTRAL DE INTELIGÊNCIA
+        // ═══════════════════════════════════════════════════════════════
+        function renderCentralInteligencia() {
+            var el = document.getElementById('assistente-container');
+            if (!el) return;
+
+            var cfg = _asstLerConfig();
+            // Se não tem API key configurada, mostra setup (reusa fluxo legacy)
+            if (!cfg.apiKey) {
+                el.innerHTML = _asstRenderSetup();
+                return;
+            }
+
+            var html = _ciRenderHeader() + _ciRenderTabs();
+            if (_ciTabAtiva === 'visao')          html += _ciRenderVisaoGeral();
+            else if (_ciTabAtiva === 'equipe')    html += _ciRenderEquipe();
+            else if (_ciTabAtiva === 'sala')      html += _ciRenderEmBreve('Sala de Comando', 'Faça uma pergunta ao CEO. Ele consulta os especialistas e consolida a resposta.', 'sala');
+            else if (_ciTabAtiva === 'decisoes')  html += _ciRenderEmBreve('Decisões Recentes', 'Ações estratégicas tomadas pela sua equipe de IA.', 'decisoes');
+            else if (_ciTabAtiva === 'historico') html += _ciRenderHistorico();
+            el.innerHTML = html;
+        }
+
+        function _ciRenderHeader() {
+            return '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;flex-wrap:wrap;gap:12px;">' +
+                '<div>' +
+                    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.22em;font-weight:700;">◆ CENTRAL DE INTELIGÊNCIA</div>' +
+                        '<div style="display:flex;align-items:center;gap:5px;background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.25);padding:2px 8px;border-radius:99px;font-size:9px;color:#34d399;font-weight:700;letter-spacing:0.06em;">' +
+                            '<span style="width:6px;height:6px;background:#34d399;border-radius:50%;box-shadow:0 0 8px #34d399;animation:pulse 2s infinite;"></span>SISTEMA OPERACIONAL' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="font-size:22px;font-weight:800;color:var(--text-main);letter-spacing:-0.03em;line-height:1.2;">Uma equipe de agentes de IA</div>' +
+                    '<div style="font-size:13px;color:var(--text-muted);margin-top:2px;">trabalhando para fazer sua empresa crescer.</div>' +
+                '</div>' +
+                '<div style="display:flex;gap:8px;">' +
+                    '<button onclick="_ciNovaDecisao()" style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:11px 18px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(139,92,246,0.25);display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova decisão</button>' +
+                    '<button onclick="_asstAbrirConfig()" title="Configurações" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:var(--text-muted);width:42px;height:42px;border-radius:10px;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-11h-6m-6 0H1"/></svg></button>' +
+                '</div>' +
+            '</div>' +
+            // CSS de animação pulse (inline pra não sujar globalmente)
+            '<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.45}}@keyframes ciFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}.ci-anim{animation:ciFadeIn 0.35s ease-out both;}</style>';
+        }
+
+        function _ciRenderTabs() {
+            var tabs = [
+                { id:'visao',      label:'Visão geral' },
+                { id:'equipe',     label:'Minha equipe' },
+                { id:'sala',       label:'Sala de comando' },
+                { id:'decisoes',   label:'Decisões' },
+                { id:'historico',  label:'Histórico' }
+            ];
+            var html = '<div style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:18px;overflow-x:auto;padding-bottom:0;">';
+            tabs.forEach(function(t){
+                var ativo = t.id === _ciTabAtiva;
+                html += '<button onclick="_ciMudarTab(\'' + t.id + '\')" style="background:none;border:none;color:' + (ativo ? '#fff' : 'var(--text-dim)') + ';padding:10px 14px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:' + (ativo ? '700' : '500') + ';border-bottom:2px solid ' + (ativo ? '#a78bfa' : 'transparent') + ';white-space:nowrap;transition:color 0.15s;">' + t.label + '</button>';
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function _ciMudarTab(tab) {
+            _ciTabAtiva = tab;
+            renderCentralInteligencia();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TAB: VISÃO GERAL
+        // ═══════════════════════════════════════════════════════════════
+        function _ciRenderVisaoGeral() {
+            var saudacao = _ciSaudacao();
+            var ceo = _getAgente('ceo');
+
+            // Card CEO grande
+            var html = '<div class="ci-anim" style="background:linear-gradient(135deg, rgba(139,92,246,0.14), rgba(59,130,246,0.06));border:1px solid rgba(139,92,246,0.30);border-radius:16px;padding:22px;margin-bottom:18px;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(139,92,246,0.15);">' +
+                // Sparkle decorativo
+                '<div style="position:absolute;top:-20px;right:-20px;width:180px;height:180px;background:radial-gradient(circle,rgba(139,92,246,0.20),transparent 70%);pointer-events:none;"></div>' +
+
+                '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px;position:relative;">' +
+                    '<div style="display:flex;gap:14px;align-items:flex-start;flex:1;">' +
+                        // Avatar/emoji CEO
+                        '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg, rgba(139,92,246,0.30), rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;">' + ceo.emoji + '</div>' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">' +
+                                '<div style="font-size:16px;font-weight:800;color:#fff;">' + ceo.nome + '</div>' +
+                                '<div style="display:flex;align-items:center;gap:4px;background:rgba(52,211,153,0.10);padding:2px 8px;border-radius:99px;font-size:9px;color:#34d399;font-weight:700;">' +
+                                    '<span style="width:5px;height:5px;background:#34d399;border-radius:50%;"></span>Online' +
+                                '</div>' +
+                            '</div>' +
+                            '<div style="font-size:12px;color:var(--text-muted);">' + ceo.titulo + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+
+                // Mensagem do CEO
+                '<div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:14px;color:var(--text-main);line-height:1.6;position:relative;">' +
+                    saudacao +
+                '</div>' +
+
+                // Indicadores rápidos
+                '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px;">' +
+                    _ciMiniIndicador('#fbbf24', '251,191,36', '⚠', '2 alertas', 'que exigem atenção') +
+                    _ciMiniIndicador('#34d399', '52,211,153', '💡', '4 oportunidades', 'identificadas hoje') +
+                    _ciMiniIndicador('#a78bfa', '139,92,246', '🎯', '3 ações recomendadas', 'pra você aprovar') +
+                '</div>' +
+
+                // Botões
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                    '<button onclick="_ciMudarTab(\'sala\')" style="flex:1;min-width:150px;background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:12px 18px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(139,92,246,0.25);">Conversar com CEO</button>' +
+                    '<button onclick="_ciAbrirAnaliseCEO()" style="flex:1;min-width:150px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:var(--text-main);padding:12px 18px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;">Ver análise</button>' +
+                '</div>' +
+            '</div>';
+
+            // Seção "Sua equipe" (preview compacto — versão completa é a aba "Minha equipe")
+            html += '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px;">' +
+                '<div>' +
+                    '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:2px;">MINHA EQUIPE</div>' +
+                    '<div style="font-size:14px;color:var(--text-muted);">Agentes especializados analisando diferentes áreas do negócio.</div>' +
+                '</div>' +
+                '<button onclick="_ciMudarTab(\'equipe\')" style="background:none;border:none;color:#a78bfa;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">Ver todos →</button>' +
+            '</div>';
+
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px;">';
+            // Só mostra os primeiros 4 na visão geral (sem CEO — CEO já está em destaque acima)
+            var preview = _AGENTES.filter(function(a){ return !a.isCEO; }).slice(0, 4);
+            preview.forEach(function(a){
+                html += _ciCardAgenteCompacto(a);
+            });
+            html += '</div>';
+
+            // Seção "Inteligência do Dia" (placeholder da Sessão B)
+            html += '<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:14px;padding:22px;text-align:center;color:var(--text-dim);font-size:12px;">' +
+                '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:4px;">INTELIGÊNCIA DO DIA</div>' +
+                '<div>Alertas, oportunidades, prioridades e destaques diários — em construção na próxima sessão.</div>' +
+            '</div>';
+
+            return html;
+        }
+
+        function _ciSaudacao() {
+            var hora = new Date().getHours();
+            var saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+            return saud + ', <strong style="color:#fff;">Dant</strong>. Sua equipe está monitorando os dados do negócio em tempo real. Quando quiser um diagnóstico completo, clica em <strong style="color:#a78bfa;">"Conversar com CEO"</strong> e me diz seu objetivo.';
+        }
+
+        function _ciMiniIndicador(cor, corRgb, emoji, titulo, subtitulo) {
+            return '<div style="background:rgba(' + corRgb + ',0.08);border:1px solid rgba(' + corRgb + ',0.25);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;">' +
+                '<div style="width:32px;height:32px;border-radius:9px;background:rgba(' + corRgb + ',0.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">' + emoji + '</div>' +
+                '<div style="min-width:0;">' +
+                    '<div style="font-size:12px;font-weight:800;color:' + cor + ';line-height:1.2;">' + titulo + '</div>' +
+                    '<div style="font-size:10px;color:var(--text-dim);margin-top:1px;">' + subtitulo + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TAB: MINHA EQUIPE
+        // ═══════════════════════════════════════════════════════════════
+        function _ciRenderEquipe() {
+            var html = '<div class="ci-anim" style="margin-bottom:16px;">' +
+                '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:2px;">MINHA EQUIPE</div>' +
+                '<div style="font-size:18px;font-weight:800;color:var(--text-main);letter-spacing:-0.02em;">7 especialistas ativos</div>' +
+                '<div style="font-size:13px;color:var(--text-muted);">Cada agente analisa uma área específica do seu negócio.</div>' +
+            '</div>';
+
+            html += '<div class="ci-anim" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">';
+            _AGENTES.forEach(function(a){
+                html += _ciCardAgenteCompleto(a);
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function _ciCardAgenteCompacto(a) {
+            return '<div style="background:linear-gradient(180deg,rgba(' + a.corRgb + ',0.06),rgba(' + a.corRgb + ',0.01));border:1px solid rgba(' + a.corRgb + ',0.20);border-radius:12px;padding:14px;cursor:pointer;transition:transform 0.15s, box-shadow 0.15s;" onclick="_ciAbrirAgente(\'' + a.id + '\')" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 12px 32px rgba(' + a.corRgb + ',0.15)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\';">' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
+                    '<div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(' + a.corRgb + ',0.30),rgba(' + a.corRgb + ',0.10));border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';display:flex;align-items:center;justify-content:center;font-size:18px;">' + a.emoji + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-size:13px;font-weight:800;color:var(--text-main);line-height:1.2;">' + a.nome + '</div>' +
+                        '<div style="font-size:10px;color:' + a.cor + ';font-weight:600;margin-top:1px;">● Ativo</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="font-size:11px;color:var(--text-muted);line-height:1.5;">' + a.titulo + '</div>' +
+            '</div>';
+        }
+
+        function _ciCardAgenteCompleto(a) {
+            var isCEO = !!a.isCEO;
+            return '<div style="background:linear-gradient(180deg,rgba(' + a.corRgb + ',0.08),rgba(' + a.corRgb + ',0.01));border:1px solid rgba(' + a.corRgb + ',0.25);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:transform 0.15s, box-shadow 0.15s;' + (isCEO ? 'grid-column:1 / -1;' : '') + '" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 36px rgba(' + a.corRgb + ',0.18)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\';">' +
+                (isCEO ? '<div style="position:absolute;top:10px;right:12px;background:linear-gradient(135deg, rgba(139,92,246,0.20), rgba(59,130,246,0.20));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:3px 8px;border-radius:99px;font-size:9px;font-weight:800;letter-spacing:0.06em;">◆ COMANDANTE</div>' : '') +
+
+                '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">' +
+                    '<div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,rgba(' + a.corRgb + ',0.30),rgba(' + a.corRgb + ',0.10));border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">' + a.emoji + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-size:14px;font-weight:800;color:var(--text-main);line-height:1.2;">' + a.nome + '</div>' +
+                        '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + a.titulo + '</div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div style="background:rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--text-muted);line-height:1.5;">' +
+                    a.descricao +
+                '</div>' +
+
+                '<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--text-dim);margin-bottom:10px;">' +
+                    '<div style="display:flex;align-items:center;gap:5px;color:' + a.cor + ';font-weight:700;">' +
+                        '<span style="width:6px;height:6px;background:' + a.cor + ';border-radius:50%;box-shadow:0 0 6px ' + a.cor + ';"></span>Ativo' +
+                    '</div>' +
+                    '<div>Última análise: <span style="color:var(--text-muted);">em breve</span></div>' +
+                '</div>' +
+
+                '<button onclick="_ciAbrirAgente(\'' + a.id + '\')" style="width:100%;background:rgba(' + a.corRgb + ',0.10);border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';padding:9px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;">Abrir agente</button>' +
+            '</div>';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TAB: HISTÓRICO (migrando análises antigas)
+        // ═══════════════════════════════════════════════════════════════
+        function _ciRenderHistorico() {
+            var conversas = _asstLerConversas().slice().sort(function(a,b){
+                return new Date(b.atualizadoEm || 0) - new Date(a.atualizadoEm || 0);
+            });
+
+            var html = '<div class="ci-anim" style="margin-bottom:16px;">' +
+                '<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:2px;">HISTÓRICO</div>' +
+                '<div style="font-size:18px;font-weight:800;color:var(--text-main);letter-spacing:-0.02em;">' + conversas.length + ' análise' + (conversas.length !== 1 ? 's' : '') + '</div>' +
+                '<div style="font-size:13px;color:var(--text-muted);">Análises anteriores da sua equipe de IA.</div>' +
+            '</div>';
+
+            if (conversas.length === 0) {
+                html += '<div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:14px;padding:40px 20px;text-align:center;color:var(--text-dim);font-size:12px;">' +
+                    'Nenhuma análise ainda.<br>Vai em <strong style="color:#a78bfa;">Sala de Comando</strong> para começar.' +
+                '</div>';
+                return html;
+            }
+
+            // Cada conversa migra pra "análise de um agente"
+            // Regras de migração:
+            //  - conv.tipo === 'financas' | 'cortes'         → CFO IA
+            //  - conv.tipo === 'estoque'                     → Operações IA
+            //  - conv.tipo === 'diagnostico' ou sem tipo     → CEO IA
+            html += '<div class="ci-anim" style="display:grid;grid-template-columns:1fr;gap:8px;">';
+            conversas.forEach(function(c){
+                html += _ciRenderItemHistorico(c);
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function _ciMigrarTipoParaAgente(tipo) {
+            if (tipo === 'financas' || tipo === 'cortes') return _getAgente('cfo');
+            if (tipo === 'estoque') return _getAgente('operacoes');
+            return _getAgente('ceo'); // default (diagnostico, chat livre, etc)
+        }
+
+        function _ciRenderItemHistorico(conv) {
+            var agente = _ciMigrarTipoParaAgente(conv.tipo);
+            var tipoLabel = {
+                financas: 'Diagnóstico financeiro',
+                estoque: 'Análise de estoque',
+                cortes: 'Sugestão de cortes',
+                diagnostico: 'Plano estratégico'
+            }[conv.tipo] || 'Conversa livre';
+
+            var data = conv.atualizadoEm
+                ? new Date(conv.atualizadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()
+                : '';
+            var qtdMsgs = (conv.mensagens || []).length;
+
+            // Resumo: se tem dados estruturados na última msg, pega resumo. Senão pega primeiros chars.
+            var resumo = '';
+            var msgs = conv.mensagens || [];
+            for (var i = msgs.length - 1; i >= 0; i--) {
+                var m = msgs[i];
+                if (m.role !== 'assistant') continue;
+                if (m.estruturada && m.dados && m.dados.resumo) { resumo = m.dados.resumo; break; }
+                if (m.content) { resumo = m.content.replace(/[#*`]/g, '').slice(0, 140) + (m.content.length > 140 ? '…' : ''); break; }
+            }
+
+            return '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:flex;gap:14px;align-items:flex-start;cursor:pointer;transition:background 0.15s, border-color 0.15s;" onclick="_ciAbrirConversaHistorico(' + conv.id + ')" onmouseover="this.style.background=\'rgba(255,255,255,0.04)\';this.style.borderColor=\'rgba(' + agente.corRgb + ',0.30)\';" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\';this.style.borderColor=\'rgba(255,255,255,0.06)\';">' +
+                '<div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,rgba(' + agente.corRgb + ',0.30),rgba(' + agente.corRgb + ',0.10));border:1px solid rgba(' + agente.corRgb + ',0.30);color:' + agente.cor + ';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">' + agente.emoji + '</div>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">' +
+                        '<div style="font-size:13px;font-weight:800;color:var(--text-main);">' + agente.nome + ' — ' + tipoLabel + '</div>' +
+                        '<div style="font-size:9px;color:var(--text-dim);font-family:JetBrains Mono,monospace;letter-spacing:0.06em;">' + data + '</div>' +
+                        '<div style="background:rgba(52,211,153,0.10);color:#34d399;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:0.06em;">CONCLUÍDA</div>' +
+                    '</div>' +
+                    (resumo ? '<div style="font-size:12px;color:var(--text-muted);line-height:1.5;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">' + _esc(resumo) + '</div>' : '<div style="font-size:11px;color:var(--text-dim);font-style:italic;">' + qtdMsgs + ' mensagens</div>') +
+                '</div>' +
+            '</div>';
+        }
+
+        function _ciAbrirConversaHistorico(convId) {
+            _asstConversaAtiva = convId;
+            _ciTabAtiva = 'sala';
+            renderCentralInteligencia();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PLACEHOLDER "EM BREVE" pras tabs da Sessão B/C
+        // ═══════════════════════════════════════════════════════════════
+        function _ciRenderEmBreve(titulo, descricao, tab) {
+            return '<div class="ci-anim" style="background:linear-gradient(180deg,rgba(139,92,246,0.06),rgba(139,92,246,0.01));border:1px dashed rgba(139,92,246,0.30);border-radius:16px;padding:40px 24px;text-align:center;">' +
+                '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;">' +
+                    (tab === 'sala' ? '💬' : tab === 'decisoes' ? '📋' : '✨') +
+                '</div>' +
+                '<div style="font-size:16px;font-weight:800;color:var(--text-main);margin-bottom:4px;">' + titulo + '</div>' +
+                '<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;max-width:420px;margin-left:auto;margin-right:auto;">' + descricao + '</div>' +
+                '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.25);padding:6px 12px;border-radius:99px;font-size:11px;color:#fbbf24;font-weight:700;">' +
+                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+                    'Chegando na próxima sessão' +
+                '</div>' +
+            '</div>';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AÇÕES (stubs — serão expandidas nas Sessões B/C)
+        // ═══════════════════════════════════════════════════════════════
+        function _ciNovaDecisao() {
+            _ciTabAtiva = 'sala';
+            renderCentralInteligencia();
+        }
+
+        function _ciAbrirAgente(agenteId) {
+            // Sessão C: página individual do agente
+            // Por enquanto: leva pra Sala de Comando com o agente pré-selecionado
+            _ciAgenteAberto = agenteId;
+            _ciTabAtiva = 'sala';
+            renderCentralInteligencia();
+        }
+
+        function _ciAbrirAnaliseCEO() {
+            // Placeholder Sessão B — trigger análise de diagnóstico geral via CEO
+            _ciTabAtiva = 'sala';
+            renderCentralInteligencia();
+        }
+
 
 </script>
 
