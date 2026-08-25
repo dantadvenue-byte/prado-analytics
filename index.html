@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.7';
+        window.APP_VERSION = '2026.08.13.9';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -31632,12 +31632,12 @@
                 id: 'ceo',
                 nome: 'CEO IA',
                 titulo: 'Seu estrategista e comandante empresarial',
-                emoji: '🧠',
                 cor: '#a78bfa',
                 corRgb: '139,92,246',
                 funcao: 'Estratégia, decisões e coordenação dos agentes',
                 descricao: 'Entende objetivos, consulta especialistas, cruza informações e transforma análises em planos de ação.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0H5a2 2 0 0 1-2-2v-4m6 6h10a2 2 0 0 0 2-2v-4M3 9h18M3 15h18"/></svg>',
+                // Cérebro/estratégia
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>',
                 promptSistema: '',
                 isCEO: true
             },
@@ -31645,72 +31645,72 @@
                 id: 'cmo',
                 nome: 'CMO IA',
                 titulo: 'Marketing, ofertas e posicionamento',
-                emoji: '📣',
                 cor: '#ec4899',
                 corRgb: '236,72,153',
                 funcao: 'Marketing, ofertas, posicionamento e crescimento',
                 descricao: 'Constrói ofertas irresistíveis, comunicação de valor e posicionamento de marca.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+                // Megafone
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
                 promptSistema: ''
             },
             {
                 id: 'trafego',
                 nome: 'Gestor de Tráfego IA',
                 titulo: 'Meta Ads, campanhas e performance',
-                emoji: '🎯',
                 cor: '#f97316',
                 corRgb: '249,115,22',
                 funcao: 'Meta Ads, campanhas, criativos, públicos, CPL, CPA e ROAS',
                 descricao: 'Analisa campanhas, otimiza CPL, sugere realocação de verba e testes de criativos.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+                // Target/alvo
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
                 promptSistema: ''
             },
             {
                 id: 'comercial',
                 nome: 'Gestor Comercial IA',
                 titulo: 'Leads, conversão e vendas',
-                emoji: '🤝',
                 cor: '#3b82f6',
                 corRgb: '59,130,246',
                 funcao: 'Leads, conversão, vendas, atendimento e follow-up',
                 descricao: 'Diagnostica taxa de conversão, identifica gargalos no funil e otimiza abordagens.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+                // Handshake / usuários (pessoas)
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
                 promptSistema: ''
             },
             {
                 id: 'cfo',
                 nome: 'CFO IA',
                 titulo: 'Fluxo de caixa, lucro e capital',
-                emoji: '💰',
                 cor: '#34d399',
                 corRgb: '52,211,153',
                 funcao: 'Fluxo de caixa, lucro, margem, capital, ROI e decisões financeiras',
                 descricao: 'Vigia break-even, obrigações críticas, margem e capital de giro. Antecipa riscos.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+                // Símbolo $
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
                 promptSistema: ''
             },
             {
                 id: 'operacoes',
                 nome: 'Operações IA',
                 titulo: 'Estoque, giro e processos',
-                emoji: '📦',
                 cor: '#fbbf24',
                 corRgb: '251,191,36',
                 funcao: 'Estoque, giro, fornecedores, logística e processos',
                 descricao: 'Detecta produtos parados, sugere reposição e melhora eficiência operacional.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M5 9v11h14V9"/></svg>',
+                // Engrenagem
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
                 promptSistema: ''
             },
             {
                 id: 'mercado',
                 nome: 'Analista de Mercado IA',
                 titulo: 'Mercado, concorrência e tendências',
-                emoji: '🔎',
                 cor: '#22d3ee',
                 corRgb: '34,211,238',
                 funcao: 'Mercado, concorrentes, produtos, oportunidades e tendências',
                 descricao: 'Monitora preços de concorrentes, oportunidades de novos produtos e movimentos do mercado.',
-                icone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+                // Gráfico com linha ascendente
+                icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-3 3 3 5-5"/><path d="M14 10h4v4"/></svg>',
                 promptSistema: ''
             }
         ];
@@ -31740,7 +31740,7 @@
             var html = _ciRenderHeader() + _ciRenderTabs();
             if (_ciTabAtiva === 'visao')          html += _ciRenderVisaoGeral();
             else if (_ciTabAtiva === 'equipe')    html += _ciRenderEquipe();
-            else if (_ciTabAtiva === 'sala')      html += _ciRenderEmBreve('Sala de Comando', 'Faça uma pergunta ao CEO. Ele consulta os especialistas e consolida a resposta.', 'sala');
+            else if (_ciTabAtiva === 'sala')      html += _ceoRenderSala();
             else if (_ciTabAtiva === 'decisoes')  html += _ciRenderEmBreve('Decisões Recentes', 'Ações estratégicas tomadas pela sua equipe de IA.', 'decisoes');
             else if (_ciTabAtiva === 'historico') html += _ciRenderHistorico();
             el.innerHTML = html;
@@ -31750,7 +31750,7 @@
             return '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;flex-wrap:wrap;gap:12px;">' +
                 '<div>' +
                     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
-                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.22em;font-weight:700;">◆ CENTRAL DE INTELIGÊNCIA</div>' +
+                        '<div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:0.22em;font-weight:700;">CENTRAL DE INTELIGÊNCIA</div>' +
                         '<div style="display:flex;align-items:center;gap:5px;background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.25);padding:2px 8px;border-radius:99px;font-size:9px;color:#34d399;font-weight:700;letter-spacing:0.06em;">' +
                             '<span style="width:6px;height:6px;background:#34d399;border-radius:50%;box-shadow:0 0 8px #34d399;animation:pulse 2s infinite;"></span>SISTEMA OPERACIONAL' +
                         '</div>' +
@@ -31803,8 +31803,10 @@
 
                 '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px;position:relative;">' +
                     '<div style="display:flex;gap:14px;align-items:flex-start;flex:1;">' +
-                        // Avatar/emoji CEO
-                        '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg, rgba(139,92,246,0.30), rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px;">' + ceo.emoji + '</div>' +
+                        // Avatar CEO
+                        '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg, rgba(139,92,246,0.30), rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:' + ceo.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                            '<span style="width:26px;height:26px;display:inline-flex;">' + ceo.icone + '</span>' +
+                        '</div>' +
                         '<div style="flex:1;min-width:0;">' +
                             '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">' +
                                 '<div style="font-size:16px;font-weight:800;color:#fff;">' + ceo.nome + '</div>' +
@@ -31824,9 +31826,15 @@
 
                 // Indicadores rápidos
                 '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px;">' +
-                    _ciMiniIndicador('#fbbf24', '251,191,36', '⚠', '2 alertas', 'que exigem atenção') +
-                    _ciMiniIndicador('#34d399', '52,211,153', '💡', '4 oportunidades', 'identificadas hoje') +
-                    _ciMiniIndicador('#a78bfa', '139,92,246', '🎯', '3 ações recomendadas', 'pra você aprovar') +
+                    _ciMiniIndicador('#fbbf24', '251,191,36',
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+                        '2 alertas', 'que exigem atenção') +
+                    _ciMiniIndicador('#34d399', '52,211,153',
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+                        '4 oportunidades', 'identificadas hoje') +
+                    _ciMiniIndicador('#a78bfa', '139,92,246',
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+                        '3 ações recomendadas', 'pra você aprovar') +
                 '</div>' +
 
                 // Botões
@@ -31868,9 +31876,11 @@
             return saud + ', <strong style="color:#fff;">Dant</strong>. Sua equipe está monitorando os dados do negócio em tempo real. Quando quiser um diagnóstico completo, clica em <strong style="color:#a78bfa;">"Conversar com CEO"</strong> e me diz seu objetivo.';
         }
 
-        function _ciMiniIndicador(cor, corRgb, emoji, titulo, subtitulo) {
+        function _ciMiniIndicador(cor, corRgb, iconeSvg, titulo, subtitulo) {
             return '<div style="background:rgba(' + corRgb + ',0.08);border:1px solid rgba(' + corRgb + ',0.25);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;">' +
-                '<div style="width:32px;height:32px;border-radius:9px;background:rgba(' + corRgb + ',0.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">' + emoji + '</div>' +
+                '<div style="width:32px;height:32px;border-radius:9px;background:rgba(' + corRgb + ',0.15);color:' + cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                    '<span style="width:16px;height:16px;display:inline-flex;">' + iconeSvg + '</span>' +
+                '</div>' +
                 '<div style="min-width:0;">' +
                     '<div style="font-size:12px;font-weight:800;color:' + cor + ';line-height:1.2;">' + titulo + '</div>' +
                     '<div style="font-size:10px;color:var(--text-dim);margin-top:1px;">' + subtitulo + '</div>' +
@@ -31899,10 +31909,14 @@
         function _ciCardAgenteCompacto(a) {
             return '<div style="background:linear-gradient(180deg,rgba(' + a.corRgb + ',0.06),rgba(' + a.corRgb + ',0.01));border:1px solid rgba(' + a.corRgb + ',0.20);border-radius:12px;padding:14px;cursor:pointer;transition:transform 0.15s, box-shadow 0.15s;" onclick="_ciAbrirAgente(\'' + a.id + '\')" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 12px 32px rgba(' + a.corRgb + ',0.15)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\';">' +
                 '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
-                    '<div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(' + a.corRgb + ',0.30),rgba(' + a.corRgb + ',0.10));border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';display:flex;align-items:center;justify-content:center;font-size:18px;">' + a.emoji + '</div>' +
+                    '<div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(' + a.corRgb + ',0.30),rgba(' + a.corRgb + ',0.10));border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                        '<span style="width:17px;height:17px;display:inline-flex;">' + a.icone + '</span>' +
+                    '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="font-size:13px;font-weight:800;color:var(--text-main);line-height:1.2;">' + a.nome + '</div>' +
-                        '<div style="font-size:10px;color:' + a.cor + ';font-weight:600;margin-top:1px;">● Ativo</div>' +
+                        '<div style="font-size:10px;color:' + a.cor + ';font-weight:600;margin-top:1px;display:flex;align-items:center;gap:4px;">' +
+                            '<span style="width:5px;height:5px;background:' + a.cor + ';border-radius:50%;"></span>Ativo' +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div style="font-size:11px;color:var(--text-muted);line-height:1.5;">' + a.titulo + '</div>' +
@@ -31912,10 +31926,12 @@
         function _ciCardAgenteCompleto(a) {
             var isCEO = !!a.isCEO;
             return '<div style="background:linear-gradient(180deg,rgba(' + a.corRgb + ',0.08),rgba(' + a.corRgb + ',0.01));border:1px solid rgba(' + a.corRgb + ',0.25);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:transform 0.15s, box-shadow 0.15s;' + (isCEO ? 'grid-column:1 / -1;' : '') + '" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 16px 36px rgba(' + a.corRgb + ',0.18)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\';">' +
-                (isCEO ? '<div style="position:absolute;top:10px;right:12px;background:linear-gradient(135deg, rgba(139,92,246,0.20), rgba(59,130,246,0.20));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:3px 8px;border-radius:99px;font-size:9px;font-weight:800;letter-spacing:0.06em;">◆ COMANDANTE</div>' : '') +
+                (isCEO ? '<div style="position:absolute;top:10px;right:12px;background:linear-gradient(135deg, rgba(139,92,246,0.20), rgba(59,130,246,0.20));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;padding:3px 8px;border-radius:99px;font-size:9px;font-weight:800;letter-spacing:0.06em;">COMANDANTE</div>' : '') +
 
                 '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">' +
-                    '<div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,rgba(' + a.corRgb + ',0.30),rgba(' + a.corRgb + ',0.10));border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">' + a.emoji + '</div>' +
+                    '<div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,rgba(' + a.corRgb + ',0.30),rgba(' + a.corRgb + ',0.10));border:1px solid rgba(' + a.corRgb + ',0.30);color:' + a.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                        '<span style="width:22px;height:22px;display:inline-flex;">' + a.icone + '</span>' +
+                    '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="font-size:14px;font-weight:800;color:var(--text-main);line-height:1.2;">' + a.nome + '</div>' +
                         '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + a.titulo + '</div>' +
@@ -32002,7 +32018,9 @@
             }
 
             return '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:flex;gap:14px;align-items:flex-start;cursor:pointer;transition:background 0.15s, border-color 0.15s;" onclick="_ciAbrirConversaHistorico(' + conv.id + ')" onmouseover="this.style.background=\'rgba(255,255,255,0.04)\';this.style.borderColor=\'rgba(' + agente.corRgb + ',0.30)\';" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\';this.style.borderColor=\'rgba(255,255,255,0.06)\';">' +
-                '<div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,rgba(' + agente.corRgb + ',0.30),rgba(' + agente.corRgb + ',0.10));border:1px solid rgba(' + agente.corRgb + ',0.30);color:' + agente.cor + ';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">' + agente.emoji + '</div>' +
+                '<div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,rgba(' + agente.corRgb + ',0.30),rgba(' + agente.corRgb + ',0.10));border:1px solid rgba(' + agente.corRgb + ',0.30);color:' + agente.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                    '<span style="width:18px;height:18px;display:inline-flex;">' + agente.icone + '</span>' +
+                '</div>' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">' +
                         '<div style="font-size:13px;font-weight:800;color:var(--text-main);">' + agente.nome + ' — ' + tipoLabel + '</div>' +
@@ -32024,9 +32042,15 @@
         // PLACEHOLDER "EM BREVE" pras tabs da Sessão B/C
         // ═══════════════════════════════════════════════════════════════
         function _ciRenderEmBreve(titulo, descricao, tab) {
+            var iconePlaceholder =
+                tab === 'sala' ?
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' :
+                tab === 'decisoes' ?
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>' :
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>';
             return '<div class="ci-anim" style="background:linear-gradient(180deg,rgba(139,92,246,0.06),rgba(139,92,246,0.01));border:1px dashed rgba(139,92,246,0.30);border-radius:16px;padding:40px 24px;text-align:center;">' +
-                '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;">' +
-                    (tab === 'sala' ? '💬' : tab === 'decisoes' ? '📋' : '✨') +
+                '<div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,0.30),rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:#a78bfa;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">' +
+                    '<span style="width:24px;height:24px;display:inline-flex;">' + iconePlaceholder + '</span>' +
                 '</div>' +
                 '<div style="font-size:16px;font-weight:800;color:var(--text-main);margin-bottom:4px;">' + titulo + '</div>' +
                 '<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;max-width:420px;margin-left:auto;margin-right:auto;">' + descricao + '</div>' +
@@ -32053,10 +32077,823 @@
             renderCentralInteligencia();
         }
 
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // CEO IA — MOTOR COM TOOL_USE (function calling da Anthropic API)
+        // ═══════════════════════════════════════════════════════════════
+        // Arquitetura modular preparada pras próximas etapas:
+        //  - _CEO_TOOLS: array de tools disponíveis (schema + handler)
+        //  - _ceoChamarTool: dispatcher que executa a tool
+        //  - _ceoEnviarComTools: loop de conversa com tool_use
+        //  - _ceoRenderChat: UI do chat
+        //
+        // REGRAS DESTA ETAPA:
+        //  ✓ Apenas READ tools (sem alteração de dados)
+        //  ✓ Só consulta dados que já existem no Prado Analytics
+        //  ✓ Se dado não existe → CEO deve dizer explicitamente
+        //  ✗ Não invoca sistemas externos (CRM/Chat/Ads/WhatsApp) — pendente
+
+        var _ceoConversas = []; // array de {id, mensagens, criadoEm}
+        var _ceoConversaAtiva = null;
+        var _ceoEnviando = false;
+        var _ceoFontesUltimo = []; // rastreia tools chamadas na última resposta
+
+        // ─────────────────────────────────────────
+        // HELPERS DE CONTEXTO TEMPORAL
+        // ─────────────────────────────────────────
+        function _ceoHoje() { return new Date(); }
+        function _ceoIsoData(d) { return d.toISOString().slice(0, 10); }
+        function _ceoMesAtual() { var d = _ceoHoje(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+
+        // Interpreta período em texto ("hoje", "este mês", "últimos 30 dias") em {inicio, fim}
+        function _ceoInterpretarPeriodo(texto) {
+            var hj = _ceoHoje();
+            var t = (texto || 'este mês').toLowerCase().trim();
+
+            function ymd(y,m,d){ return new Date(y, m, d); }
+
+            if (t === 'hoje') {
+                return { inicio: ymd(hj.getFullYear(), hj.getMonth(), hj.getDate()), fim: ymd(hj.getFullYear(), hj.getMonth(), hj.getDate()), label: 'hoje' };
+            }
+            if (t === 'ontem') {
+                var d = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate() - 1);
+                return { inicio: d, fim: d, label: 'ontem' };
+            }
+            if (t === 'esta semana' || t === 'semana') {
+                var diaSem = hj.getDay(); // 0=dom
+                var seg = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate() - (diaSem === 0 ? 6 : diaSem - 1));
+                return { inicio: seg, fim: hj, label: 'esta semana' };
+            }
+            if (t === 'este mes' || t === 'este mês' || t === 'mes atual' || t === 'mês atual') {
+                return { inicio: ymd(hj.getFullYear(), hj.getMonth(), 1), fim: hj, label: 'este mês' };
+            }
+            if (t === 'mes passado' || t === 'mês passado') {
+                var ini = ymd(hj.getFullYear(), hj.getMonth() - 1, 1);
+                var fim = ymd(hj.getFullYear(), hj.getMonth(), 0);
+                return { inicio: ini, fim: fim, label: 'mês passado' };
+            }
+            var m = t.match(/últimos?\s+(\d+)\s+dias?/);
+            if (m) {
+                var n = parseInt(m[1]);
+                var ini2 = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate() - n + 1);
+                return { inicio: ini2, fim: hj, label: 'últimos ' + n + ' dias' };
+            }
+            // formato YYYY-MM
+            if (/^\d{4}-\d{2}$/.test(t)) {
+                var ano = parseInt(t.slice(0,4)), mes = parseInt(t.slice(5,7)) - 1;
+                return { inicio: ymd(ano, mes, 1), fim: ymd(ano, mes+1, 0), label: t };
+            }
+            // padrão: mês atual
+            return { inicio: ymd(hj.getFullYear(), hj.getMonth(), 1), fim: hj, label: 'este mês (padrão)' };
+        }
+
+        function _ceoDataStringParaDate(s) {
+            if (!s) return null;
+            // aceita YYYY-MM-DD ou DD/MM/YYYY
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s + 'T12:00:00');
+            if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+                var p = s.split('/');
+                return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]), 12);
+            }
+            return null;
+        }
+
+        function _ceoNoPeriodo(dataStr, periodo) {
+            var d = _ceoDataStringParaDate(dataStr);
+            if (!d) return false;
+            var inicio = new Date(periodo.inicio.getFullYear(), periodo.inicio.getMonth(), periodo.inicio.getDate(), 0, 0, 0);
+            var fim = new Date(periodo.fim.getFullYear(), periodo.fim.getMonth(), periodo.fim.getDate(), 23, 59, 59);
+            return d >= inicio && d <= fim;
+        }
+
+        // ─────────────────────────────────────────
+        // DEFINIÇÃO DAS TOOLS (schema Anthropic + handler local)
+        // ─────────────────────────────────────────
+        var _CEO_TOOLS = [
+            {
+                name: 'get_saldo_caixas',
+                labelFonte: 'Contas e Caixas',
+                description: 'Retorna o saldo atual de cada caixa/conta cadastrada, incluindo saldo total, saldo reservado (pró-labore) e disponível. Use quando o usuário perguntar sobre saldos, contas, quanto tem em caixa, dinheiro disponível, etc.',
+                input_schema: { type: 'object', properties: {}, required: [] },
+                handler: function() {
+                    var caixas = _ler('fin-caixas') || [];
+                    var lojas = _ler('lojas') || {};
+                    var totalGeral = 0, totalDisponivel = 0, totalReservado = 0;
+                    var lista = caixas.map(function(c){
+                        var s = calcularSaldoCaixa(c.id);
+                        totalGeral += s.saldo;
+                        totalDisponivel += s.saldoDisponivel;
+                        totalReservado += s.saldoReservado;
+                        var lojaNome = null;
+                        if (c.lojaId && lojas[c.lojaId]) lojaNome = lojas[c.lojaId].nome;
+                        return {
+                            nome: c.nome,
+                            tipo: c.tipo,
+                            loja: lojaNome,
+                            saldo_total: Math.round(s.saldo * 100) / 100,
+                            saldo_disponivel: Math.round(s.saldoDisponivel * 100) / 100,
+                            saldo_reservado_prolabore: Math.round(s.saldoReservado * 100) / 100
+                        };
+                    });
+                    return {
+                        total_geral: Math.round(totalGeral * 100) / 100,
+                        total_disponivel: Math.round(totalDisponivel * 100) / 100,
+                        total_reservado_prolabore: Math.round(totalReservado * 100) / 100,
+                        quantidade_caixas: caixas.length,
+                        caixas: lista
+                    };
+                }
+            },
+            {
+                name: 'get_vendas_periodo',
+                labelFonte: 'Vendas',
+                description: 'Retorna vendas em um período. Use quando perguntarem sobre faturamento, quanto vendeu, quantas vendas, ticket médio, produtos mais vendidos, etc. O período pode ser: "hoje", "ontem", "esta semana", "este mês", "mês passado", "últimos 30 dias", ou "YYYY-MM".',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        periodo: { type: 'string', description: 'Ex: "hoje", "este mês", "mês passado", "últimos 30 dias"' }
+                    },
+                    required: ['periodo']
+                },
+                handler: function(args) {
+                    var vendas = _ler('vendas') || [];
+                    var periodo = _ceoInterpretarPeriodo(args.periodo);
+                    var vendasP = vendas.filter(function(v){ return _ceoNoPeriodo(v.data, periodo); });
+
+                    var faturamento = 0, lucroTotal = 0, qtdItens = 0;
+                    var porProduto = {}; // nome → { qtd, faturamento }
+                    vendasP.forEach(function(v){
+                        var preco = (parseFloat(v.precoFinal) || 0) * (parseInt(v.quantidade) || 1);
+                        faturamento += preco;
+                        lucroTotal += parseFloat(v.lucroTotal) || 0;
+                        qtdItens += parseInt(v.quantidade) || 1;
+                        var nome = v.produto || v.produtoNome || 'Sem produto';
+                        if (!porProduto[nome]) porProduto[nome] = { quantidade: 0, faturamento: 0 };
+                        porProduto[nome].quantidade += parseInt(v.quantidade) || 1;
+                        porProduto[nome].faturamento += preco;
+                    });
+                    // Top 5 produtos por faturamento
+                    var topProdutos = Object.entries(porProduto)
+                        .map(function(e){ return { produto: e[0], quantidade: e[1].quantidade, faturamento: Math.round(e[1].faturamento * 100) / 100 }; })
+                        .sort(function(a,b){ return b.faturamento - a.faturamento; })
+                        .slice(0, 5);
+                    var ticketMedio = vendasP.length > 0 ? faturamento / vendasP.length : 0;
+
+                    return {
+                        periodo: periodo.label,
+                        data_inicio: _ceoIsoData(periodo.inicio),
+                        data_fim: _ceoIsoData(periodo.fim),
+                        quantidade_vendas: vendasP.length,
+                        quantidade_itens: qtdItens,
+                        faturamento_total: Math.round(faturamento * 100) / 100,
+                        lucro_bruto_total: Math.round(lucroTotal * 100) / 100,
+                        ticket_medio: Math.round(ticketMedio * 100) / 100,
+                        top_produtos: topProdutos
+                    };
+                }
+            },
+            {
+                name: 'get_fluxo_caixa',
+                labelFonte: 'Fluxo de Caixa',
+                description: 'Retorna entradas e saídas por categoria em um período. Use quando perguntarem sobre despesas, custos, para onde foi o dinheiro, principais gastos, maiores saídas, movimentações do caixa, etc.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        periodo: { type: 'string', description: 'Ex: "este mês", "mês passado", "últimos 30 dias"' },
+                        caixa_nome: { type: 'string', description: 'Opcional. Nome do caixa específico. Se não passar, considera todos.' }
+                    },
+                    required: ['periodo']
+                },
+                handler: function(args) {
+                    var movs = _ler('fin-movs') || [];
+                    var caixas = _ler('fin-caixas') || [];
+                    var periodo = _ceoInterpretarPeriodo(args.periodo);
+                    var caixaFiltroId = null;
+                    if (args.caixa_nome) {
+                        var cf = caixas.find(function(c){ return c.nome && c.nome.toLowerCase().includes(String(args.caixa_nome).toLowerCase()); });
+                        if (cf) caixaFiltroId = cf.id;
+                    }
+
+                    var totalEntradas = 0, totalSaidas = 0;
+                    var entradasPorCat = {}, saidasPorCat = {};
+                    var maioresSaidas = [];
+
+                    movs.forEach(function(m){
+                        if (!_ceoNoPeriodo(m.data, periodo)) return;
+                        if (caixaFiltroId && String(m.caixaId) !== String(caixaFiltroId)) return;
+                        var v = parseFloat(m.valor) || 0;
+                        var cat = m.categoria || 'sem_categoria';
+                        if (m.tipo === 'entrada') {
+                            totalEntradas += v;
+                            entradasPorCat[cat] = (entradasPorCat[cat] || 0) + v;
+                        } else if (m.tipo === 'saida') {
+                            totalSaidas += v;
+                            saidasPorCat[cat] = (saidasPorCat[cat] || 0) + v;
+                            maioresSaidas.push({ descricao: m.descricao || cat, categoria: cat, valor: v, data: m.data });
+                        }
+                    });
+
+                    maioresSaidas.sort(function(a,b){ return b.valor - a.valor; });
+                    maioresSaidas = maioresSaidas.slice(0, 10).map(function(x){ return {...x, valor: Math.round(x.valor * 100) / 100 }; });
+
+                    return {
+                        periodo: periodo.label,
+                        caixa_filtro: args.caixa_nome || 'todos',
+                        total_entradas: Math.round(totalEntradas * 100) / 100,
+                        total_saidas: Math.round(totalSaidas * 100) / 100,
+                        saldo_liquido_periodo: Math.round((totalEntradas - totalSaidas) * 100) / 100,
+                        entradas_por_categoria: Object.entries(entradasPorCat).map(function(e){ return { categoria: e[0], valor: Math.round(e[1]*100)/100 }; }).sort(function(a,b){ return b.valor - a.valor; }),
+                        saidas_por_categoria: Object.entries(saidasPorCat).map(function(e){ return { categoria: e[0], valor: Math.round(e[1]*100)/100 }; }).sort(function(a,b){ return b.valor - a.valor; }),
+                        top_10_maiores_saidas: maioresSaidas
+                    };
+                }
+            },
+            {
+                name: 'get_obrigacoes',
+                labelFonte: 'Contas a Pagar/Receber',
+                description: 'Retorna obrigações a pagar e a receber com status. Use quando perguntarem sobre contas a pagar/receber, dívidas, vencimentos, faturas em aberto, quanto devo, quanto vão me pagar, etc.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        tipo: { type: 'string', enum: ['pagar', 'receber', 'todos'], description: 'Filtrar por tipo. Default: "todos"' },
+                        apenas_pendentes: { type: 'boolean', description: 'Se true, só retorna as não quitadas. Default: true' }
+                    },
+                    required: []
+                },
+                handler: function(args) {
+                    var obs = _ler('fin-obrigacoes') || [];
+                    var tipo = args.tipo || 'todos';
+                    var apenas = args.apenas_pendentes !== false; // default true
+
+                    var filtradas = obs.filter(function(o){
+                        if (tipo !== 'todos' && o.tipo !== tipo) return false;
+                        if (apenas) {
+                            var pago = parseFloat(o.pago) || 0;
+                            var valor = parseFloat(o.valor) || 0;
+                            if (pago >= valor) return false;
+                        }
+                        return true;
+                    });
+
+                    var totalPagarPendente = 0, totalReceberPendente = 0;
+                    var itens = filtradas.map(function(o){
+                        var valor = parseFloat(o.valor) || 0;
+                        var pago = parseFloat(o.pago) || 0;
+                        var falta = Math.max(valor - pago, 0);
+                        if (o.tipo === 'pagar') totalPagarPendente += falta;
+                        if (o.tipo === 'receber') totalReceberPendente += falta;
+                        return {
+                            tipo: o.tipo,
+                            descricao: o.descricao || o.nome,
+                            categoria: o.categoria,
+                            valor_total: Math.round(valor * 100) / 100,
+                            ja_pago_recebido: Math.round(pago * 100) / 100,
+                            falta: Math.round(falta * 100) / 100,
+                            vencimento: o.vencimento
+                        };
+                    });
+                    // Ordenar por vencimento
+                    itens.sort(function(a,b){
+                        var da = _ceoDataStringParaDate(a.vencimento);
+                        var db = _ceoDataStringParaDate(b.vencimento);
+                        if (!da) return 1; if (!db) return -1;
+                        return da - db;
+                    });
+
+                    return {
+                        quantidade_total: itens.length,
+                        total_pagar_pendente: Math.round(totalPagarPendente * 100) / 100,
+                        total_receber_pendente: Math.round(totalReceberPendente * 100) / 100,
+                        obrigacoes: itens.slice(0, 30)
+                    };
+                }
+            },
+            {
+                name: 'get_estoque',
+                labelFonte: 'Estoque',
+                description: 'Retorna produtos em estoque com quantidade, custo, preço de venda, margem e valor parado. Use quando perguntarem sobre estoque, produtos parados, valor em estoque, quantidade de produtos, giro, margem de produtos, etc.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        loja_nome: { type: 'string', description: 'Opcional. Filtra por loja específica.' }
+                    },
+                    required: []
+                },
+                handler: function(args) {
+                    var produtos = _ler('produtos') || [];
+                    var estoque = _ler('estoque') || {};
+                    var lojas = _ler('lojas') || {};
+
+                    var lojaFiltroId = null;
+                    if (args.loja_nome) {
+                        var lojaMatch = Object.values(lojas).find(function(l){ return l.nome && l.nome.toLowerCase().includes(String(args.loja_nome).toLowerCase()); });
+                        if (lojaMatch) lojaFiltroId = lojaMatch.id;
+                    }
+
+                    var itens = [];
+                    var valorTotalEstoque = 0;
+                    var valorPotencialVenda = 0;
+
+                    produtos.filter(function(p){ return !p.arquivado; }).forEach(function(p){
+                        if (lojaFiltroId && String(p.loja) !== String(lojaFiltroId)) return;
+                        var qtd = (estoque[p.id] && estoque[p.id].quantidade) || (estoque[String(p.id)] && estoque[String(p.id)].quantidade) || 0;
+                        var custo = parseFloat(p.precoCusto) || 0;
+                        var venda = parseFloat(p.precoVenda) || 0;
+                        // custos adicionais
+                        var custosAdic = 0;
+                        if (p.custos) {
+                            if (Array.isArray(p.custos)) custosAdic = p.custos.reduce(function(s,c){ return s + (parseFloat(c.valor) || 0); }, 0);
+                            else custosAdic = Object.values(p.custos).reduce(function(s,v){ return s + (parseFloat(v) || 0); }, 0);
+                        }
+                        var custoReal = custo + custosAdic;
+                        var lucroUnit = venda - custoReal;
+                        var margem = venda > 0 ? (lucroUnit / venda * 100) : 0;
+                        var valorEstoque = qtd * custoReal;
+                        var potencial = qtd * venda;
+                        valorTotalEstoque += valorEstoque;
+                        valorPotencialVenda += potencial;
+
+                        var lojaNome = null;
+                        if (p.loja && lojas[p.loja]) lojaNome = lojas[p.loja].nome;
+
+                        itens.push({
+                            produto: p.nome,
+                            loja: lojaNome,
+                            quantidade_estoque: qtd,
+                            custo_unitario_real: Math.round(custoReal * 100) / 100,
+                            preco_venda: Math.round(venda * 100) / 100,
+                            lucro_por_unidade: Math.round(lucroUnit * 100) / 100,
+                            margem_pct: Math.round(margem * 10) / 10,
+                            valor_parado: Math.round(valorEstoque * 100) / 100,
+                            valor_potencial_venda: Math.round(potencial * 100) / 100
+                        });
+                    });
+
+                    // Ordena por valor parado desc pra destacar o mais crítico
+                    itens.sort(function(a,b){ return b.valor_parado - a.valor_parado; });
+
+                    return {
+                        loja_filtro: args.loja_nome || 'todas',
+                        quantidade_produtos_ativos: itens.length,
+                        valor_total_parado: Math.round(valorTotalEstoque * 100) / 100,
+                        valor_potencial_venda: Math.round(valorPotencialVenda * 100) / 100,
+                        margem_bruta_potencial: Math.round((valorPotencialVenda - valorTotalEstoque) * 100) / 100,
+                        produtos: itens.slice(0, 30)
+                    };
+                }
+            },
+            {
+                name: 'get_indicadores_mes',
+                labelFonte: 'Indicadores do Mês',
+                description: 'Retorna KPIs consolidados do mês: faturamento, custo, lucro, break-even, status geral. Use quando perguntarem "como está a empresa", "resumo do mês", "situação atual", "diagnóstico geral", "estou batendo meta".',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        mes: { type: 'string', description: 'YYYY-MM. Default: mês atual.' }
+                    },
+                    required: []
+                },
+                handler: function(args) {
+                    var mes = args.mes || _ceoMesAtual();
+                    var vendas = _ler('vendas') || [];
+                    var movs = _ler('fin-movs') || [];
+                    var obs = _ler('fin-obrigacoes') || [];
+
+                    var faturamento = 0, lucroBruto = 0, saidasOp = 0;
+
+                    vendas.forEach(function(v){
+                        if (!v.data || !v.data.startsWith(mes)) return;
+                        faturamento += (parseFloat(v.precoFinal) || 0) * (parseInt(v.quantidade) || 1);
+                        lucroBruto += parseFloat(v.lucroTotal) || 0;
+                    });
+                    movs.forEach(function(m){
+                        if (!m.data || !m.data.startsWith(mes)) return;
+                        if (m.tipo === 'saida' && m.categoria !== 'prolabore') {
+                            saidasOp += parseFloat(m.valor) || 0;
+                        }
+                    });
+
+                    var lucroOperacional = lucroBruto - saidasOp;
+                    var BREAK_EVEN = 16626;
+                    var pctBreakEven = BREAK_EVEN > 0 ? Math.min(100, (lucroOperacional / BREAK_EVEN) * 100) : 0;
+
+                    // Obrigações críticas (vencendo em 7 dias)
+                    var hj = _ceoHoje();
+                    var em7dias = new Date(hj.getTime() + 7*24*60*60*1000);
+                    var criticas = obs.filter(function(o){
+                        if (o.tipo !== 'pagar') return false;
+                        var falta = (parseFloat(o.valor) || 0) - (parseFloat(o.pago) || 0);
+                        if (falta <= 0) return false;
+                        var v = _ceoDataStringParaDate(o.vencimento);
+                        return v && v <= em7dias;
+                    });
+
+                    return {
+                        mes: mes,
+                        faturamento_bruto: Math.round(faturamento * 100) / 100,
+                        lucro_bruto: Math.round(lucroBruto * 100) / 100,
+                        saidas_operacionais: Math.round(saidasOp * 100) / 100,
+                        lucro_operacional_liquido: Math.round(lucroOperacional * 100) / 100,
+                        margem_bruta_pct: faturamento > 0 ? Math.round((lucroBruto/faturamento)*1000)/10 : 0,
+                        break_even_meta: BREAK_EVEN,
+                        break_even_progresso_pct: Math.round(pctBreakEven * 10) / 10,
+                        break_even_falta: Math.max(0, BREAK_EVEN - lucroOperacional),
+                        break_even_batido: lucroOperacional >= BREAK_EVEN,
+                        obrigacoes_vencendo_7_dias: {
+                            quantidade: criticas.length,
+                            valor_total: Math.round(criticas.reduce(function(s,o){ return s + ((parseFloat(o.valor)||0) - (parseFloat(o.pago)||0)); }, 0) * 100) / 100
+                        }
+                    };
+                }
+            },
+            {
+                name: 'get_metas_lojas',
+                labelFonte: 'Metas das Lojas',
+                description: 'Retorna metas de vendas por loja e progresso atual. Use quando perguntarem sobre metas, quanto falta pra bater meta, se está no ritmo, performance por loja.',
+                input_schema: { type: 'object', properties: {}, required: [] },
+                handler: function() {
+                    var lojas = _ler('lojas') || {};
+                    var metas = _ler('metas-lojas') || {};
+                    var vendas = _ler('vendas') || [];
+                    var produtos = _ler('produtos') || [];
+                    var caixas = _ler('fin-caixas') || [];
+
+                    var mapaProdLoja = {}; produtos.forEach(function(p){ mapaProdLoja[String(p.id)] = String(p.loja || ''); });
+                    var mapaCaixaLoja = {}; caixas.forEach(function(c){ mapaCaixaLoja[String(c.id)] = String(c.lojaId || ''); });
+
+                    var hj = _ceoHoje();
+                    var mes = _ceoMesAtual();
+
+                    var listaLojas = Object.values(lojas).map(function(l){
+                        var lid = String(l.id);
+                        var meta = metas[lid] || { unidades: 0, faturamento: 0, lucro: 0 };
+                        var vendasMes = vendas.filter(function(v){
+                            if (!v.data || !v.data.startsWith(mes)) return false;
+                            var lojaV = String(v.lojaId || v.loja || '');
+                            if (!lojaV && v.produtoId) lojaV = mapaProdLoja[String(v.produtoId)] || '';
+                            if (!lojaV && v.caixaId) lojaV = mapaCaixaLoja[String(v.caixaId)] || '';
+                            return lojaV === lid;
+                        });
+                        var vendidas = vendasMes.reduce(function(s,v){ return s + (parseInt(v.quantidade) || 1); }, 0);
+                        var faturamento = vendasMes.reduce(function(s,v){ return s + ((parseFloat(v.precoFinal)||0) * (parseInt(v.quantidade)||1)); }, 0);
+                        var progressoUnid = meta.unidades > 0 ? Math.round((vendidas / meta.unidades) * 1000) / 10 : null;
+                        return {
+                            loja: l.nome,
+                            meta_unidades: meta.unidades || 0,
+                            unidades_vendidas: vendidas,
+                            progresso_unidades_pct: progressoUnid,
+                            faltam_unidades: Math.max(0, (meta.unidades || 0) - vendidas),
+                            faturamento_mes: Math.round(faturamento * 100) / 100
+                        };
+                    });
+
+                    return {
+                        mes: mes,
+                        lojas: listaLojas
+                    };
+                }
+            }
+        ];
+
+        function _ceoGetTool(nome) {
+            return _CEO_TOOLS.find(function(t){ return t.name === nome; });
+        }
+
+        // Dispatcher: executa a tool e retorna resultado (ou erro)
+        function _ceoChamarTool(nome, args) {
+            var t = _ceoGetTool(nome);
+            if (!t) return { error: 'Tool "' + nome + '" não existe.' };
+            try {
+                var resultado = t.handler(args || {});
+                return resultado;
+            } catch(err) {
+                console.error('[CEO] Erro ao executar tool ' + nome, err);
+                return { error: 'Falha ao consultar ' + nome + ': ' + (err.message || 'desconhecido') };
+            }
+        }
+
+        // ─────────────────────────────────────────
+        // PROMPT DO SISTEMA (CEO)
+        // ─────────────────────────────────────────
+        function _ceoPromptSistema() {
+            var hj = _ceoHoje();
+            var dataHoje = hj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+            return 'Você é o CEO IA do Dant Prado — um executivo virtual que orquestra a inteligência empresarial do grupo Prado.\n\n' +
+                'CONTEXTO DO DANT: 25 anos, empresário no norte do Brasil (Santarém, Itaituba, Belém). Opera 4 negócios de motos elétricas + Starlinks wholesale + Norte Veículos. Break-even mensal do negócio: R$ 16.626.\n\n' +
+                'DATA DE HOJE: ' + dataHoje + '\n\n' +
+                'SUAS FERRAMENTAS: você tem acesso a ferramentas de leitura dos dados reais do Prado Analytics. Use-as sempre que precisar de números. NÃO INVENTE NÚMEROS.\n\n' +
+                'REGRAS FUNDAMENTAIS:\n' +
+                '1. Antes de responder qualquer pergunta sobre números/dados, chame as tools relevantes. Nunca chute.\n' +
+                '2. Escolha as tools mínimas necessárias. Não chame todas pra cada pergunta.\n' +
+                '3. Se um dado não estiver disponível nas tools, diga explicitamente: "Não tenho acesso a esse dado ainda." — não invente.\n' +
+                '4. Fale como executivo brasileiro: direto, objetivo, com números específicos. Português informal.\n' +
+                '5. Estruture respostas curtas (10-25 linhas): situação → ponto de atenção → recomendação.\n' +
+                '6. Use R$ com separador de milhar (R$ 1.234,56) e destaque números importantes em **negrito**.\n' +
+                '7. Se a pergunta for genérica ("como está a empresa"), use get_indicadores_mes primeiro pra ter visão geral, aí complementa se precisar.\n' +
+                '8. Nesta etapa você só tem acesso ao Prado Analytics. NÃO diga que consultou CRM, Meta Ads, Chat, WhatsApp — esses ainda não estão conectados.\n\n' +
+                'INTEGRAÇÕES PENDENTES (mencione se relevante): Prado CRM, Prado Chat, Meta Ads, WhatsApp. Não invente dados desses sistemas.';
+        }
+
+        // ─────────────────────────────────────────
+        // LOOP DE CONVERSA COM TOOL_USE
+        // ─────────────────────────────────────────
+        async function _ceoEnviar(texto) {
+            if (_ceoEnviando || !texto || !texto.trim()) return;
+            texto = texto.trim();
+
+            // Cria conversa se necessário
+            if (!_ceoConversaAtiva) {
+                _ceoConversaAtiva = {
+                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    mensagens: [],
+                    criadoEm: new Date().toISOString(),
+                    agente: 'ceo'
+                };
+                _ceoConversas.unshift(_ceoConversaAtiva);
+            }
+
+            _ceoConversaAtiva.mensagens.push({ role: 'user', tipo: 'texto', content: texto, ts: new Date().toISOString() });
+            _ceoFontesUltimo = [];
+            _ceoEnviando = true;
+            renderCentralInteligencia();
+
+            try {
+                var cfg = _asstLerConfig();
+                if (!cfg.apiKey) throw new Error('API key não configurada.');
+
+                // Monta mensagens no formato da API (só texto e tool_use/tool_result)
+                var apiMessages = _ceoMensagensParaApi(_ceoConversaAtiva.mensagens);
+
+                // Loop: até Claude parar de chamar tools OU limite
+                var MAX_ITER = 6;
+                var i = 0;
+                while (i < MAX_ITER) {
+                    i++;
+                    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': cfg.apiKey,
+                            'anthropic-version': '2023-06-01',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify({
+                            model: cfg.model || 'claude-sonnet-4-6',
+                            max_tokens: 2000,
+                            system: _ceoPromptSistema(),
+                            tools: _CEO_TOOLS.map(function(t){
+                                return { name: t.name, description: t.description, input_schema: t.input_schema };
+                            }),
+                            messages: apiMessages
+                        })
+                    });
+                    var data = await resp.json();
+                    if (data.error) throw new Error(data.error.message || 'Erro da API');
+
+                    var stopReason = data.stop_reason;
+                    var blocos = data.content || [];
+
+                    // Adiciona resposta do assistant no histórico local
+                    _ceoConversaAtiva.mensagens.push({
+                        role: 'assistant',
+                        tipo: 'blocos',
+                        blocks: blocos,
+                        ts: new Date().toISOString()
+                    });
+                    apiMessages.push({ role: 'assistant', content: blocos });
+
+                    if (stopReason !== 'tool_use') break; // acabou
+
+                    // Executa cada tool_use e prepara tool_result
+                    var toolResults = [];
+                    blocos.forEach(function(b){
+                        if (b.type !== 'tool_use') return;
+                        _ceoFontesUltimo.push({ name: b.name, args: b.input });
+                        var resultado = _ceoChamarTool(b.name, b.input);
+                        toolResults.push({
+                            type: 'tool_result',
+                            tool_use_id: b.id,
+                            content: JSON.stringify(resultado)
+                        });
+                    });
+                    _ceoConversaAtiva.mensagens.push({
+                        role: 'user',
+                        tipo: 'tool_results',
+                        results: toolResults,
+                        ts: new Date().toISOString()
+                    });
+                    apiMessages.push({ role: 'user', content: toolResults });
+                    renderCentralInteligencia(); // atualiza pra mostrar "consultando..."
+                }
+
+                _ceoConversaAtiva.fontesUltimo = _ceoFontesUltimo.slice();
+            } catch(err) {
+                _ceoConversaAtiva.mensagens.push({
+                    role: 'assistant',
+                    tipo: 'erro',
+                    content: 'Erro: ' + err.message,
+                    ts: new Date().toISOString()
+                });
+            }
+            _ceoEnviando = false;
+            renderCentralInteligencia();
+        }
+
+        // Filtra e converte mensagens locais pro formato da API
+        function _ceoMensagensParaApi(msgs) {
+            var out = [];
+            msgs.forEach(function(m){
+                if (m.role === 'user' && m.tipo === 'texto') {
+                    out.push({ role: 'user', content: m.content });
+                } else if (m.role === 'user' && m.tipo === 'tool_results') {
+                    out.push({ role: 'user', content: m.results });
+                } else if (m.role === 'assistant' && m.tipo === 'blocos') {
+                    out.push({ role: 'assistant', content: m.blocks });
+                }
+            });
+            return out;
+        }
+
+        // ─────────────────────────────────────────
+        // RENDER DA SALA DE COMANDO
+        // ─────────────────────────────────────────
+        function _ceoRenderSala() {
+            var ceo = _getAgente('ceo');
+
+            var html = '<div class="ci-anim" style="display:grid;grid-template-columns:1fr;gap:14px;">';
+
+            // Header da sala
+            html += '<div style="background:linear-gradient(135deg, rgba(139,92,246,0.10), rgba(59,130,246,0.04));border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;">' +
+                '<div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg, rgba(139,92,246,0.30), rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:' + ceo.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                    '<span style="width:22px;height:22px;display:inline-flex;">' + ceo.icone + '</span>' +
+                '</div>' +
+                '<div style="flex:1;">' +
+                    '<div style="font-size:15px;font-weight:800;color:var(--text-main);">Sala de comando · CEO IA</div>' +
+                    '<div style="font-size:12px;color:var(--text-muted);">Pergunta o que precisar. Vou consultar os dados reais e te dar uma resposta objetiva.</div>' +
+                '</div>' +
+                (_ceoConversaAtiva ? '<button onclick="_ceoNovaSessao()" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:var(--text-muted);padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;">Nova conversa</button>' : '') +
+            '</div>';
+
+            // Área de mensagens
+            html += '<div style="background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:16px;min-height:400px;max-height:60vh;overflow-y:auto;" id="ceo-msgs-wrap">';
+            if (!_ceoConversaAtiva || _ceoConversaAtiva.mensagens.length === 0) {
+                html += _ceoRenderSugestoes();
+            } else {
+                _ceoConversaAtiva.mensagens.forEach(function(m){
+                    html += _ceoRenderMensagem(m);
+                });
+                if (_ceoEnviando) html += _ceoRenderPensando();
+            }
+            html += '</div>';
+
+            // Input
+            html += '<div style="display:flex;gap:8px;">' +
+                '<textarea id="ceo-input" placeholder="Ex: quanto tenho em caixa? como está a empresa hoje?" style="flex:1;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:12px 14px;border-radius:10px;font-family:inherit;font-size:13px;resize:none;min-height:48px;max-height:140px;line-height:1.5;" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_ceoEnviarInput();}"></textarea>' +
+                '<button onclick="_ceoEnviarInput()" ' + (_ceoEnviando ? 'disabled' : '') + ' style="background:linear-gradient(135deg,#8b5cf6,#3b82f6);border:none;color:#fff;padding:0 20px;border-radius:10px;cursor:' + (_ceoEnviando ? 'not-allowed' : 'pointer') + ';font-family:inherit;font-size:13px;font-weight:700;opacity:' + (_ceoEnviando ? 0.5 : 1) + ';box-shadow:0 8px 24px rgba(139,92,246,0.25);">Enviar</button>' +
+            '</div>';
+
+            html += '</div>';
+
+            // Auto-scroll + foco depois de renderizar
+            setTimeout(function(){
+                var wrap = document.getElementById('ceo-msgs-wrap');
+                if (wrap) wrap.scrollTop = wrap.scrollHeight;
+                var inp = document.getElementById('ceo-input');
+                if (inp && !_ceoEnviando) inp.focus();
+            }, 60);
+
+            return html;
+        }
+
+        function _ceoRenderSugestoes() {
+            var sugestoes = [
+                'Como está minha empresa hoje?',
+                'Quanto tenho em caixa?',
+                'Quanto vendi este mês?',
+                'Quais foram minhas maiores despesas?',
+                'Estou batendo o break-even?',
+                'Quanto de estoque parado eu tenho?'
+            ];
+            var html = '<div style="text-align:center;padding:20px;">' +
+                '<div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Comece com uma pergunta:</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
+            sugestoes.forEach(function(s){
+                html += '<button onclick="_ceoUsarSugestao(\'' + s.replace(/'/g, "\\'") + '\')" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.20);color:var(--text-main);padding:8px 14px;border-radius:99px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;transition:all 0.15s;" onmouseover="this.style.background=\'rgba(139,92,246,0.15)\'" onmouseout="this.style.background=\'rgba(139,92,246,0.06)\'">' + _esc(s) + '</button>';
+            });
+            html += '</div></div>';
+            return html;
+        }
+
+        function _ceoRenderMensagem(m) {
+            if (m.role === 'user' && m.tipo === 'texto') {
+                return '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">' +
+                    '<div style="max-width:75%;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:13px;color:var(--text-main);line-height:1.5;">' + _esc(m.content) + '</div>' +
+                '</div>';
+            }
+            if (m.role === 'user' && m.tipo === 'tool_results') {
+                // Mostra badges pequenas das fontes consultadas
+                var ultimaAssistantIdx = -1;
+                var msgs = _ceoConversaAtiva ? _ceoConversaAtiva.mensagens : [];
+                for (var k = msgs.length - 1; k >= 0; k--) {
+                    if (msgs[k] === m) { ultimaAssistantIdx = k - 1; break; }
+                }
+                var toolCalls = [];
+                if (ultimaAssistantIdx >= 0 && msgs[ultimaAssistantIdx].role === 'assistant' && msgs[ultimaAssistantIdx].blocks) {
+                    msgs[ultimaAssistantIdx].blocks.forEach(function(b){
+                        if (b.type === 'tool_use') toolCalls.push(b.name);
+                    });
+                }
+                if (toolCalls.length === 0) return '';
+                var html = '<div style="margin:6px 0 12px;padding-left:2px;">' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;">';
+                toolCalls.forEach(function(nm){
+                    var t = _ceoGetTool(nm);
+                    var label = t ? t.labelFonte : nm;
+                    html += '<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.20);padding:3px 9px;border-radius:99px;font-size:10px;color:#34d399;font-weight:600;">' +
+                        '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+                        _esc(label) +
+                    '</div>';
+                });
+                html += '</div></div>';
+                return html;
+            }
+            if (m.role === 'assistant' && m.tipo === 'blocos') {
+                var ceo = _getAgente('ceo');
+                // extrai texto dos blocos (ignora tool_use nesta renderização — as fontes aparecem separadas)
+                var texto = '';
+                (m.blocks || []).forEach(function(b){
+                    if (b.type === 'text') texto += b.text;
+                });
+                if (!texto.trim()) return ''; // se só teve tool_use, não renderiza card vazio
+                var conteudo = _esc(texto)
+                    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#fff;">$1</strong>')
+                    .replace(/\n/g, '<br>');
+                return '<div style="display:flex;gap:10px;margin-bottom:12px;">' +
+                    '<div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg, rgba(139,92,246,0.30), rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:' + ceo.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                        '<span style="width:16px;height:16px;display:inline-flex;">' + ceo.icone + '</span>' +
+                    '</div>' +
+                    '<div style="flex:1;max-width:calc(100% - 42px);">' +
+                        '<div style="font-size:10px;color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">CEO IA</div>' +
+                        '<div style="background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.15);border-radius:12px 12px 12px 4px;padding:12px 14px;font-size:13px;color:var(--text-main);line-height:1.6;">' + conteudo + '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+            if (m.role === 'assistant' && m.tipo === 'erro') {
+                return '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.30);border-radius:10px;padding:10px 14px;font-size:12px;color:#fca5a5;margin-bottom:10px;">' + _esc(m.content) + '</div>';
+            }
+            return '';
+        }
+
+        function _ceoRenderPensando() {
+            var ceo = _getAgente('ceo');
+            var texto = 'Consultando dados';
+            // Se tem fontes já rastreadas, mostrar quais
+            if (_ceoFontesUltimo.length > 0) {
+                var nomes = _ceoFontesUltimo.map(function(f){
+                    var t = _ceoGetTool(f.name);
+                    return t ? t.labelFonte : f.name;
+                });
+                texto = 'Consultou: ' + nomes.join(', ') + '. Analisando…';
+            }
+            return '<div style="display:flex;gap:10px;margin-bottom:12px;">' +
+                '<div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg, rgba(139,92,246,0.30), rgba(139,92,246,0.10));border:1px solid rgba(139,92,246,0.30);color:' + ceo.cor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+                    '<span style="width:16px;height:16px;display:inline-flex;">' + ceo.icone + '</span>' +
+                '</div>' +
+                '<div style="background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.15);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text-muted);font-style:italic;display:flex;align-items:center;gap:8px;">' +
+                    '<div style="display:inline-flex;gap:3px;"><span class="ceo-dot"></span><span class="ceo-dot" style="animation-delay:0.15s"></span><span class="ceo-dot" style="animation-delay:0.3s"></span></div>' + _esc(texto) +
+                '</div>' +
+                '<style>.ceo-dot{width:5px;height:5px;background:#a78bfa;border-radius:50%;display:inline-block;animation:ceoDot 1s infinite ease-in-out;}@keyframes ceoDot{0%,80%,100%{opacity:0.3;transform:scale(0.8)}40%{opacity:1;transform:scale(1.1)}}</style>' +
+            '</div>';
+        }
+
+        // ─────────────────────────────────────────
+        // AÇÕES DA UI
+        // ─────────────────────────────────────────
+        function _ceoEnviarInput() {
+            var inp = document.getElementById('ceo-input');
+            if (!inp) return;
+            var t = inp.value;
+            inp.value = '';
+            _ceoEnviar(t);
+        }
+
+        function _ceoUsarSugestao(texto) {
+            _ceoEnviar(texto);
+        }
+
+        function _ceoNovaSessao() {
+            _ceoConversaAtiva = null;
+            _ceoFontesUltimo = [];
+            renderCentralInteligencia();
+        }
+
+        // Botão "Conversar com CEO" da Visão Geral já vai pra Sala automaticamente.
+        // Botão "Ver análise" agora dispara pergunta padrão.
         function _ciAbrirAnaliseCEO() {
-            // Placeholder Sessão B — trigger análise de diagnóstico geral via CEO
             _ciTabAtiva = 'sala';
             renderCentralInteligencia();
+            setTimeout(function(){ _ceoEnviar('Como está minha empresa hoje?'); }, 200);
         }
 
 
