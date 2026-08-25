@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.9';
+        window.APP_VERSION = '2026.08.13.10';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -32896,6 +32896,391 @@
             setTimeout(function(){ _ceoEnviar('Como está minha empresa hoje?'); }, 200);
         }
 
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // FASE 1 — CAMADA CANÔNICA FINANCEIRA
+        // ═══════════════════════════════════════════════════════════════
+        // Adiciona uma camada de INTERPRETAÇÃO sobre os lançamentos existentes.
+        // NÃO altera dados. NÃO altera cálculos existentes. NÃO altera UI.
+        //
+        // Regras:
+        //  - _natMov(mov)         → ÚNICO ponto que classifica natureza
+        //  - _finRelatorio(per)   → ÚNICA fonte de verdade para relatórios financeiros
+        //  - CEO consome ambos via get_financial_report
+        //
+        // Naturezas: operacional | estoque | transferencia | socios | ajuste
+        // Subcategorias (só quando socios): pro_labore | retirada | distribuicao | aporte | acerto
+
+        // ─────────────────────────────────────────
+        // MAPAS DE CATEGORIA → NATUREZA (baseado no que EXISTE hoje)
+        // ─────────────────────────────────────────
+        // Categorias já usadas no código atual — mapeadas com confiança ALTA.
+        // Qualquer categoria fora dessa lista + sem tipoSaida = confiança BAIXA (ajuste).
+        var _NAT_CATEGORIA = {
+            // → OPERACIONAL (custos/despesas de operação)
+            'trafego':        { natureza: 'operacional', sub: null, confianca: 'alta' },
+            'comissao':       { natureza: 'operacional', sub: null, confianca: 'alta' },
+            'contas_pagar':   { natureza: 'operacional', sub: null, confianca: 'media' }, // pode ser mercadoria também
+            'melhorias_op':   { natureza: 'operacional', sub: null, confianca: 'alta' },
+
+            // → ESTOQUE
+            'reposicao_estoque': { natureza: 'estoque', sub: null, confianca: 'alta' },
+            'reserva_estoque':   { natureza: 'estoque', sub: null, confianca: 'alta' },
+
+            // → SÓCIOS
+            'prolabore':          { natureza: 'socios', sub: 'pro_labore', confianca: 'alta' },
+            'prolabore_recebido': { natureza: 'socios', sub: 'pro_labore', confianca: 'alta' },
+            'aporte_pessoal':     { natureza: 'socios', sub: 'aporte',     confianca: 'alta' },
+            'saque_reserva':      { natureza: 'socios', sub: 'retirada',   confianca: 'media' },
+
+            // → OPERACIONAL (receita) — venda de mercadoria é o core do negócio
+            'venda':              { natureza: 'operacional', sub: null, confianca: 'alta' },
+
+            // → AJUSTE (categorias já explicitamente "avulsas")
+            'ajuste_manual':      { natureza: 'ajuste',      sub: null, confianca: 'alta' },
+
+            // → EMPRÉSTIMOS: fora do resultado operacional; tratados como MOVIMENTO DE CAIXA (ajuste)
+            //   até termos categoria própria "financiamento". Confiança média — usuário pode reclassificar.
+            'emprestimo':                { natureza: 'ajuste', sub: null, confianca: 'media' },
+            'emprestimo_entrada':        { natureza: 'ajuste', sub: null, confianca: 'media' },
+            'emprestimo_saida':          { natureza: 'ajuste', sub: null, confianca: 'media' },
+            'quitacao_emprestimo':       { natureza: 'ajuste', sub: null, confianca: 'media' },
+            'fundo_emergencia':          { natureza: 'ajuste', sub: null, confianca: 'media' },
+            'pagamento_fundo':           { natureza: 'ajuste', sub: null, confianca: 'media' },
+            'pagamento_fundo_recebido':  { natureza: 'ajuste', sub: null, confianca: 'media' }
+        };
+
+        // Prefixos: pessoal_* → sócios/retirada (é gasto no caixa pessoal)
+        function _natCategoriaPorPrefixo(cat) {
+            if (!cat) return null;
+            if (typeof cat === 'string' && cat.indexOf('pessoal_') === 0) {
+                return { natureza: 'socios', sub: 'retirada', confianca: 'alta' };
+            }
+            return null;
+        }
+
+        // ─────────────────────────────────────────
+        // _natMov — ÚNICO CLASSIFICADOR (não espalhar regras)
+        // ─────────────────────────────────────────
+        function _natMov(mov) {
+            if (!mov || typeof mov !== 'object') {
+                return { natureza: 'ajuste', subcategoria: null, confianca: 'baixa', origem: 'fallback' };
+            }
+
+            // 1) CLASSIFICAÇÃO MANUAL EXPLÍCITA (futura Fase 3 — já respeitamos se existir)
+            if (mov.natureza && typeof mov.natureza === 'string') {
+                return {
+                    natureza: mov.natureza,
+                    subcategoria: mov.subcategoria || null,
+                    confianca: 'alta',
+                    origem: 'classificacao_manual'
+                };
+            }
+
+            // 2) TRANSFERÊNCIA — tipo === 'transferencia' é regra dura, alta confiança
+            if (mov.tipo === 'transferencia') {
+                return { natureza: 'transferencia', subcategoria: null, confianca: 'alta', origem: 'regra_existente' };
+            }
+
+            // 3) tipoSaida = 'investimento' → estoque (já existe no schema atual!)
+            if (mov.tipo === 'saida' && mov.tipoSaida === 'investimento') {
+                return { natureza: 'estoque', subcategoria: null, confianca: 'alta', origem: 'regra_existente' };
+            }
+
+            // 4) Prefixo pessoal_*
+            var porPrefixo = _natCategoriaPorPrefixo(mov.categoria);
+            if (porPrefixo) {
+                return { natureza: porPrefixo.natureza, subcategoria: porPrefixo.sub, confianca: porPrefixo.confianca, origem: 'regra_existente' };
+            }
+
+            // 5) Mapa de categoria
+            var regra = _NAT_CATEGORIA[mov.categoria];
+            if (regra) {
+                return { natureza: regra.natureza, subcategoria: regra.sub, confianca: regra.confianca, origem: 'regra_existente' };
+            }
+
+            // 6) FALLBACK — não determinável com segurança → ajuste + confiança baixa
+            //    NUNCA assumimos "operacional" ou "estoque" por padrão pra evitar interpretação errada.
+            return { natureza: 'ajuste', subcategoria: null, confianca: 'baixa', origem: 'fallback' };
+        }
+
+        // ─────────────────────────────────────────
+        // _finInterpretarPeriodo — parser reaproveitável (evita duplicar com _ceoInterpretarPeriodo)
+        // ─────────────────────────────────────────
+        function _finInterpretarPeriodo(texto) {
+            // Reutiliza a função do CEO se disponível
+            if (typeof _ceoInterpretarPeriodo === 'function') return _ceoInterpretarPeriodo(texto);
+            var hj = new Date();
+            var ini = new Date(hj.getFullYear(), hj.getMonth(), 1);
+            return { inicio: ini, fim: hj, label: 'este mês' };
+        }
+
+        function _finMovNoPeriodo(mov, periodo) {
+            if (typeof _ceoNoPeriodo === 'function') return _ceoNoPeriodo(mov.data, periodo);
+            return true;
+        }
+
+        // ─────────────────────────────────────────
+        // _finRelatorio — ÚNICA FONTE DE VERDADE
+        // ─────────────────────────────────────────
+        function _finRelatorio(periodoTexto) {
+            var movs = _ler('fin-movs') || [];
+            var periodo = _finInterpretarPeriodo(periodoTexto || 'este mês');
+
+            var relatorio = {
+                periodo: {
+                    label: periodo.label,
+                    inicio: periodo.inicio.toISOString().slice(0, 10),
+                    fim: periodo.fim.toISOString().slice(0, 10)
+                },
+                fluxo: {
+                    entradas: 0,
+                    saidasOperacionais: 0,
+                    saidasEstoque: 0,
+                    transferencias: 0,
+                    movimentacoesSocios: 0,
+                    ajustes: 0,
+                    fluxoLiquido: 0
+                },
+                resultadoOperacional: {
+                    receitas: 0,
+                    custosOperacionais: 0,
+                    resultado: 0,
+                    margemPct: 0
+                },
+                estoque: {
+                    compras: 0,
+                    investimentos: 0
+                },
+                socios: {
+                    proLabore: 0,
+                    retiradas: 0,
+                    distribuicoes: 0,
+                    aportes: 0,
+                    acertos: 0,
+                    total: 0
+                },
+                transferencias: {
+                    total: 0
+                },
+                ajustes: {
+                    entradas: 0,
+                    saidas: 0,
+                    total: 0
+                },
+                qualidadeDados: {
+                    movimentosTotal: 0,
+                    classificados: 0,
+                    baixaConfianca: 0,
+                    semClassificacao: 0,
+                    detalhesBaixaConfianca: [] // até 20 itens pra o CEO poder pedir reclassificação
+                }
+            };
+
+            var movsPeriodo = movs.filter(function(m){ return _finMovNoPeriodo(m, periodo); });
+
+            movsPeriodo.forEach(function(m){
+                var v = parseFloat(m.valor) || 0;
+                if (v === 0) return;
+                var nat = _natMov(m);
+                relatorio.qualidadeDados.movimentosTotal++;
+
+                if (nat.confianca === 'baixa') {
+                    relatorio.qualidadeDados.baixaConfianca++;
+                    if (relatorio.qualidadeDados.detalhesBaixaConfianca.length < 20) {
+                        relatorio.qualidadeDados.detalhesBaixaConfianca.push({
+                            id: m.id,
+                            data: m.data,
+                            tipo: m.tipo,
+                            categoria: m.categoria || '(sem categoria)',
+                            valor: v,
+                            descricao: (m.descricao || '').slice(0, 80)
+                        });
+                    }
+                } else {
+                    relatorio.qualidadeDados.classificados++;
+                }
+
+                // ─── CLASSIFICAÇÃO POR NATUREZA ───
+                if (nat.natureza === 'transferencia') {
+                    relatorio.transferencias.total += v;
+                    relatorio.fluxo.transferencias += v;
+                    // Transferência NÃO impacta receita/despesa
+                    return;
+                }
+
+                if (nat.natureza === 'estoque') {
+                    // Estoque é sempre saída (compra de mercadoria)
+                    relatorio.estoque.compras += v;
+                    relatorio.estoque.investimentos += v;
+                    relatorio.fluxo.saidasEstoque += v;
+                    // NÃO entra em resultado operacional (não vira despesa)
+                    return;
+                }
+
+                if (nat.natureza === 'socios') {
+                    relatorio.socios.total += v;
+                    relatorio.fluxo.movimentacoesSocios += v;
+                    var sub = nat.subcategoria;
+                    if (sub === 'pro_labore')    relatorio.socios.proLabore     += v;
+                    else if (sub === 'retirada') relatorio.socios.retiradas     += v;
+                    else if (sub === 'distribuicao') relatorio.socios.distribuicoes += v;
+                    else if (sub === 'aporte')   relatorio.socios.aportes       += v;
+                    else if (sub === 'acerto')   relatorio.socios.acertos       += v;
+                    // NÃO entra em resultado operacional
+                    return;
+                }
+
+                if (nat.natureza === 'ajuste') {
+                    if (m.tipo === 'entrada') { relatorio.ajustes.entradas += v; relatorio.ajustes.total += v; }
+                    else if (m.tipo === 'saida') { relatorio.ajustes.saidas += v; relatorio.ajustes.total -= v; }
+                    relatorio.fluxo.ajustes += (m.tipo === 'entrada' ? v : -v);
+                    // NÃO entra em resultado operacional (posição conservadora)
+                    return;
+                }
+
+                // OPERACIONAL — a única natureza que forma resultado
+                if (nat.natureza === 'operacional') {
+                    if (m.tipo === 'entrada') {
+                        relatorio.resultadoOperacional.receitas += v;
+                        relatorio.fluxo.entradas += v;
+                    } else if (m.tipo === 'saida') {
+                        relatorio.resultadoOperacional.custosOperacionais += v;
+                        relatorio.fluxo.saidasOperacionais += v;
+                    }
+                    return;
+                }
+            });
+
+            // ─── FECHAMENTOS ───
+            var r = relatorio.resultadoOperacional;
+            r.resultado = r.receitas - r.custosOperacionais;
+            r.margemPct = r.receitas > 0 ? Math.round((r.resultado / r.receitas) * 1000) / 10 : 0;
+
+            // Fluxo líquido = tudo que entrou - tudo que saiu (independente de natureza)
+            // Reflete o impacto real no caixa do período
+            var totalEntradasCaixa = 0, totalSaidasCaixa = 0;
+            movsPeriodo.forEach(function(m){
+                var v = parseFloat(m.valor) || 0;
+                if (m.tipo === 'entrada') totalEntradasCaixa += v;
+                else if (m.tipo === 'saida') totalSaidasCaixa += v;
+                // transferência: nula no consolidado (entra num caixa e sai de outro)
+            });
+            relatorio.fluxo.fluxoLiquido = totalEntradasCaixa - totalSaidasCaixa;
+            relatorio.fluxo.totalEntradasCaixaBruto = totalEntradasCaixa;
+            relatorio.fluxo.totalSaidasCaixaBruto = totalSaidasCaixa;
+
+            relatorio.qualidadeDados.semClassificacao = relatorio.qualidadeDados.baixaConfianca;
+
+            // Arredondar todos os números pra 2 casas
+            _finArredondarObj(relatorio);
+
+            return relatorio;
+        }
+
+        function _finArredondarObj(obj) {
+            if (!obj || typeof obj !== 'object') return;
+            Object.keys(obj).forEach(function(k){
+                var v = obj[k];
+                if (typeof v === 'number' && !Number.isInteger(v)) {
+                    obj[k] = Math.round(v * 100) / 100;
+                } else if (v && typeof v === 'object' && !Array.isArray(v)) {
+                    _finArredondarObj(v);
+                }
+            });
+        }
+
+        // ─────────────────────────────────────────
+        // TESTES BÁSICOS (rodar no console: _finTestes())
+        // ─────────────────────────────────────────
+        window._finTestes = function() {
+            console.group('[Fase 1] Testes de classificação');
+            var casos = [
+                { descricao: 'Venda de R$ 5.000', mov: { tipo: 'entrada', valor: 5000, categoria: 'venda' }, esperado: 'operacional' },
+                { descricao: 'Compra de estoque R$ 10.000 (tipoSaida investimento)', mov: { tipo: 'saida', valor: 10000, categoria: 'contas_pagar', tipoSaida: 'investimento' }, esperado: 'estoque' },
+                { descricao: 'Reposição de estoque R$ 8.000', mov: { tipo: 'saida', valor: 8000, categoria: 'reposicao_estoque' }, esperado: 'estoque' },
+                { descricao: 'Transferência R$ 2.000 entre caixas', mov: { tipo: 'transferencia', valor: 2000, categoria: 'transferencia' }, esperado: 'transferencia' },
+                { descricao: 'Pró-labore R$ 3.000', mov: { tipo: 'saida', valor: 3000, categoria: 'prolabore' }, esperado: 'socios', esperadoSub: 'pro_labore' },
+                { descricao: 'Retirada pessoal R$ 2.000', mov: { tipo: 'saida', valor: 2000, categoria: 'pessoal_lazer' }, esperado: 'socios', esperadoSub: 'retirada' },
+                { descricao: 'Aporte de sócio R$ 5.000', mov: { tipo: 'entrada', valor: 5000, categoria: 'aporte_pessoal' }, esperado: 'socios', esperadoSub: 'aporte' },
+                { descricao: 'Despesa de tráfego R$ 500', mov: { tipo: 'saida', valor: 500, categoria: 'trafego' }, esperado: 'operacional' },
+                { descricao: 'Lançamento antigo ambíguo (sem categoria)', mov: { tipo: 'saida', valor: 1000, categoria: 'desconhecida_xyz' }, esperado: 'ajuste', esperadaConf: 'baixa' },
+                { descricao: 'Classificação manual explícita', mov: { tipo: 'saida', valor: 3000, categoria: 'algo', natureza: 'socios', subcategoria: 'distribuicao' }, esperado: 'socios', esperadoSub: 'distribuicao' }
+            ];
+            var pass = 0, fail = 0;
+            casos.forEach(function(c, i){
+                var r = _natMov(c.mov);
+                var ok = r.natureza === c.esperado;
+                if (c.esperadoSub && r.subcategoria !== c.esperadoSub) ok = false;
+                if (c.esperadaConf && r.confianca !== c.esperadaConf) ok = false;
+                if (ok) { pass++; console.log('✅ ' + (i+1) + '. ' + c.descricao + ' → ' + r.natureza + (r.subcategoria ? '/'+r.subcategoria : '') + ' (conf: ' + r.confianca + ')'); }
+                else { fail++; console.error('❌ ' + (i+1) + '. ' + c.descricao + ' | esperado: ' + c.esperado + (c.esperadoSub?'/'+c.esperadoSub:'') + ' | recebeu: ' + r.natureza + (r.subcategoria?'/'+r.subcategoria:'') + ' (conf: ' + r.confianca + ')'); }
+            });
+            console.log('---');
+            console.log('Resultado: ' + pass + ' passou, ' + fail + ' falhou');
+            console.groupEnd();
+
+            console.group('[Fase 1] _finRelatorio(este mês) — dados reais');
+            var rel = _finRelatorio('este mês');
+            console.log(rel);
+            console.groupEnd();
+            return { pass: pass, fail: fail, relatorio: rel };
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // TOOL DO CEO — get_financial_report
+        // ═══════════════════════════════════════════════════════════════
+        // Adicionar ao _CEO_TOOLS (se ainda não existe)
+        (function _registrarToolFinancialReport(){
+            if (typeof _CEO_TOOLS === 'undefined') return;
+            // Evita duplicar em recargas
+            if (_CEO_TOOLS.some(function(t){ return t.name === 'get_financial_report'; })) return;
+
+            _CEO_TOOLS.push({
+                name: 'get_financial_report',
+                labelFonte: 'Relatório Financeiro Canônico',
+                description: 'FONTE PREFERENCIAL para análise financeira. Retorna relatório canônico separando por natureza: resultado operacional (receitas x despesas reais), estoque (investimentos em mercadoria), movimentações de sócios (pró-labore, retiradas, distribuições, aportes, acertos), transferências entre caixas próprios, ajustes/ambíguos. Use SEMPRE que a pergunta envolver lucro operacional, resultado, "quanto gastei de verdade", separar despesas de investimento, entender movimentações de sócios. NÃO usar get_fluxo_caixa se der pra usar este — o get_financial_report é mais preciso porque separa naturezas.',
+                input_schema: {
+                    type: 'object',
+                    properties: {
+                        periodo: { type: 'string', description: 'Ex: "hoje", "este mês", "mês passado", "últimos 30 dias", "YYYY-MM"' }
+                    },
+                    required: ['periodo']
+                },
+                handler: function(args) {
+                    return _finRelatorio(args.periodo || 'este mês');
+                }
+            });
+        })();
+
+        // ─────────────────────────────────────────
+        // ATUALIZAR PROMPT DO CEO — enfatizar uso do relatório canônico
+        // ─────────────────────────────────────────
+        // Sobrescreve _ceoPromptSistema pra reforçar a regra da Fase 1
+        (function _atualizarPromptCEO(){
+            if (typeof _ceoPromptSistema !== 'function') return;
+            var _fnOriginal = _ceoPromptSistema;
+            window._ceoPromptSistema = function() {
+                var base = _fnOriginal();
+                var addendum = '\n\n' +
+                    '─── REGRAS FINANCEIRAS (Fase 1 da refatoração) ───\n' +
+                    'Para QUALQUER pergunta financeira, use PREFERENCIALMENTE `get_financial_report` — ele separa corretamente:\n' +
+                    '  • RECEITAS e DESPESAS OPERACIONAIS (o que forma resultado real)\n' +
+                    '  • ESTOQUE (compras de mercadoria — NÃO é despesa operacional, é investimento)\n' +
+                    '  • SÓCIOS (pró-labore, retiradas, distribuições, aportes, acertos — NÃO é despesa operacional)\n' +
+                    '  • TRANSFERÊNCIAS (entre caixas próprios — NÃO é receita nem despesa)\n' +
+                    '  • AJUSTES (lançamentos ambíguos que precisam de reclassificação manual)\n\n' +
+                    'REGRAS CRÍTICAS:\n' +
+                    '1. NUNCA some tudo como se fosse despesa. Uma compra de R$ 127.820 em mercadoria NÃO é prejuízo — é investimento em estoque.\n' +
+                    '2. NUNCA chame distribuição de lucro ou retirada de sócio de "despesa operacional".\n' +
+                    '3. Se `qualidadeDados.baixaConfianca` for > 0, MENCIONE ao usuário que existem lançamentos ambíguos e sugira reclassificar (não invente natureza pra eles).\n' +
+                    '4. Para "quanto foi meu lucro?", use `resultadoOperacional.resultado` (não `fluxo.fluxoLiquido`).\n' +
+                    '5. Para "quanto saiu do caixa?", pode usar `fluxo.totalSaidasCaixaBruto`, mas EXPLIQUE que parte é investimento/sócios e não é prejuízo.\n' +
+                    '6. Ao apresentar resposta, quando fizer sentido, estruture em blocos: FATURAMENTO / RESULTADO OPERACIONAL / ESTOQUE / SÓCIOS / TRANSFERÊNCIAS / FLUXO LÍQUIDO.\n';
+                return base + addendum;
+            };
+        })();
 
 </script>
 
