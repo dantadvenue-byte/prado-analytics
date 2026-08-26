@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.10';
+        window.APP_VERSION = '2026.08.13.11';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -2889,7 +2889,7 @@
                         <div class="form-group"><label>Valor (R$) *</label>
                             <input type="number" id="finMovValor" placeholder="0" step="0.01">
                         </div>
-                        <div class="form-group"><label>Categoria</label>
+                        <div class="form-group" id="finMovCategoria_wrap" style="display:none;"><label>Categoria (legado)</label>
                             <select id="finMovCategoria" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
                                 <option value="venda">💰 Venda</option>
                                 <option value="trafego">📢 Tráfego pago</option>
@@ -2902,7 +2902,23 @@
                                 <option value="outros">📝 Outros</option>
                             </select>
                         </div>
-                        <div class="form-group" id="finMovTipoSaidaDiv"><label>Tipo de saída</label>
+                        <div class="form-group" id="finMovNaturezaDiv"><label>Natureza *</label>
+                            <select id="finMovNatureza" onchange="atualizarCamposMovimentacao()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
+                                <option value="">— selecione —</option>
+                                <option value="operacional">Operacional</option>
+                                <option value="estoque">Estoque</option>
+                                <option value="socios">Sócios</option>
+                                <option value="transferencia">Transferência</option>
+                                <option value="ajuste">Ajuste</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="finMovSubcatDiv" style="display:none;"><label>Subcategoria *</label>
+                            <select id="finMovSubcat" onchange="atualizarCamposMovimentacao()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
+                        </div>
+                        <div class="form-group" id="finMovSubcatCustomDiv" style="display:none;"><label>Nome da subcategoria personalizada *</label>
+                            <input type="text" id="finMovSubcatCustom" placeholder="Ex: Manutenção da loja">
+                        </div>
+                        <div class="form-group" id="finMovTipoSaidaDiv" style="display:none;"><label>Tipo de saída (legado)</label>
                             <select id="finMovTipoSaida" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
                                 <option value="custo">💸 Custo (sai do patrimônio)</option>
                                 <option value="investimento">📦 Investimento em mercadoria</option>
@@ -14492,13 +14508,99 @@
             }
         }
 
+        // Mapa fixo de subcategorias por natureza (Fase 1 UI)
+        // NÃO cria novas naturezas. Mantido em memória; personalizadas vêm de _ler('fin-subcats-custom')
+        var _NAT_SUBCATS = {
+            operacional:   ['Tráfego pago','Aluguel','Energia','Combustível','Contador','Montagem','Frete','Taxas','Manutenção','Outros'],
+            estoque:       ['Compra de mercadoria','Reposição de estoque','Outros'],
+            socios:        ['Pró-labore','Retirada','Distribuição de lucros','Aporte','Acerto entre sócios'],
+            transferencia: ['Entre caixas','Para conta bancária','Outros'],
+            ajuste:        ['Correção de saldo','Estorno','Outros']
+        };
+
+        // Slug estável (usado como valor persistido em mov.subcategoria)
+        function _finSlug(s) {
+            return String(s || '').toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '');
+        }
+
+        // Carrega subcategorias personalizadas do storage — { operacional:['Manutenção loja',...], ... }
+        function _finLerSubcatsCustom() {
+            var d = _ler('fin-subcats-custom');
+            if (!d || typeof d !== 'object' || Array.isArray(d)) return {};
+            return d;
+        }
+
+        async function _finSalvarSubcatCustom(natureza, nome) {
+            if (!natureza || !nome) return;
+            var custom = _finLerSubcatsCustom();
+            if (!custom[natureza]) custom[natureza] = [];
+            if (custom[natureza].indexOf(nome) === -1) {
+                custom[natureza].push(nome);
+                try { await _salvar('fin-subcats-custom', custom); } catch(e) { console.warn('[Fase1 UI] Falha ao salvar subcat custom:', e); }
+            }
+        }
+
+        // Preenche o select de subcategoria baseado na natureza selecionada
+        function _finRenderSubcats(natureza, selecionado) {
+            var sel = document.getElementById('finMovSubcat');
+            if (!sel) return;
+            sel.innerHTML = '';
+            if (!natureza || !_NAT_SUBCATS[natureza]) return;
+            var custom = _finLerSubcatsCustom()[natureza] || [];
+            var todas = _NAT_SUBCATS[natureza].concat(custom);
+            // opção vazia
+            var opt0 = document.createElement('option');
+            opt0.value = ''; opt0.textContent = '— selecione —';
+            sel.appendChild(opt0);
+            todas.forEach(function(nome){
+                var o = document.createElement('option');
+                o.value = nome;
+                o.textContent = nome;
+                if (selecionado && (selecionado === nome || _finSlug(selecionado) === _finSlug(nome))) o.selected = true;
+                sel.appendChild(o);
+            });
+            // sempre a opção "Personalizada" no fim
+            var op = document.createElement('option');
+            op.value = '__custom__';
+            op.textContent = '+ Personalizada';
+            sel.appendChild(op);
+        }
+
         function atualizarCamposMovimentacao() {
             const tipo = document.getElementById('finMovTipo')?.value;
             const divDest = document.getElementById('finMovCaixaDestinoDiv');
             if (divDest) divDest.style.display = tipo === 'transferencia' ? '' : 'none';
-            // Mostra "Tipo de saída" só se for saída
-            const divTipoSaida = document.getElementById('finMovTipoSaidaDiv');
-            if (divTipoSaida) divTipoSaida.style.display = (tipo === 'saida') ? '' : 'none';
+
+            // Natureza + Subcategoria — nova classificação
+            var elNat = document.getElementById('finMovNatureza');
+            var divSub = document.getElementById('finMovSubcatDiv');
+            var divSubCustom = document.getElementById('finMovSubcatCustomDiv');
+            var natureza = elNat ? elNat.value : '';
+
+            // Auto-sugerir natureza quando o Tipo indicar diretamente
+            if (elNat && !natureza) {
+                if (tipo === 'transferencia')   { elNat.value = 'transferencia'; natureza = 'transferencia'; }
+                else if (tipo === 'prolabore')  { elNat.value = 'socios';        natureza = 'socios'; }
+            }
+
+            if (natureza) {
+                _finRenderSubcats(natureza, null);
+                if (divSub) divSub.style.display = '';
+                // Pré-selecionar subcategoria padrão pra fluxos conhecidos
+                var sel = document.getElementById('finMovSubcat');
+                if (sel && tipo === 'transferencia' && natureza === 'transferencia') sel.value = 'Entre caixas';
+                if (sel && tipo === 'prolabore' && natureza === 'socios') sel.value = 'Pró-labore';
+            } else {
+                if (divSub) divSub.style.display = 'none';
+            }
+
+            // Subcategoria custom: só mostra se "Personalizada" selecionada
+            var subSel = document.getElementById('finMovSubcat');
+            var isCustom = subSel && subSel.value === '__custom__';
+            if (divSubCustom) divSubCustom.style.display = isCustom ? '' : 'none';
         }
 
         // ── CONTAS BANCÁRIAS ──
@@ -15357,9 +15459,24 @@
             const valor = parseFloat(document.getElementById('finMovValor')?.value) || 0;
             if (!caixaId || valor <= 0) { mostrarMensagem('msg-fin-mov','Selecione caixa e informe valor','error'); return; }
 
-            // Categorização de saída
-            const tipoSaida = (tipo === 'saida')
-                ? (document.getElementById('finMovTipoSaida')?.value || 'custo')
+            // ─── Nova classificação (Fase 1 UI) ───
+            const natureza = document.getElementById('finMovNatureza')?.value || '';
+            let subcatValor = document.getElementById('finMovSubcat')?.value || '';
+            let subcatCustom = document.getElementById('finMovSubcatCustom')?.value?.trim() || '';
+            if (!natureza) { mostrarMensagem('msg-fin-mov','Selecione a natureza','error'); return; }
+            if (!subcatValor) { mostrarMensagem('msg-fin-mov','Selecione a subcategoria','error'); return; }
+            if (subcatValor === '__custom__') {
+                if (!subcatCustom) { mostrarMensagem('msg-fin-mov','Informe o nome da subcategoria personalizada','error'); return; }
+                subcatValor = subcatCustom;
+                // Persistir pra reutilização futura
+                await _finSalvarSubcatCustom(natureza, subcatCustom);
+            }
+
+            // ─── Compatibilidade com sistema antigo (mantém categoria/tipoSaida coerentes) ───
+            // Categoria legada — derivada da natureza+subcategoria, garantindo que o resto do app continue funcionando
+            const categoriaLegada = _finDerivarCategoriaLegada(natureza, subcatValor);
+            const tipoSaidaLegado = (tipo === 'saida')
+                ? (natureza === 'estoque' ? 'investimento' : 'custo')
                 : null;
             const lojaId    = document.getElementById('finMovLoja')?.value || null;
 
@@ -15367,9 +15484,16 @@
                 id: Date.now(),
                 tipo, caixaId, valor,
                 caixaDestinoId: document.getElementById('finMovCaixaDestino')?.value || null,
-                categoria:  document.getElementById('finMovCategoria')?.value,
-                tipoSaida:  tipoSaida,                  // 'custo' | 'investimento' | null (entradas)
-                lojaId:     lojaId,                     // ID da loja vinculada (opcional)
+                // ─── NOVOS CAMPOS (Fase 1 UI) ───
+                natureza: natureza,
+                subcategoria: _finSlug(subcatValor),
+                subcategoriaLabel: subcatValor,
+                subcategoriaCustom: (document.getElementById('finMovSubcat')?.value === '__custom__') ? subcatCustom : null,
+                classificacaoManual: true,
+                // ─── CAMPOS EXISTENTES (mantidos p/ compat) ───
+                categoria:  categoriaLegada,
+                tipoSaida:  tipoSaidaLegado,
+                lojaId:     lojaId,
                 data:       document.getElementById('finMovData')?.value,
                 descricao:  document.getElementById('finMovDesc')?.value,
                 criadoEm:   new Date().toISOString()
@@ -15380,6 +15504,7 @@
                 await _salvar('fin-movs', movs);
                 document.getElementById('finMovValor').value = '';
                 document.getElementById('finMovDesc').value  = '';
+                if (document.getElementById('finMovSubcatCustom')) document.getElementById('finMovSubcatCustom').value = '';
                 mostrarMensagem('msg-fin-mov','✓ Movimentação registrada!','success');
                 renderHistoricoMovimentacoes();
                 renderContasList();
@@ -15387,6 +15512,34 @@
             } catch(e) {
                 mostrarMensagem('msg-fin-mov','❌ Erro ao salvar. Tente novamente.','error');
             }
+        }
+
+        // Deriva a categoria legada a partir da nova natureza+subcat
+        // Mapeia pras categorias já existentes no sistema pra que UI/cálculos antigos continuem coerentes.
+        // Se não encontrar, usa 'outros' (existente).
+        function _finDerivarCategoriaLegada(natureza, subcatLabel) {
+            var slug = _finSlug(subcatLabel);
+            // Mapeamentos que preservam o comportamento de calcularSaldoCaixa e telas antigas
+            if (natureza === 'operacional') {
+                if (slug === 'trafego_pago') return 'trafego';
+                if (slug === 'frete')        return 'frete';
+                return 'operacional';
+            }
+            if (natureza === 'estoque') {
+                if (slug === 'reposicao_de_estoque') return 'reposicao_estoque';
+                return 'estoque';
+            }
+            if (natureza === 'socios') {
+                if (slug === 'pro_labore')            return 'prolabore';
+                if (slug === 'aporte')                return 'aporte_pessoal';
+                if (slug === 'distribuicao_de_lucros')return 'retirada_lucro';
+                if (slug === 'retirada')              return 'pessoal_retirada';
+                if (slug === 'acerto_entre_socios')   return 'ajuste_manual';
+                return 'retirada_lucro';
+            }
+            if (natureza === 'transferencia') return 'outros';
+            if (natureza === 'ajuste')        return 'ajuste_manual';
+            return 'outros';
         }
 
         async function registrarEntradaFinanceira(venda, caixaIdManual) {
@@ -19177,6 +19330,7 @@
             'caixa-anotacoes':           { tabela: 'caixa_anotacoes',    tipo: 'array'  },
             'assistente-config':         { tabela: 'assistente_config',  tipo: 'dict'   },
             'assistente-conversas':      { tabela: 'assistente_conversas', tipo: 'array' },
+            'fin-subcats-custom':        { tabela: 'fin_subcats_custom', tipo: 'dict'  },
         };
 
         // ── Cache em memória (fonte primária de leitura) ──
@@ -19253,7 +19407,7 @@
             // user_id só é enviado explicitamente para tabelas NOVAS criadas sem DEFAULT auth.uid()
             // Tabelas antigas têm DEFAULT auth.uid() e não devem receber user_id (evita 400).
             const _TABELAS_COM_USER_ID_EXPLICITO = new Set([
-                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes', 'assistente_config', 'assistente_conversas', 'fin_cartoes', 'fin_parcelas', 'fin_cc_metas'
+                'checklists', 'emp_config', 'mapa_fontes', 'acoes_lojas', 'acoes_check', 'prospeccoes', 'plano_mensal', 'notas', 'proximas_compras', 'notas_pastas', 'caixa_anotacoes', 'assistente_config', 'assistente_conversas', 'fin_cartoes', 'fin_parcelas', 'fin_cc_metas', 'fin_subcats_custom'
             ]);
             const _uid = (window._SB_AUTH && window._SB_AUTH.userId) || null;
             const _withUid = (obj) => (_uid && _TABELAS_COM_USER_ID_EXPLICITO.has(tabela))
