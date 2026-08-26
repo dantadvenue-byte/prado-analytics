@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.11';
+        window.APP_VERSION = '2026.08.13.12';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -15757,7 +15757,26 @@
                     '</div>' +
 
                     '<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px;">' +
-                        '<div class="form-group"><label>Tipo de saída *</label>' +
+                        // ─── NOVA CLASSIFICAÇÃO ───
+                        '<div class="form-group"><label>Natureza *</label>' +
+                            '<select id="mov-edit-natureza" onchange="_movEditAtualizarSubcats()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                                '<option value="">— não classificado —</option>' +
+                                (function(natAtual){
+                                    return ['operacional','estoque','socios','transferencia','ajuste'].map(function(n){
+                                        var lbl = {operacional:'Operacional',estoque:'Estoque',socios:'Sócios',transferencia:'Transferência',ajuste:'Ajuste'}[n];
+                                        return '<option value="' + n + '"' + (natAtual === n ? ' selected' : '') + '>' + lbl + '</option>';
+                                    }).join('');
+                                })(m.natureza || '') +
+                            '</select>' +
+                        '</div>' +
+                        '<div class="form-group" id="mov-edit-subcat-wrap" style="display:none;"><label>Subcategoria *</label>' +
+                            '<select id="mov-edit-subcat" onchange="_movEditAtualizarSubcats()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;"></select>' +
+                        '</div>' +
+                        '<div class="form-group" id="mov-edit-subcat-custom-wrap" style="display:none;"><label>Nome da subcategoria personalizada *</label>' +
+                            '<input type="text" id="mov-edit-subcat-custom" placeholder="Ex: Manutenção da loja" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
+                        '</div>' +
+                        // ─── CAMPOS EXISTENTES (mantidos) ───
+                        '<div class="form-group"><label>Tipo de saída (legado)</label>' +
                             '<select id="mov-edit-tipoSaida" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
                                 '<option value="custo"' + (tsAtual === 'custo' ? ' selected' : '') + '>💸 Custo (sai do patrimônio)</option>' +
                                 '<option value="investimento"' + (tsAtual === 'investimento' ? ' selected' : '') + '>📦 Investimento em mercadoria</option>' +
@@ -15769,7 +15788,7 @@
                                 lojas.map(function(l){ return '<option value="' + l.id + '"' + (String(m.lojaId) === String(l.id) ? ' selected' : '') + '>' + l.nome + '</option>'; }).join('') +
                             '</select>' +
                         '</div>' +
-                        '<div class="form-group"><label>Categoria</label>' +
+                        '<div class="form-group"><label>Categoria (legado)</label>' +
                             '<select id="mov-edit-categoria" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
                                 ['venda','trafego','frete','estoque','operacional','prolabore','retirada_lucro','imposto','outros'].map(function(c){
                                     var lbl = {venda:'💰 Venda', trafego:'📢 Tráfego', frete:'🚚 Frete', estoque:'📦 Estoque', operacional:'⚙️ Operacional', prolabore:'👤 Pró-labore', retirada_lucro:'💵 Retirada de lucro', imposto:'🧾 Imposto', outros:'📝 Outros'};
@@ -15790,15 +15809,78 @@
 
             modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
             document.body.appendChild(modal);
+            // Se já tem natureza salva, popular subcategoria
+            if (m.natureza) _movEditAtualizarSubcats(m.subcategoriaLabel || m.subcategoria || null);
+        }
+
+        // Handler do dropdown Natureza/Subcategoria no modal "Editar movimentação"
+        // Reusa _NAT_SUBCATS, _finSlug, _finLerSubcatsCustom (Fase 1 UI)
+        function _movEditAtualizarSubcats(preSelecionar) {
+            var elNat = document.getElementById('mov-edit-natureza');
+            var wrapSub = document.getElementById('mov-edit-subcat-wrap');
+            var wrapCustom = document.getElementById('mov-edit-subcat-custom-wrap');
+            if (!elNat || !wrapSub) return;
+            var nat = elNat.value;
+            var sel = document.getElementById('mov-edit-subcat');
+
+            if (!nat || typeof _NAT_SUBCATS === 'undefined' || !_NAT_SUBCATS[nat]) {
+                wrapSub.style.display = 'none';
+                if (wrapCustom) wrapCustom.style.display = 'none';
+                return;
+            }
+
+            var custom = (typeof _finLerSubcatsCustom === 'function' ? _finLerSubcatsCustom() : {})[nat] || [];
+            var todas = _NAT_SUBCATS[nat].concat(custom);
+            var slugPre = preSelecionar && typeof _finSlug === 'function' ? _finSlug(preSelecionar) : null;
+            if (sel) {
+                sel.innerHTML = '<option value="">— selecione —</option>' +
+                    todas.map(function(nome){
+                        var isSel = preSelecionar && (preSelecionar === nome || (slugPre && _finSlug(nome) === slugPre));
+                        return '<option value="' + nome.replace(/"/g,'&quot;') + '"' + (isSel ? ' selected' : '') + '>' + nome + '</option>';
+                    }).join('') +
+                    '<option value="__custom__">+ Personalizada</option>';
+            }
+            wrapSub.style.display = '';
+            if (wrapCustom) wrapCustom.style.display = (sel && sel.value === '__custom__') ? '' : 'none';
         }
 
         async function salvarEdicaoMovimentacao(id) {
             var movs = _ler('fin-movs') || [];
             var idx = movs.findIndex(function(x){ return x.id === id; });
             if (idx < 0) return;
-            movs[idx].tipoSaida  = document.getElementById('mov-edit-tipoSaida')?.value || 'custo';
+
+            // ─── NOVA CLASSIFICAÇÃO (Fase 1 UI) ───
+            var natureza = document.getElementById('mov-edit-natureza')?.value || '';
+            var subValor = document.getElementById('mov-edit-subcat')?.value || '';
+            var subCustomInput = document.getElementById('mov-edit-subcat-custom')?.value?.trim() || '';
+            if (natureza) {
+                if (!subValor) { alert('Selecione a subcategoria'); return; }
+                if (subValor === '__custom__') {
+                    if (!subCustomInput) { alert('Informe o nome da subcategoria personalizada'); return; }
+                    subValor = subCustomInput;
+                    if (typeof _finSalvarSubcatCustom === 'function') {
+                        try { await _finSalvarSubcatCustom(natureza, subCustomInput); } catch(_){}
+                    }
+                    movs[idx].subcategoriaCustom = subCustomInput;
+                } else {
+                    movs[idx].subcategoriaCustom = null;
+                }
+                movs[idx].natureza = natureza;
+                movs[idx].subcategoriaLabel = subValor;
+                movs[idx].subcategoria = (typeof _finSlug === 'function') ? _finSlug(subValor) : String(subValor).toLowerCase();
+                movs[idx].classificacaoManual = true;
+                // Manter categoria/tipoSaida legados coerentes
+                if (typeof _finDerivarCategoriaLegada === 'function') {
+                    movs[idx].categoria = _finDerivarCategoriaLegada(natureza, subValor);
+                }
+                movs[idx].tipoSaida = (natureza === 'estoque') ? 'investimento' : 'custo';
+            } else {
+                // Sem natureza — respeita campos legados manuais
+                movs[idx].tipoSaida  = document.getElementById('mov-edit-tipoSaida')?.value || 'custo';
+                movs[idx].categoria  = document.getElementById('mov-edit-categoria')?.value || movs[idx].categoria;
+            }
+
             movs[idx].lojaId     = document.getElementById('mov-edit-loja')?.value || null;
-            movs[idx].categoria  = document.getElementById('mov-edit-categoria')?.value || movs[idx].categoria;
             movs[idx].descricao  = document.getElementById('mov-edit-descricao')?.value || '';
             await _salvar('fin-movs', movs);
             var modal = document.getElementById('mov-edit-modal-area');
@@ -27568,11 +27650,21 @@
                 </div>
                 ${campoDeducao}
                 ${tipo === 'saida' ? `
-                <div class="form-group" style="margin-bottom:12px;"><label>Tipo *</label>
-                    <select id="mr-tipo-saida" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
-                        <option value="custo" selected>💸 Despesa (conta como despesa no ROCE)</option>
-                        <option value="investimento">📦 Reposição de estoque (não conta como despesa)</option>
+                <div class="form-group" style="margin-bottom:12px;"><label>Natureza *</label>
+                    <select id="mr-natureza" onchange="_mrAtualizarSubcats()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
+                        <option value="">— selecione —</option>
+                        <option value="operacional">Operacional</option>
+                        <option value="estoque">Estoque</option>
+                        <option value="socios">Sócios</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="ajuste">Ajuste</option>
                     </select>
+                </div>
+                <div class="form-group" id="mr-subcat-wrap" style="margin-bottom:12px;display:none;"><label>Subcategoria *</label>
+                    <select id="mr-subcat" onchange="_mrAtualizarSubcats()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
+                </div>
+                <div class="form-group" id="mr-subcat-custom-wrap" style="margin-bottom:12px;display:none;"><label>Nome da subcategoria personalizada *</label>
+                    <input type="text" id="mr-subcat-custom" placeholder="Ex: Manutenção da loja" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
                 </div>` : ''}
                 <div class="form-group" style="margin-bottom:12px;"><label>Valor (R$) *</label>
                     <input type="number" id="mr-valor" placeholder="0,00" step="0.01" min="0.01" autofocus style="width:100%;background:var(--bg-surface);border:1px solid ${corTipo}40;color:var(--text-main);padding:12px;border-radius:8px;font-family:inherit;font-size:16px;text-align:center;">
@@ -27589,16 +27681,44 @@
             setTimeout(function() { document.getElementById('mr-valor')?.focus(); var d=document.getElementById('mr-data'); if(d) d.value=new Date().toISOString().slice(0,10); }, 100);
         }
 
+        // Handler do dropdown Natureza/Subcategoria no modal "Saída Rápida"
+        // Reusa _NAT_SUBCATS, _finSlug, _finLerSubcatsCustom (já definidos na Fase 1 UI)
+        function _mrAtualizarSubcats() {
+            var elNat = document.getElementById('mr-natureza');
+            var wrapSub = document.getElementById('mr-subcat-wrap');
+            var wrapCustom = document.getElementById('mr-subcat-custom-wrap');
+            if (!elNat || !wrapSub) return;
+            var nat = elNat.value;
+            var sel = document.getElementById('mr-subcat');
+
+            if (!nat || !_NAT_SUBCATS[nat]) {
+                wrapSub.style.display = 'none';
+                if (wrapCustom) wrapCustom.style.display = 'none';
+                return;
+            }
+
+            var custom = (typeof _finLerSubcatsCustom === 'function' ? _finLerSubcatsCustom() : {})[nat] || [];
+            var todas = _NAT_SUBCATS[nat].concat(custom);
+            if (sel) {
+                sel.innerHTML = '<option value="">— selecione —</option>' +
+                    todas.map(function(nome){ return '<option value="' + nome.replace(/"/g,'&quot;') + '">' + nome + '</option>'; }).join('') +
+                    '<option value="__custom__">+ Personalizada</option>';
+            }
+            wrapSub.style.display = '';
+            if (wrapCustom) wrapCustom.style.display = (sel && sel.value === '__custom__') ? '' : 'none';
+        }
+
         async function confirmarMovRapida(caixaId, tipo) {
             const val  = parseFloat(document.getElementById('mr-valor')?.value);
             const desc = document.getElementById('mr-desc')?.value.trim() || (tipo==='entrada'?'Entrada rápida':'Saída rápida');
             if (!val || val <= 0) { alert('Informe um valor válido'); return; }
             const dataRapida = document.getElementById('mr-data')?.value || new Date().toISOString().slice(0,10);
 
-            // Para saídas: verificar de onde deduzir + tipo (custo ou investimento)
+            // Para saídas: verificar de onde deduzir + Natureza/Subcategoria
             var categoria = tipo === 'entrada' ? 'entrada_rapida' : 'saida_rapida';
             var deducao   = 'faturamento'; // padrão
             var tipoSaida = null;
+            var natureza = null, subcategoriaLabel = null, subcategoriaSlug = null, subcategoriaCustom = null;
             if (tipo === 'saida') {
                 var elLuc = document.getElementById('mr-ded-luc');
                 if (elLuc && elLuc.checked) {
@@ -27607,16 +27727,42 @@
                 } else {
                     categoria = 'saida_faturamento';
                 }
-                // Tipo da saída (despesa vs reposição)
-                var elTipoSaida = document.getElementById('mr-tipo-saida');
-                tipoSaida = elTipoSaida ? elTipoSaida.value : 'custo';
-                // Se for reposição, sobrescreve a categoria pra ficar coerente
-                if (tipoSaida === 'investimento') categoria = 'estoque';
+
+                // ─── Nova classificação (Fase 1 UI) ───
+                natureza = document.getElementById('mr-natureza')?.value || '';
+                var subValor = document.getElementById('mr-subcat')?.value || '';
+                var subCustomInput = document.getElementById('mr-subcat-custom')?.value?.trim() || '';
+                if (!natureza) { alert('Selecione a natureza'); return; }
+                if (!subValor) { alert('Selecione a subcategoria'); return; }
+                if (subValor === '__custom__') {
+                    if (!subCustomInput) { alert('Informe o nome da subcategoria personalizada'); return; }
+                    subValor = subCustomInput;
+                    subcategoriaCustom = subCustomInput;
+                    if (typeof _finSalvarSubcatCustom === 'function') {
+                        try { await _finSalvarSubcatCustom(natureza, subCustomInput); } catch(_){}
+                    }
+                }
+                subcategoriaLabel = subValor;
+                subcategoriaSlug  = (typeof _finSlug === 'function') ? _finSlug(subValor) : String(subValor).toLowerCase();
+
+                // tipoSaida legado — coerente com natureza
+                tipoSaida = (natureza === 'estoque') ? 'investimento' : 'custo';
+                // categoria legada — mapeamento pra manter compat com telas/cálculos antigos
+                if (typeof _finDerivarCategoriaLegada === 'function') {
+                    categoria = _finDerivarCategoriaLegada(natureza, subcategoriaLabel);
+                }
             }
 
             const movs = [...(_ler('fin-movs') || [])];
             var novoMov = { id: Date.now(), tipo, caixaId, valor: val, categoria, deducao, data: dataRapida, descricao: desc, criadoEm: new Date().toISOString() };
             if (tipoSaida) novoMov.tipoSaida = tipoSaida;
+            if (natureza) {
+                novoMov.natureza = natureza;
+                novoMov.subcategoria = subcategoriaSlug;
+                novoMov.subcategoriaLabel = subcategoriaLabel;
+                novoMov.subcategoriaCustom = subcategoriaCustom;
+                novoMov.classificacaoManual = true;
+            }
             movs.push(novoMov);
             await _salvar('fin-movs', movs);
             document.getElementById('modal-mov-rapida')?.remove();
