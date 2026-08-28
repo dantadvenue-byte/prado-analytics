@@ -1070,7 +1070,7 @@
         // APP_VERSION + verificação de nova versão
         // ═══════════════════════════════════════════════════
         // ATENÇÃO: incrementar o último dígito TODA vez que subir uma nova versão pro GitHub
-        window.APP_VERSION = '2026.08.13.12';
+        window.APP_VERSION = '2026.08.13.13';
 
         // Helper de escape local (não depende de _esc que é definido depois)
         function _escVer(s) {
@@ -2913,7 +2913,7 @@
                             </select>
                         </div>
                         <div class="form-group" id="finMovSubcatDiv" style="display:none;"><label>Subcategoria *</label>
-                            <select id="finMovSubcat" onchange="atualizarCamposMovimentacao()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
+                            <select id="finMovSubcat" onchange="_finMovToggleCustom()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
                         </div>
                         <div class="form-group" id="finMovSubcatCustomDiv" style="display:none;"><label>Nome da subcategoria personalizada *</label>
                             <input type="text" id="finMovSubcatCustom" placeholder="Ex: Manutenção da loja">
@@ -14603,6 +14603,14 @@
             if (divSubCustom) divSubCustom.style.display = isCustom ? '' : 'none';
         }
 
+        // Só mostra/esconde o campo Personalizada — NÃO reconstrói o <select> de subcategoria
+        function _finMovToggleCustom() {
+            var subSel = document.getElementById('finMovSubcat');
+            var divSubCustom = document.getElementById('finMovSubcatCustomDiv');
+            if (!subSel || !divSubCustom) return;
+            divSubCustom.style.display = (subSel.value === '__custom__') ? '' : 'none';
+        }
+
         // ── CONTAS BANCÁRIAS ──
         async function salvarContaBancaria() {
             const nome = document.getElementById('finContaNome')?.value.trim();
@@ -15092,6 +15100,58 @@
                 if (typeof renderContasList === 'function') renderContasList();
             } catch(err) { alert('Erro: ' + err.message); }
         }
+        // ═══════════════════════════════════════════════════════════════
+        // RESCUE: consertar contas fantasmas
+        // ═══════════════════════════════════════════════════════════════
+        // Quando o Supabase falha ou perde o link entre caixa.contaId e fin-contas,
+        // esta função reconstrói as contas faltantes com nomes que o usuário informa.
+        async function _consertarContasFantasmas() {
+            var caixas = _ler('fin-caixas') || [];
+            var contas = _ler('fin-contas') || [];
+            var caixasEspeciais = new Set([900000002, 900000003]);
+            var idsCadastrados = new Set(contas.map(function(c){ return String(c.id); }));
+            var idsFantasmas = [];
+            caixas.forEach(function(c){
+                if (!c.contaId || caixasEspeciais.has(c.id)) return;
+                var cid = String(c.contaId);
+                if (!idsCadastrados.has(cid) && idsFantasmas.indexOf(cid) === -1) {
+                    idsFantasmas.push(cid);
+                }
+            });
+            if (idsFantasmas.length === 0) {
+                alert('✅ Nenhuma conta fantasma encontrada — tudo em ordem.');
+                return;
+            }
+
+            var msg = 'Encontradas ' + idsFantasmas.length + ' conta(s) sem nome. Vou pedir o nome de cada uma:';
+            if (!confirm(msg)) return;
+
+            for (var i = 0; i < idsFantasmas.length; i++) {
+                var idFant = idsFantasmas[i];
+                // Mostrar quais caixas estão vinculados a essa conta pra dar contexto
+                var caixasVinc = caixas.filter(function(c){ return String(c.contaId) === idFant; }).map(function(c){ return c.nome; });
+                var contexto = caixasVinc.length ? '\nCaixas vinculados: ' + caixasVinc.join(', ') : '';
+                var nome = prompt('Nome da conta #' + idFant + '?' + contexto, '');
+                if (!nome || !nome.trim()) continue;
+                var idNum = /^\d+$/.test(idFant) ? Number(idFant) : idFant;
+                contas.push({
+                    id: idNum,
+                    nome: nome.trim(),
+                    tipo: 'corrente',
+                    fotoUrl: '',
+                    criadoEm: new Date().toISOString().slice(0, 10)
+                });
+            }
+
+            try {
+                await _salvar('fin-contas', contas);
+                alert('✅ Contas restauradas com sucesso!');
+                renderContasList();
+            } catch(err) {
+                alert('❌ Erro ao salvar: ' + err.message);
+            }
+        }
+
         function renderContasList() {
             const contas  = _ler('fin-contas')  || [];
             const caixas  = _ler('fin-caixas')  || [];
@@ -15143,7 +15203,17 @@
             }));
             // Renderiza AS DUAS: cadastradas primeiro, fantasmas depois
             const contasParaRender = [...contasNegocio, ...contasFantasmas];
-            el.innerHTML = htmlSemConta + contasParaRender.map(conta => {
+            var bannerFantasmas = '';
+            if (contasFantasmas.length > 0) {
+                bannerFantasmas = '<div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.30);border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">' +
+                    '<div style="flex:1;min-width:200px;">' +
+                        '<div style="font-size:12px;font-weight:800;color:#fbbf24;margin-bottom:2px;">⚠ ' + contasFantasmas.length + ' conta' + (contasFantasmas.length > 1 ? 's' : '') + ' sem nome</div>' +
+                        '<div style="font-size:11px;color:var(--text-muted);line-height:1.5;">Seus caixas estão vinculados a contas que não têm nome cadastrado. Clique em "Consertar" pra nomeá-las de uma vez.</div>' +
+                    '</div>' +
+                    '<button onclick="_consertarContasFantasmas()" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border:none;color:#000;padding:9px 16px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;">Consertar contas</button>' +
+                '</div>';
+            }
+            el.innerHTML = htmlSemConta + bannerFantasmas + contasParaRender.map(conta => {
                 const caixasConta = caixas.filter(c => String(c.contaId) === String(conta.id) && !caixasEspeciais.has(c.id));
                 const saldoTotal  = caixasConta.reduce((s,c) => s + calcularSaldoCaixa(c.id).saldo, 0);
                 const plTotal     = caixasConta.reduce((s,c) => s + calcularSaldoCaixa(c.id).saldoReservado, 0);
@@ -15770,7 +15840,7 @@
                             '</select>' +
                         '</div>' +
                         '<div class="form-group" id="mov-edit-subcat-wrap" style="display:none;"><label>Subcategoria *</label>' +
-                            '<select id="mov-edit-subcat" onchange="_movEditAtualizarSubcats()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;"></select>' +
+                            '<select id="mov-edit-subcat" onchange="_movEditToggleCustom()" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;"></select>' +
                         '</div>' +
                         '<div class="form-group" id="mov-edit-subcat-custom-wrap" style="display:none;"><label>Nome da subcategoria personalizada *</label>' +
                             '<input type="text" id="mov-edit-subcat-custom" placeholder="Ex: Manutenção da loja" style="background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;width:100%;">' +
@@ -15842,6 +15912,14 @@
             }
             wrapSub.style.display = '';
             if (wrapCustom) wrapCustom.style.display = (sel && sel.value === '__custom__') ? '' : 'none';
+        }
+
+        // Só mostra/esconde custom — NÃO reconstrói o <select>
+        function _movEditToggleCustom() {
+            var sel = document.getElementById('mov-edit-subcat');
+            var wrapCustom = document.getElementById('mov-edit-subcat-custom-wrap');
+            if (!sel || !wrapCustom) return;
+            wrapCustom.style.display = (sel.value === '__custom__') ? '' : 'none';
         }
 
         async function salvarEdicaoMovimentacao(id) {
@@ -27524,6 +27602,14 @@
             }
             console.log('[SalvarConta] Contas depois:', contas.length, contas.map(function(c){return {id:c.id, nome:c.nome};}));
             try {
+                // Usar _salvar completo (inclui remoção segura de removidos)
+                // Mas ANTES: fazer UPSERT direto da conta específica pra garantir persistência
+                if (typeof _salvarUm === 'function') {
+                    var contaSalvar = idx >= 0 ? contas[idx] : contas[contas.length - 1];
+                    await _salvarUm('fin-contas', contaSalvar);
+                    console.log('[SalvarConta] ✅ UPSERT direto da conta:', contaSalvar);
+                }
+                // Salvar array completo também (mantém cache local sincronizado)
                 await _salvar('fin-contas', contas);
                 console.log('[SalvarConta] ✅ Salvo com sucesso');
                 document.getElementById('modal-editar-conta')?.remove();
@@ -27661,7 +27747,7 @@
                     </select>
                 </div>
                 <div class="form-group" id="mr-subcat-wrap" style="margin-bottom:12px;display:none;"><label>Subcategoria *</label>
-                    <select id="mr-subcat" onchange="_mrAtualizarSubcats()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
+                    <select id="mr-subcat" onchange="_mrToggleCustom()" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;"></select>
                 </div>
                 <div class="form-group" id="mr-subcat-custom-wrap" style="margin-bottom:12px;display:none;"><label>Nome da subcategoria personalizada *</label>
                     <input type="text" id="mr-subcat-custom" placeholder="Ex: Manutenção da loja" style="width:100%;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-main);padding:10px;border-radius:8px;font-family:inherit;">
@@ -27705,7 +27791,15 @@
                     '<option value="__custom__">+ Personalizada</option>';
             }
             wrapSub.style.display = '';
-            if (wrapCustom) wrapCustom.style.display = (sel && sel.value === '__custom__') ? '' : 'none';
+            if (wrapCustom) wrapCustom.style.display = 'none';
+        }
+
+        // Só mostra/esconde o campo Personalizada — NÃO reconstrói o <select> de subcategoria
+        function _mrToggleCustom() {
+            var sel = document.getElementById('mr-subcat');
+            var wrapCustom = document.getElementById('mr-subcat-custom-wrap');
+            if (!sel || !wrapCustom) return;
+            wrapCustom.style.display = (sel.value === '__custom__') ? '' : 'none';
         }
 
         async function confirmarMovRapida(caixaId, tipo) {
